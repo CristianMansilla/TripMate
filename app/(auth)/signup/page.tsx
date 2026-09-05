@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation'
 
 function SignupForm(){
   const [name,setName]=useState('')
+  const [username,setUsername]=useState('')
   const [email,setEmail]=useState('')
   const [password,setPassword]=useState('')
   const [confirmPassword,setConfirmPassword]=useState('')
@@ -30,13 +31,24 @@ function SignupForm(){
       setMessage('Las contraseñas no coinciden.')
       return
     }
+    const cleanUsername=username.trim().toLowerCase()
+    if(!/^[a-z0-9_]{3,24}$/.test(cleanUsername)){
+      setMessage('El nombre de usuario debe tener entre 3 y 24 caracteres: letras, números o guion bajo.')
+      return
+    }
     const supabase=createClient()
     if(!supabase){setMessage('Configurá Supabase para habilitar registro.');return}
     setLoading(true)
+    const {data:existingUsername}=await supabase.rpc('resolve_login_identifier',{p_identifier:cleanUsername})
+    if(existingUsername){
+      setLoading(false)
+      setMessage('Ese nombre de usuario ya está en uso.')
+      return
+    }
     const redirectTo=`${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
     const {error}=await supabase.auth.signUp({
       email,password,
-      options:{data:{name},emailRedirectTo:redirectTo}
+      options:{data:{name,username:cleanUsername},emailRedirectTo:redirectTo}
     })
     setLoading(false)
     if(error){setMessage(error.message);return}
@@ -50,6 +62,7 @@ function SignupForm(){
     <p>Después vas a poder crear viajes e invitar a otras personas.</p>
     {message&&<div className="notice">{message}</div>}
     <div className="field"><label>Nombre</label><input value={name} onChange={e=>setName(e.target.value)} required autoComplete="name"/></div>
+    <div className="field" style={{marginTop:12}}><label>Nombre de usuario</label><input value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} required minLength={3} maxLength={24} pattern="[a-z0-9_]{3,24}" autoComplete="username" placeholder="cristian"/></div>
     <div className="field" style={{marginTop:12}}><label>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email"/></div>
     <div className="field" style={{marginTop:12}}>
       <label>Contraseña</label>

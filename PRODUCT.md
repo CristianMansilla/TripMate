@@ -28,7 +28,7 @@ Una sola fuente de verdad para un viaje compartido. Reduce chats dispersos, capt
 Viajes múltiples, miembros, itinerario, gastos, reservas, valija, realtime.
 
 ### V1
-Mapas, archivos, historial, votos, chat por viaje, filtros, PWA, offline y notificaciones.
+Mapas, archivos, historial, votos, chat por viaje, filtros, offline y notificaciones.
 
 ### V2
-Importación asistida de reservas, login por nombre de usuario, sugerencias IA, optimización de rutas, clima/contexto, listas públicas/plantillas de viaje.
+Importación asistida de reservas, sugerencias IA, optimización de rutas, clima/contexto, listas públicas/plantillas de viaje.

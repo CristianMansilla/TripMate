@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation'
 const tabs = ['Resumen','Itinerario','Presupuesto','Reservas','Valija','Integrantes'] as const
 type Tab = typeof tabs[number]
 type AddKind = 'expense'|'reservation'|'packing'|null
-type TripMember = { id:string; name:string; role:'owner'|'editor'|'viewer' }
+type TripMember = { id:string; name:string; username?:string; role:'owner'|'editor'|'viewer'; joinedAt?:string }
 
 function dayLabel(date:string){
   return new Date(date+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})
@@ -84,7 +84,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     }
 
     const [membersQ,actsQ,expQ,resQ,packQ,logQ]=await Promise.all([
-      supabase.from('trip_members').select('role,user_id').eq('trip_id',tripId),
+      supabase.from('trip_members').select('role,user_id,joined_at').eq('trip_id',tripId),
       supabase.from('activities').select('*').eq('trip_id',tripId).order('date').order('start_time'),
       supabase.from('expenses').select('*').eq('trip_id',tripId).order('created_at'),
       supabase.from('reservations').select('*').eq('trip_id',tripId).order('priority'),
@@ -94,11 +94,12 @@ export default function TripWorkspace({tripId}:{tripId:string}){
 
     const members=(membersQ.data||[]) as any[]
     const memberIds=members.map(m=>m.user_id)
-    const {data:profileRows}=memberIds.length?await supabase.from('profiles').select('id,display_name').in('id',memberIds):{data:[] as any[]}
+    const {data:profileRows}=memberIds.length?await supabase.from('profiles').select('id,display_name,username').in('id',memberIds):{data:[] as any[]}
     const nameById=new Map<string,string>((profileRows||[]).map((p:any)=>[String(p.id),String(p.display_name || 'Viajero')]))
+    const usernameById=new Map<string,string>((profileRows||[]).map((p:any)=>[String(p.id),String(p.username || '')]))
     const names:string[]=memberIds.map((id:string)=>nameById.get(id) || 'Viajero')
     const myRole=members.find(m=>m.user_id===user.id)?.role
-    setMembers(members.map((m:any)=>({id:String(m.user_id),name:nameById.get(String(m.user_id)) || 'Viajero',role:m.role})))
+    setMembers(members.map((m:any)=>({id:String(m.user_id),name:nameById.get(String(m.user_id)) || 'Viajero',username:usernameById.get(String(m.user_id)) || undefined,role:m.role,joinedAt:m.joined_at})))
     setTrip(mapTrip(tripRow,names,myRole))
     setActs((actsQ.data||[]).map(mapActivity))
     setExp((expQ.data||[]).map(mapExpense))
@@ -287,6 +288,20 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     await loadConnectedData(true)
   }
 
+  async function updateMemberRole(member:TripMember, role:TripMember['role']){
+    if(trip.role!=='owner' || member.role==='owner' || role==='owner' || role===member.role)return
+    setMembers(current=>current.map(m=>m.id===member.id?{...m,role}:m))
+    const supabase=createClient()
+    if(!supabase)return
+    const {error}=await supabase
+      .from('trip_members')
+      .update({role})
+      .eq('trip_id',trip.id)
+      .eq('user_id',member.id)
+    if(error){setError(error.message);await loadConnectedData(true);return}
+    await logChange(trip.id,'member',null,'updated',`${member.name} ahora tiene rol ${roleLabel(role)}.`)
+  }
+
   if(loading)return <div className="shell"><AppBar/><main className="container"><div className="empty">Cargando viaje…</div></main></div>
 
   return <div className="shell">
@@ -388,10 +403,13 @@ export default function TripWorkspace({tripId}:{tripId:string}){
           {members.length?members.map(member=><div className="list-row" key={member.id}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <div className="avatar">{member.name[0]}</div>
-              <div><strong>{member.name}</strong><small>{roleDescription(member.role)}</small></div>
+              <div><strong>{member.name}</strong><small>{member.username?`@${member.username} · `:''}{roleDescription(member.role)}{member.joinedAt?` · desde ${shortDate(member.joinedAt.slice(0,10))}`:''}</small></div>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <span className={`chip ${member.role==='owner'?'green':''}`}>{roleLabel(member.role)}</span>
+              {trip.role==='owner'&&member.role!=='owner'?<select className="role-select" value={member.role} onChange={e=>updateMemberRole(member,e.target.value as TripMember['role'])}>
+                <option value="editor">Editor</option>
+                <option value="viewer">Lector</option>
+              </select>:<span className={`chip ${member.role==='owner'?'green':''}`}>{roleLabel(member.role)}</span>}
               {trip.role==='owner'&&member.role!=='owner'&&<button className="icon-btn" title={`Expulsar a ${member.name}`} aria-label={`Expulsar a ${member.name}`} onClick={()=>setMemberToRemove(member)}><UserMinus size={17}/></button>}
             </div>
           </div>):trip.memberNames.map((name,i)=><div className="list-row" key={`${name}-${i}`}>

@@ -1,4 +1,4 @@
-# TripMate · v0.1
+# TripMate · v0.2
 
 TripMate es una aplicación web colaborativa y mobile-first para planificar **cualquier viaje**: Córdoba, Brasil, Europa, escapadas con amigos, etc. Cada usuario puede crear múltiples viajes, invitar acompañantes y compartir itinerario, presupuesto, reservas y valija.
 
@@ -6,15 +6,19 @@ TripMate es una aplicación web colaborativa y mobile-first para planificar **cu
 
 - Next.js + TypeScript.
 - Supabase Auth preparado: registro, login, recuperación y cambio de contraseña.
+- Login con email o nombre de usuario.
+- Perfil editable con nombre visible y nombre de usuario.
 - Dashboard multi-viaje.
 - Creación real de viajes con Supabase.
 - Roles `owner`, `editor`, `viewer`.
+- Gestión de integrantes con cambio de rol y expulsión.
 - Invitaciones por enlace/código.
 - Itinerario editable.
 - Alta rápida de gastos, reservas y valija.
 - Presupuesto editable con moneda base por viaje.
 - Sincronización Realtime de actividades, gastos, reservas y valija.
 - Historial de cambios básico.
+- PWA instalable con manifest e icono de app.
 - RLS por viaje.
 - Modo demo sin Supabase, con persistencia en `localStorage`.
 - Ropa fuera del presupuesto del viaje.
@@ -45,6 +49,8 @@ Si tu proyecto todavía muestra la clave legacy `anon`, también se admite `NEXT
 5. En Supabase Auth habilitar Email/Password.
 6. Configurar Site URL y Redirect URLs para localhost y Vercel.
 7. Ejecutar la app y crear cuenta.
+
+Si venís desde una base `v0.1`, ejecutar `supabase/v0.2.sql` una sola vez antes de usar nombres de usuario.
 
 ## Primer uso recomendado
 
@@ -89,6 +95,5 @@ Ver `SETUP.md` para GitHub + Supabase + Vercel.
 - PWA/offline.
 - Exportación PDF/JSON.
 - Chat por viaje para coordinar decisiones sin salir de TripMate.
-- Nombre de usuario para iniciar sesión sin escribir el email completo.
 - Mejor historial con nombre/avatar del editor.
 - Fotos de portada y galería del viaje.

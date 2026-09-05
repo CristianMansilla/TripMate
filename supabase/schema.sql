@@ -11,6 +11,7 @@ create type public.reservation_status as enum ('watching','pending','reserved','
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
+  username text unique check(username is null or username ~ '^[a-z0-9_]{3,24}$'),
   avatar_url text,
   created_at timestamptz not null default now()
 );
@@ -200,6 +201,16 @@ begin
   return v_trip;
 end $$;
 
+create or replace function public.resolve_login_identifier(p_identifier text)
+returns text language sql stable security definer set search_path = public
+as $$
+  select u.email
+  from public.profiles p
+  join auth.users u on u.id = p.id
+  where lower(p.username) = lower(trim(p_identifier))
+  limit 1;
+$$;
+
 create or replace function public.join_trip_by_code(p_code text)
 returns uuid language plpgsql security definer set search_path=public as $$
 declare v_inv public.trip_invites%rowtype;
@@ -220,7 +231,12 @@ end $$;
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path=public as $$
 begin
-  insert into public.profiles(id,display_name) values(new.id, coalesce(new.raw_user_meta_data->>'name', split_part(new.email,'@',1)))
+  insert into public.profiles(id,display_name,username)
+  values(
+    new.id,
+    coalesce(new.raw_user_meta_data->>'name', split_part(new.email,'@',1)),
+    nullif(lower(regexp_replace(coalesce(new.raw_user_meta_data->>'username',''), '[^a-z0-9_]', '', 'g')), '')
+  )
   on conflict(id) do nothing;
   return new;
 end $$;
@@ -252,6 +268,8 @@ alter table public.change_log enable row level security;
 
 create policy "profiles visible to travel companions" on public.profiles for select to authenticated using(public.shares_trip_with(id));
 create policy "profile owner updates" on public.profiles for update to authenticated using(id=auth.uid()) with check(id=auth.uid());
+
+grant execute on function public.resolve_login_identifier(text) to anon, authenticated;
 
 create policy "members read trips" on public.trips for select to authenticated using(public.is_trip_member(id));
 create policy "owners update trips" on public.trips for update to authenticated using(public.is_trip_owner(id)) with check(public.is_trip_owner(id));

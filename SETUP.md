@@ -5,7 +5,7 @@
 ```bash
 git init
 git add .
-git commit -m "TripMate v0.1"
+git commit -m "TripMate v0.2"
 git branch -M main
 git remote add origin https://github.com/TU_USUARIO/tripmate.git
 git push -u origin main
@@ -20,6 +20,10 @@ Crear un proyecto gratuito y ejecutar completo:
 `supabase/schema.sql`
 
 Después verificar que existan las tablas del proyecto.
+
+Para actualizar una base existente de `v0.1` a `v0.2`, ejecutar:
+
+`supabase/v0.2.sql`
 
 ## 3. Variables locales
 

@@ -28,6 +28,7 @@ button { cursor: pointer; }
 .brand { display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:-.03em; font-size:20px; }
 .brand-mark { width:36px; height:36px; border-radius:12px; display:grid; place-items:center; color:white; background:linear-gradient(135deg,var(--brand),#8f7cff); box-shadow:0 8px 20px rgba(91,76,240,.28); }
 .avatar { width:36px; height:36px; border-radius:50%; background:#e8ebf2; display:grid; place-items:center; font-weight:800; color:#42506a; }
+.avatar-button { border:0; padding:0; cursor:pointer; }
 .container { max-width:1240px; margin:0 auto; padding:28px 22px 96px; }
 .topline { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:24px; }
 .topline h1 { margin:0; font-size:34px; letter-spacing:-.04em; }
@@ -106,6 +107,7 @@ button { cursor: pointer; }
 .field label { font-size:12px; font-weight:800; color:#566078; }
 .field input,.field select,.field textarea { width:100%; border:1px solid var(--line); border-radius:13px; background:#fbfcfe; padding:11px 12px; color:var(--ink); outline:none; }
 .field input:focus,.field select:focus,.field textarea:focus { border-color:#9a90f7; box-shadow:0 0 0 3px #efedff; }
+.field input:disabled { background:var(--surface-2); color:var(--muted); }
 .field textarea { min-height:90px; resize:vertical; }
 .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
 .empty { border:1px dashed #ccd3df; border-radius:18px; padding:28px; text-align:center; color:var(--muted); }
@@ -161,6 +163,7 @@ button { cursor: pointer; }
 .notice.dismissible button { border:0; background:transparent; color:inherit; font-size:20px; }
 .user-menu { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.8); border:1px solid var(--line); border-radius:999px; padding:4px 6px 4px 4px; }
 .user-name { font-size:13px; font-weight:750; color:#4d5870; max-width:120px; overflow:hidden; text-overflow:ellipsis; }
+.user-name-button { border:0; background:transparent; cursor:pointer; padding:0; text-align:left; }
 .connection-pill { display:inline-flex; align-items:center; gap:7px; padding:8px 11px; border-radius:999px; font-size:12px; font-weight:800; margin-bottom:16px; }
 .connection-pill.online { color:var(--green); background:var(--green-soft); }
 .connection-pill.demo { color:var(--amber); background:var(--amber-soft); }
@@ -185,6 +188,8 @@ button { cursor: pointer; }
 .check-empty { width:20px; height:20px; border-radius:7px; border:2px solid #cbd2de; flex:0 0 auto; }
 .invite-box { display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:16px; }
 .invite-box input { min-width:0; border:1px solid var(--line); border-radius:13px; padding:11px 12px; background:#fbfcfe; color:var(--ink); }
+.role-select { border:1px solid var(--line); border-radius:999px; padding:7px 28px 7px 10px; background:#fbfcfe; color:#4d5870; font-size:12px; font-weight:800; outline:none; }
+.role-select:focus { border-color:#9a90f7; box-shadow:0 0 0 3px #efedff; }
 @media (max-width:640px) {
   .auth-links { flex-direction:column; align-items:center; }
   .invite-box { grid-template-columns:1fr; }

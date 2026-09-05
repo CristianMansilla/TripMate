@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 function LoginForm(){
-  const [email,setEmail]=useState('')
+  const [identifier,setIdentifier]=useState('')
   const [password,setPassword]=useState('')
   const [message,setMessage]=useState('')
   const [loading,setLoading]=useState(false)
@@ -24,6 +24,16 @@ function LoginForm(){
       return
     }
     setLoading(true)
+    let email=identifier.trim()
+    if(!email.includes('@')){
+      const {data,error}=await supabase.rpc('resolve_login_identifier',{p_identifier:email})
+      if(error || !data){
+        setLoading(false)
+        setMessage('No encontramos ese nombre de usuario.')
+        return
+      }
+      email=data
+    }
     const {error}=await supabase.auth.signInWithPassword({email,password})
     setLoading(false)
     if(error){setMessage(error.message);return}
@@ -37,7 +47,7 @@ function LoginForm(){
       <h1>Entrá a TripMate</h1>
       <p>Planificá viajes con tu pareja, amigos o familia y mantengan todo sincronizado.</p>
       {message&&<div className="notice">{message}</div>}
-      <div className="field"><label>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email"/></div>
+      <div className="field"><label>Email o usuario</label><input value={identifier} onChange={e=>setIdentifier(e.target.value)} required autoComplete="username" placeholder="cristian o email@dominio.com"/></div>
       <div className="field" style={{marginTop:12}}>
         <label>Contraseña</label>
         <div className="password-wrap">
