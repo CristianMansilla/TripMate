@@ -3,19 +3,22 @@ import Link from 'next/link'
 import { Compass, LogOut, Plus, Save, UserRound } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 
 export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
-  const [name,setName]=useState('Demo')
+  const [name,setName]=useState('Usuario')
   const [username,setUsername]=useState('')
   const [email,setEmail]=useState('')
   const [profileOpen,setProfileOpen]=useState(false)
   const [profileMessage,setProfileMessage]=useState('')
   const [saving,setSaving]=useState(false)
   const [connected,setConnected]=useState(false)
+  const [mounted,setMounted]=useState(false)
   const router=useRouter()
 
   useEffect(()=>{
+    setMounted(true)
     const supabase=createClient()
     if(!supabase)return
     setConnected(true)
@@ -66,19 +69,8 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
     setProfileOpen(false)
   }
 
-  return <header className="appbar">
-    <div className="appbar-inner">
-      <Link className="brand" href="/dashboard"><span className="brand-mark"><Compass size={19}/></span>TripMate</Link>
-      <div style={{display:'flex',alignItems:'center',gap:10}}>
-        {onNewTrip&&<button className="btn btn-secondary" style={{padding:'9px 12px'}} onClick={onNewTrip}><Plus size={16}/><span className="desktop-label">Viaje</span></button>}
-        <div className="user-menu">
-          <button className="avatar avatar-button" title="Editar perfil" onClick={()=>setProfileOpen(true)}>{name[0]?.toUpperCase() || <UserRound size={16}/>}</button>
-          <button className="desktop-label user-name user-name-button" onClick={()=>setProfileOpen(true)}>{name}</button>
-          {connected&&<button className="icon-btn" title="Cerrar sesión" onClick={logout}><LogOut size={16}/></button>}
-        </div>
-      </div>
-    </div>
-    {profileOpen&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setProfileOpen(false)}}>
+  const profileModal=profileOpen&&mounted?createPortal(
+    <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setProfileOpen(false)}}>
       <div className="modal confirm-modal">
         <h2>Perfil</h2>
         <p className="muted">Estos datos se muestran a las personas que comparten viajes con vos.</p>
@@ -91,6 +83,24 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
           <button className="btn btn-primary" onClick={saveProfile} disabled={saving}><Save size={16}/>{saving?'Guardando…':'Guardar'}</button>
         </div>
       </div>
-    </div>}
+    </div>,
+    document.body
+  ):null
+
+  return <>
+  <header className="appbar">
+    <div className="appbar-inner">
+      <Link className="brand" href="/dashboard"><span className="brand-mark"><Compass size={19}/></span>TripMate</Link>
+      <div style={{display:'flex',alignItems:'center',gap:10}}>
+        {onNewTrip&&<button className="btn btn-secondary" style={{padding:'9px 12px'}} onClick={onNewTrip}><Plus size={16}/><span className="desktop-label">Viaje</span></button>}
+        <div className="user-menu">
+          <button className="avatar avatar-button" title="Editar perfil" onClick={()=>setProfileOpen(true)}>{name[0]?.toUpperCase() || <UserRound size={16}/>}</button>
+          <button className="desktop-label user-name user-name-button" onClick={()=>setProfileOpen(true)}>{name}</button>
+          {connected&&<button className="icon-btn" title="Cerrar sesión" onClick={logout}><LogOut size={16}/></button>}
+        </div>
+      </div>
+    </div>
   </header>
+  {profileModal}
+  </>
 }
