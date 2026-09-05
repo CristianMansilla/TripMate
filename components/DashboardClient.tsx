@@ -1,0 +1,134 @@
+'use client'
+import Link from 'next/link'
+import { AppBar } from './AppBar'
+import NewTripModal from './NewTripModal'
+import { trips as demoTrips } from '@/lib/demo-data'
+import { Trip } from '@/lib/types'
+import { CalendarDays, MapPin, Plus, Users, Wifi, WifiOff } from 'lucide-react'
+import { createClient, hasSupabaseEnv } from '@/lib/supabase-client'
+import { mapTrip } from '@/lib/db-mappers'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { importCordobaDemo } from '@/lib/import-cordoba'
+
+function dateRange(start:string,end:string){
+  const a=new Date(start+'T12:00:00'), b=new Date(end+'T12:00:00')
+  return `${a.toLocaleDateString('es-AR',{day:'numeric',month:'short'})} — ${b.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'})}`
+}
+
+export default function DashboardClient(){
+  const [trips,setTrips]=useState<Trip[]>(demoTrips)
+  const [loading,setLoading]=useState(hasSupabaseEnv())
+  const [connected,setConnected]=useState(false)
+  const [showNew,setShowNew]=useState(false)
+  const [importing,setImporting]=useState(false)
+  const router=useRouter()
+
+  useEffect(()=>{
+    let alive=true
+    async function load(){
+      const supabase=createClient()
+      if(!supabase){setLoading(false);return}
+      const {data:{user}}=await supabase.auth.getUser()
+      if(!alive)return
+      if(!user){router.replace('/login');return}
+      setConnected(true)
+
+      const pendingCode=localStorage.getItem('tripmate-pending-invite-code')
+      if(pendingCode){
+        const {data,error}=await supabase.rpc('join_trip_by_code',{p_code:pendingCode})
+        if(!error&&data){
+          localStorage.removeItem('tripmate-pending-invite-code')
+          router.replace(`/trip/${data}`)
+          return
+        }
+        localStorage.removeItem('tripmate-pending-invite-code')
+      }
+
+      const {data:memberships,error}=await supabase
+        .from('trip_members')
+        .select('role, trips(*)')
+        .eq('user_id',user.id)
+        .order('joined_at',{ascending:false})
+      if(error){console.error(error);setLoading(false);return}
+
+      const loaded:Trip[]=[]
+      for(const membership of memberships || []){
+        const row:any=(membership as any).trips
+        if(!row)continue
+        const {data:memberRows}=await supabase.from('trip_members').select('user_id').eq('trip_id',row.id)
+        const ids=(memberRows||[]).map((m:any)=>m.user_id)
+        const {data:profiles}=ids.length?await supabase.from('profiles').select('id,display_name').in('id',ids):{data:[] as any[]}
+        const nameById=new Map<string,string>((profiles||[]).map((p:any)=>[String(p.id),String(p.display_name || 'Viajero')]))
+        const names:string[]=ids.map((id:string)=>nameById.get(id) || 'Viajero')
+        loaded.push(mapTrip(row,names,(membership as any).role))
+      }
+      if(alive){setTrips(loaded);setLoading(false)}
+    }
+    load()
+    return()=>{alive=false}
+  },[router])
+
+  async function createTrip(input:Omit<Trip,'id'|'status'|'memberNames'>){
+    const supabase=createClient()
+    if(!supabase){
+      const id=`demo-${Date.now()}`
+      const trip:Trip={...input,id,status:'planning',memberNames:['Demo'],role:'owner'}
+      setTrips(c=>[trip,...c])
+      localStorage.setItem(`tripmate-demo:${id}`,JSON.stringify({trip,acts:[],exp:[],res:[],pack:[]}))
+      router.push(`/trip/${id}`)
+      return
+    }
+    const {data,error}=await supabase.rpc('create_trip',{
+      p_name:input.name,
+      p_destination:input.destination,
+      p_country:input.country || null,
+      p_start_date:input.startDate,
+      p_end_date:input.endDate,
+      p_currency:input.currency,
+    })
+    if(error)throw error
+    router.push(`/trip/${data}`)
+  }
+
+
+  async function importCordoba(){
+    setImporting(true)
+    try{
+      const id=await importCordobaDemo()
+      router.push(`/trip/${id}`)
+    }catch(err:any){
+      alert(err?.message || 'No se pudo importar Córdoba.')
+    }finally{setImporting(false)}
+  }
+
+  return <div className="shell">
+    <AppBar onNewTrip={()=>setShowNew(true)}/>
+    <main className="container">
+      <div className="topline">
+        <div><h1>Tus viajes</h1><p>Planificá, compartí y mantené todo actualizado en un solo lugar.</p></div>
+        <button className="btn btn-primary" onClick={()=>setShowNew(true)}><Plus size={17}/> Nuevo viaje</button>
+      </div>
+
+      <div className={`connection-pill ${connected?'online':'demo'}`}>
+        {connected?<><Wifi size={14}/> Conectado · cambios compartidos</>:<><WifiOff size={14}/> Modo demo · cambios sólo en este navegador</>}
+      </div>
+
+      {loading?<div className="empty">Cargando tus viajes…</div>:trips.length===0?<div className="empty"><h3>Todavía no tenés viajes</h3><p>Creá el primero y después invitá a quien viaje con vos.</p><div className="empty-actions"><button className="btn btn-primary" onClick={()=>setShowNew(true)}>Crear mi primer viaje</button>{connected&&<button className="btn btn-secondary" onClick={importCordoba} disabled={importing}>{importing?'Importando…':'Importar Córdoba 2026'}</button>}</div></div>:
+      <div className="grid-trips">
+        {trips.map((trip)=><Link className="trip-card" href={`/trip/${trip.id}`} key={trip.id}>
+          <div className="trip-cover">
+            <div className="date-pill"><CalendarDays size={13} style={{verticalAlign:'-2px',marginRight:5}}/>{dateRange(trip.startDate,trip.endDate)}</div>
+            <div><div style={{opacity:.72,fontSize:13,marginBottom:6}}><MapPin size={13} style={{verticalAlign:'-2px'}}/> {trip.destination}</div><h2>{trip.name}</h2></div>
+          </div>
+          <div className="trip-body">
+            <div className="trip-meta"><span><Users size={14} style={{verticalAlign:'-2px'}}/> {trip.memberNames.join(' · ') || 'Sólo vos'}</span><span>{trip.role || 'demo'}</span></div>
+            <div className="progress"><i style={{width:trip.status==='completed'?'100%':'66%'}}/></div>
+          </div>
+        </Link>)}
+        <button className="trip-card dashed-card" onClick={()=>setShowNew(true)}><span><Plus size={28}/><br/><b>Crear otro viaje</b><br/><small>Brasil, Bariloche, Europa…</small></span></button>
+      </div>}
+      {showNew&&<NewTripModal onClose={()=>setShowNew(false)} onCreate={createTrip}/>}
+    </main>
+  </div>
+}
