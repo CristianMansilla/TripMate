@@ -9,7 +9,6 @@ import { createClient, hasSupabaseEnv } from '@/lib/supabase-client'
 import { mapTrip } from '@/lib/db-mappers'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { importCordobaDemo } from '@/lib/import-cordoba'
 
 function dateRange(start:string,end:string){
   const a=new Date(start+'T12:00:00'), b=new Date(end+'T12:00:00')
@@ -21,7 +20,6 @@ export default function DashboardClient(){
   const [loading,setLoading]=useState(hasSupabaseEnv())
   const [connected,setConnected]=useState(false)
   const [showNew,setShowNew]=useState(false)
-  const [importing,setImporting]=useState(false)
   const router=useRouter()
 
   useEffect(()=>{
@@ -91,17 +89,6 @@ export default function DashboardClient(){
     router.push(`/trip/${data}`)
   }
 
-
-  async function importCordoba(){
-    setImporting(true)
-    try{
-      const id=await importCordobaDemo()
-      router.push(`/trip/${id}`)
-    }catch(err:any){
-      alert(err?.message || 'No se pudo importar Córdoba.')
-    }finally{setImporting(false)}
-  }
-
   return <div className="shell">
     <AppBar onNewTrip={()=>setShowNew(true)}/>
     <main className="container">
@@ -114,7 +101,7 @@ export default function DashboardClient(){
         {connected?<><Wifi size={14}/> Conectado · cambios compartidos</>:<><WifiOff size={14}/> Modo demo · cambios sólo en este navegador</>}
       </div>
 
-      {loading?<div className="empty">Cargando tus viajes…</div>:trips.length===0?<div className="empty"><h3>Todavía no tenés viajes</h3><p>Creá el primero y después invitá a quien viaje con vos.</p><div className="empty-actions"><button className="btn btn-primary" onClick={()=>setShowNew(true)}>Crear mi primer viaje</button>{connected&&<button className="btn btn-secondary" onClick={importCordoba} disabled={importing}>{importing?'Importando…':'Importar Córdoba 2026'}</button>}</div></div>:
+      {loading?<div className="empty">Cargando tus viajes…</div>:trips.length===0?<div className="empty"><h3>Todavía no tenés viajes</h3><p>Creá el primero o abrí un enlace de invitación para sumarte a uno compartido.</p><div className="empty-actions"><button className="btn btn-primary" onClick={()=>setShowNew(true)}>Crear mi primer viaje</button></div></div>:
       <div className="grid-trips">
         {trips.map((trip)=><Link className="trip-card" href={`/trip/${trip.id}`} key={trip.id}>
           <div className="trip-cover">

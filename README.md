@@ -16,7 +16,6 @@ TripMate es una aplicación web colaborativa y mobile-first para planificar **cu
 - Sincronización Realtime de actividades, gastos, reservas y valija.
 - Historial de cambios básico.
 - RLS por viaje.
-- Importador de la planificación inicial de Córdoba 2026.
 - Modo demo sin Supabase, con persistencia en `localStorage`.
 - Ropa fuera del presupuesto del viaje.
 
@@ -50,11 +49,10 @@ Si tu proyecto todavía muestra la clave legacy `anon`, también se admite `NEXT
 ## Primer uso recomendado
 
 1. Crear tu cuenta.
-2. Si querés conservar el viaje actual, desde el dashboard usar **Importar Córdoba 2026**.
-3. Abrir el viaje.
-4. Generar una invitación.
-5. La otra persona entra con el link, crea/inicia sesión y se une.
-6. Probar desde dos dispositivos cambiando un costo o una actividad.
+2. Abrir o crear un viaje.
+3. Generar una invitación.
+4. La otra persona entra con el link, crea/inicia sesión y se une.
+5. Probar desde dos dispositivos cambiando un costo o una actividad.
 
 ## Deploy
 

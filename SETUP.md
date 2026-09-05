@@ -55,16 +55,7 @@ Crear cuenta en `/signup`, confirmar email y entrar.
 
 Durante pruebas, los emails enviados por Supabase Auth pueden llegar a correo no deseado. Para producción conviene configurar SMTP propio en Supabase Auth y autenticar el dominio del remitente.
 
-## 6. Importar Córdoba
-
-Si querés cargar el viaje actual:
-
-- Dashboard
-- `Importar Córdoba 2026`
-
-Esto crea un viaje real asociado a tu cuenta y carga actividades, gastos, reservas y valija iniciales.
-
-## 7. Vercel
+## 6. Vercel
 
 - Add New → Project.
 - Importar el repo de GitHub.
@@ -74,7 +65,7 @@ Esto crea un viaje real asociado a tu cuenta y carga actividades, gastos, reserv
   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - Deploy.
 
-## 8. Volver a Supabase
+## 7. Volver a Supabase
 
 Cambiar Site URL por la URL final de Vercel y agregar:
 
@@ -82,7 +73,7 @@ Cambiar Site URL por la URL final de Vercel y agregar:
 
 a Redirect URLs.
 
-## 9. Prueba colaborativa
+## 8. Prueba colaborativa
 
 1. Usuario A abre un viaje.
 2. Invitar → rol Editor.
@@ -91,7 +82,7 @@ a Redirect URLs.
 5. B cambia una actividad o un costo.
 6. A debe ver el cambio por Realtime.
 
-## 10. Antes de hacerla pública
+## 9. Antes de hacerla pública
 
 - Agregar rate limiting a invitaciones si escala.
 - Bucket privado para comprobantes/tickets.

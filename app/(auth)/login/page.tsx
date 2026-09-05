@@ -50,7 +50,6 @@ function LoginForm(){
         <Link href="/signup">Crear cuenta</Link>
         <Link href="/forgot-password">Olvidé mi contraseña</Link>
       </div>
-      <button type="button" className="btn btn-secondary" style={{width:'100%',marginTop:12}} onClick={()=>router.push('/dashboard')}>Ver demo sin cuenta</button>
     </form>
   </main>
 }
