@@ -47,7 +47,7 @@ function LoginForm(){
       <h1>Entrá a TripMate</h1>
       <p>Planificá viajes con tu pareja, amigos o familia y mantengan todo sincronizado.</p>
       {message&&<div className="notice">{message}</div>}
-      <div className="field"><label>Email o usuario</label><input value={identifier} onChange={e=>setIdentifier(e.target.value)} required autoComplete="username" placeholder="cristian o email@dominio.com"/></div>
+      <div className="field"><label>Email o usuario</label><input value={identifier} onChange={e=>setIdentifier(e.target.value)} required autoComplete="username"/></div>
       <div className="field" style={{marginTop:12}}>
         <label>Contraseña</label>
         <div className="password-wrap">
