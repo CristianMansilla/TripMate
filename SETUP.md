@@ -99,3 +99,4 @@ a Redirect URLs.
 - Backups/exportación.
 - Monitoreo de errores.
 - SMTP propio para mejorar la entrega de emails de registro y recuperación.
+- Notificaciones agrupadas por viaje para avisar cambios sin saturar al usuario.

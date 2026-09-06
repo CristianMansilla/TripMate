@@ -33,6 +33,7 @@ export function mapActivity(row: any): Activity {
     costScope: row.cost_scope || 'shared',
     status: row.status || 'planned',
     optional: Boolean(row.optional),
+    position: Number(row.position || 0),
   }
 }
 
@@ -53,6 +54,7 @@ export function activityToRow(activity: Activity) {
     cost_scope: activity.costScope,
     status: activity.status,
     optional: Boolean(activity.optional),
+    position: activity.position || 0,
   }
 }
 
@@ -60,6 +62,7 @@ export function mapExpense(row: any): Expense {
   return {
     id: row.id,
     tripId: row.trip_id,
+    activityId: row.activity_id || null,
     title: row.title,
     category: row.category,
     amount: Number(row.amount || 0),
@@ -80,6 +83,7 @@ export function mapReservation(row: any): Reservation {
     dueDate: row.due_date || undefined,
     notes: row.notes || undefined,
     amount: row.amount == null ? undefined : Number(row.amount),
+    position: Number(row.position || 0),
   }
 }
 

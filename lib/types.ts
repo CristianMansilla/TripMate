@@ -34,6 +34,7 @@ export type Activity = {
   costScope: CostScope
   status: ActivityStatus
   optional?: boolean
+  position?: number
 }
 
 export type Reservation = {
@@ -45,11 +46,13 @@ export type Reservation = {
   dueDate?: string
   notes?: string
   amount?: number
+  position?: number
 }
 
 export type Expense = {
   id: string
   tripId: string
+  activityId?: string | null
   title: string
   category: string
   amount: number

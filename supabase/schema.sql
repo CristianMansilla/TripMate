@@ -95,6 +95,7 @@ create table public.reservations (
   confirmation_code text,
   amount numeric(14,2),
   notes text,
+  position integer not null default 0,
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

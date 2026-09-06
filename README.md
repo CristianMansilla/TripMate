@@ -16,7 +16,7 @@ TripMate es una aplicación web colaborativa y mobile-first para planificar **cu
 - Itinerario editable.
 - Alta rápida de gastos, reservas y valija.
 - Lugares guardados con mapa embebido y rutas rápidas desde una base.
-- Presupuesto editable con moneda base por viaje.
+- Presupuesto editable por persona, con total de grupo calculado automáticamente.
 - Sincronización Realtime de actividades, gastos, reservas y valija.
 - Historial de cambios básico.
 - PWA instalable con manifest e icono de app.
@@ -92,6 +92,7 @@ Ver `SETUP.md` para GitHub + Supabase + Vercel.
 
 - Mejoras de mapa: orden de paradas, modos caminando/auto/transporte y geocoding.
 - Adjuntos privados en Supabase Storage.
+- Notificaciones por viaje con resumen agrupado para evitar avisos repetidos cuando alguien carga muchos cambios seguidos.
 - Votación de lugares/actividades.
 - Conversión multi-moneda.
 - PWA/offline avanzado.
