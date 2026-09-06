@@ -61,6 +61,7 @@ Si tu proyecto todavía muestra la clave legacy `anon`, también se admite `NEXT
 Si venís desde una base `v0.1`, ejecutar `supabase/v0.2.sql` una sola vez antes de usar nombres de usuario.
 Si ya estabas en `v0.2`, ejecutar `supabase/v0.3.sql` para habilitar lugares con base, orden manual de reservas y valija personal por usuario.
 Después de `v0.3`, ejecutar `supabase/v0.4.sql` para activar el guardado transaccional de gastos e itinerario, los importes por persona/grupo y los permisos corregidos.
+Si ya ejecutaste una versión anterior de `v0.4.sql`, volvé a ejecutar el archivo actualizado para instalar la validación de fechas y el cambio transaccional de la base del viaje.
 
 `SUPABASE_SERVICE_ROLE_KEY` sólo se usa en el servidor para resolver el login por nombre de usuario. Debe configurarse también en Vercel y nunca llevar el prefijo `NEXT_PUBLIC_`.
 

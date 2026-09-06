@@ -34,6 +34,7 @@ Para actualizar de `v0.3` a `v0.4`, ejecutar después:
 `supabase/v0.4.sql`
 
 La migración v0.4 no elimina gastos ni actividades existentes. Copia al gasto los datos de agenda que ya tenga su actividad vinculada antes de activar el nuevo guardado.
+Durante el desarrollo de v0.4 el archivo puede volver a ejecutarse para actualizar sus funciones RPC; no duplica ni elimina gastos o actividades.
 
 ## 3. Variables locales
 

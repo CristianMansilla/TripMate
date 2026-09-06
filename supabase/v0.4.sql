@@ -100,6 +100,33 @@ begin
 end;
 $$;
 
+create or replace function public.set_trip_base_place(p_place_id uuid, p_trip_id uuid)
+returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  if not public.can_edit_trip(p_trip_id) then
+    raise exception 'No tenés permiso para editar este viaje.';
+  end if;
+  perform 1 from public.trips where id = p_trip_id for update;
+  if not exists (
+    select 1 from public.places
+    where id = p_place_id and trip_id = p_trip_id
+    for update
+  ) then
+    raise exception 'No se encontró el lugar.';
+  end if;
+
+  update public.places set is_base = false
+  where trip_id = p_trip_id and is_base;
+  update public.places set is_base = true
+  where id = p_place_id and trip_id = p_trip_id;
+end;
+$$;
+
+
 create or replace function public.save_expense_plan(
   p_expense_id uuid,
   p_trip_id uuid,
@@ -129,6 +156,10 @@ declare
   v_activity_status public.activity_status;
 begin
   if not public.can_edit_trip(p_trip_id) then raise exception 'No tenés permiso para editar este viaje.'; end if;
+  if p_date is not null and not exists (
+    select 1 from public.trips
+    where id = p_trip_id and p_date between start_date and end_date
+  ) then raise exception 'El día del itinerario debe estar dentro de las fechas del viaje.'; end if;
   if length(trim(coalesce(p_title, ''))) = 0 then raise exception 'El nombre no puede estar vacío.'; end if;
   if length(trim(coalesce(p_category, ''))) = 0 then raise exception 'La categoría no puede estar vacía.'; end if;
   if p_amount is null or p_amount < 0 then raise exception 'El importe no puede ser negativo.'; end if;
@@ -213,6 +244,8 @@ $$;
 revoke all on function public.save_expense_plan(uuid,uuid,text,text,numeric,text,boolean,text,date,time,time,text,text,boolean) from public, anon;
 revoke all on function public.delete_expense_plan(uuid,uuid) from public, anon;
 revoke all on function public.move_reservation(uuid,uuid,integer) from public, anon;
+revoke all on function public.set_trip_base_place(uuid,uuid) from public, anon;
 grant execute on function public.save_expense_plan(uuid,uuid,text,text,numeric,text,boolean,text,date,time,time,text,text,boolean) to authenticated;
 grant execute on function public.delete_expense_plan(uuid,uuid) to authenticated;
 grant execute on function public.move_reservation(uuid,uuid,integer) to authenticated;
+grant execute on function public.set_trip_base_place(uuid,uuid) to authenticated;

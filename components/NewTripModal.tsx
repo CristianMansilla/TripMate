@@ -3,9 +3,10 @@ import { FormEvent, useState } from 'react'
 import { Trip } from '@/lib/types'
 import { useModalBehavior } from './useModalBehavior'
 import { userFacingError } from '@/lib/ui-text'
+import { useSubmissionGuard } from './useSubmissionGuard'
 
 export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCreate:(input:Omit<Trip,'id'|'status'|'memberNames'>)=>Promise<void>}){
-  useModalBehavior(onClose)
+  const dialogRef=useModalBehavior<HTMLFormElement>(onClose)
   const [name,setName]=useState('')
   const [destination,setDestination]=useState('')
   const [country,setCountry]=useState('')
@@ -14,21 +15,24 @@ export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCrea
   const [currency,setCurrency]=useState('ARS')
   const [loading,setLoading]=useState(false)
   const [error,setError]=useState('')
+  const runOnce=useSubmissionGuard()
 
   async function submit(e:FormEvent){
     e.preventDefault()
     setError('')
+    if(!name.trim() || !destination.trim()){setError('Completá el nombre y el destino del viaje.');return}
+    if(!startDate || !endDate){setError('Completá las fechas de salida y vuelta.');return}
     if(endDate<startDate){setError('La fecha de vuelta no puede ser anterior a la de salida.');return}
-    setLoading(true)
-    try{
-      await onCreate({name,destination,country,startDate,endDate,currency})
-      onClose()
-    }catch(error){setError(userFacingError(error,'No se pudo crear el viaje.'))}
-    finally{setLoading(false)}
+    await runOnce(async()=>{
+      setLoading(true)
+      try{await onCreate({name:name.trim(),destination:destination.trim(),country:country.trim(),startDate,endDate,currency});onClose()}
+      catch(error){setError(userFacingError(error,'No se pudo crear el viaje.'))}
+      finally{setLoading(false)}
+    })
   }
 
   return <div className="modal-backdrop" onMouseDown={e=>{if(e.currentTarget===e.target)onClose()}}>
-    <form className="modal" role="dialog" aria-modal="true" aria-labelledby="new-trip-title" onSubmit={submit}>
+    <form ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="new-trip-title" tabIndex={-1} onSubmit={submit}>
       <h2 id="new-trip-title">Nuevo viaje</h2>
       <p className="muted" style={{marginTop:-8}}>Podés invitar gente después y editar todo en conjunto.</p>
       {error&&<div className="notice error">{error}</div>}

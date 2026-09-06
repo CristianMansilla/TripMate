@@ -5,6 +5,7 @@ import { Trash2 } from 'lucide-react'
 import type { Reservation } from '@/lib/types'
 import { userFacingError } from '@/lib/ui-text'
 import { useModalBehavior } from './useModalBehavior'
+import { useSubmissionGuard } from './useSubmissionGuard'
 
 export default function ReservationModal({reservation,onClose,onSave,onDelete}:{
   reservation:Reservation
@@ -12,10 +13,11 @@ export default function ReservationModal({reservation,onClose,onSave,onDelete}:{
   onSave:(reservation:Reservation)=>Promise<void>|void
   onDelete:(reservation:Reservation)=>void
 }){
-  useModalBehavior(onClose)
+  const dialogRef=useModalBehavior<HTMLFormElement>(onClose)
   const [draft,setDraft]=useState(reservation)
   const [loading,setLoading]=useState(false)
   const [message,setMessage]=useState('')
+  const runOnce=useSubmissionGuard()
   const patch=<K extends keyof Reservation>(key:K,value:Reservation[K])=>setDraft(current=>({...current,[key]:value}))
 
   async function submit(event:FormEvent){
@@ -24,18 +26,20 @@ export default function ReservationModal({reservation,onClose,onSave,onDelete}:{
     const title=draft.title.trim()
     if(!title){setMessage('El nombre no puede estar vacío.');return}
     if(draft.amount!==undefined && (!Number.isFinite(draft.amount) || draft.amount<0)){setMessage('El importe debe ser cero o mayor.');return}
-    setLoading(true)
-    try{await onSave({...draft,title,notes:draft.notes?.trim() || undefined})}
-    catch(error){setMessage(userFacingError(error,'No pudimos guardar la reserva. Intentá nuevamente.'))}
-    finally{setLoading(false)}
+    await runOnce(async()=>{
+      setLoading(true)
+      try{await onSave({...draft,title,notes:draft.notes?.trim() || undefined})}
+      catch(error){setMessage(userFacingError(error,'No pudimos guardar la reserva. Intentá nuevamente.'))}
+      finally{setLoading(false)}
+    })
   }
 
   return <div className="modal-backdrop" onMouseDown={event=>{if(event.currentTarget===event.target)onClose()}}>
-    <form className="modal" role="dialog" aria-modal="true" aria-labelledby="reservation-modal-title" onSubmit={submit}>
+    <form ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="reservation-modal-title" tabIndex={-1} onSubmit={submit}>
       <h2 id="reservation-modal-title">Editar reserva</h2>
       {message&&<div className="notice error" role="alert">{message}</div>}
       <div className="form-grid">
-        <div className="field full"><label htmlFor="reservation-title">Nombre</label><input id="reservation-title" value={draft.title} onChange={event=>patch('title',event.target.value)} required autoFocus/></div>
+        <div className="field full"><label htmlFor="reservation-title">Nombre</label><input id="reservation-title" value={draft.title} onChange={event=>patch('title',event.target.value)} required/></div>
         <div className="field"><label htmlFor="reservation-status">Estado</label><select id="reservation-status" value={draft.status} onChange={event=>patch('status',event.target.value as Reservation['status'])}><option value="watching">Esperando</option><option value="pending">Pendiente</option><option value="reserved">Reservado</option><option value="paid">Pagado</option></select></div>
         <div className="field"><label htmlFor="reservation-priority">Prioridad</label><select id="reservation-priority" value={draft.priority} onChange={event=>patch('priority',event.target.value as Reservation['priority'])}><option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option></select></div>
         <div className="field"><label htmlFor="reservation-due-date">Fecha límite</label><input id="reservation-due-date" type="date" value={draft.dueDate || ''} onChange={event=>patch('dueDate',event.target.value || undefined)}/></div>

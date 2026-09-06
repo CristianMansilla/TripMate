@@ -2,9 +2,11 @@
 import Link from 'next/link'
 import { Compass, LogOut, Plus, Save, UserRound } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import { useModalBehavior } from './useModalBehavior'
+import { useSubmissionGuard } from './useSubmissionGuard'
 
 export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
   const [name,setName]=useState('')
@@ -17,6 +19,9 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
   const [connected,setConnected]=useState(false)
   const [mounted,setMounted]=useState(false)
   const router=useRouter()
+  const closeProfile=useCallback(()=>setProfileOpen(false),[])
+  const profileDialogRef=useModalBehavior<HTMLDivElement>(closeProfile,profileOpen)
+  const runOnce=useSubmissionGuard()
 
   useEffect(()=>{
     setMounted(true)
@@ -43,6 +48,7 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
   }
 
   async function saveProfile(){
+    await runOnce(async()=>{
     setProfileMessage('')
     const cleanName=name.trim()
     const cleanUsername=username.trim().toLowerCase()
@@ -63,12 +69,13 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
     setUsername(cleanUsername)
     setSaving(false)
     setProfileOpen(false)
+    })
   }
 
   const profileModal=profileOpen&&mounted?createPortal(
     <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setProfileOpen(false)}}>
-      <div className="modal confirm-modal">
-        <h2>Perfil</h2>
+      <div ref={profileDialogRef} className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" tabIndex={-1}>
+        <h2 id="profile-title">Perfil</h2>
         <p className="muted">Estos datos se muestran a las personas que comparten viajes con vos.</p>
         {profileMessage&&<div className="notice error">{profileMessage}</div>}
         <div className="field"><label>Nombre visible</label><input value={name} onChange={e=>setName(e.target.value)} required autoComplete="name"/></div>

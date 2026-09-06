@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { AppBar } from './AppBar'
+import ConfirmDialog from './ConfirmDialog'
 import ExpenseModal from './ExpenseModal'
 import InviteModal from './InviteModal'
 import PackingItemModal from './PackingItemModal'
@@ -467,12 +468,12 @@ export default function TripWorkspace({tripId}:{tripId:string}){
   async function confirmDeletePacking(){
     const item=packingToDelete
     if(!item || !canManagePacking)return
-    setPackingToDelete(null)
-    setPack(current=>current.filter(p=>p.id!==item.id))
     const supabase=createClient()
-    if(!supabase)return
+    if(!supabase){setPack(current=>current.filter(p=>p.id!==item.id));setPackingToDelete(null);return}
     const {error}=await supabase.from('packing_items').delete().eq('id',item.id)
     if(error){setError(userFacingError(error));await loadConnectedData(true);return}
+    setPackingToDelete(null)
+    setPack(current=>current.filter(p=>p.id!==item.id))
   }
 
   async function cycleReservation(id:string){
@@ -630,28 +631,26 @@ export default function TripWorkspace({tripId}:{tripId:string}){
 
   async function setBasePlace(place:Place){
     if(!canEdit)return
-    setPlaces(current=>current.map(p=>({...p,isBase:p.id===place.id})))
     const supabase=createClient()
-    if(!supabase)return
-    const clear=await supabase.from('places').update({is_base:false}).eq('trip_id',trip.id)
-    if(clear.error){setError(userFacingError(clear.error));await loadConnectedData(true);return}
-    const {error}=await supabase.from('places').update({is_base:true}).eq('id',place.id)
+    if(!supabase){setPlaces(current=>current.map(p=>({...p,isBase:p.id===place.id})));return}
+    const {error}=await supabase.rpc('set_trip_base_place',{p_place_id:place.id,p_trip_id:trip.id})
     if(error){setError(userFacingError(error));await loadConnectedData(true);return}
+    await loadConnectedData(true)
     await logChange(trip.id,'place',place.id,'updated',`Se marcó “${place.name}” como base del viaje.`)
   }
 
   async function confirmRemoveMember(){
     const member=memberToRemove
     if(!member || trip.role!=='owner' || member.role==='owner')return
-    setMemberToRemove(null)
     const supabase=createClient()
-    if(!supabase)return
+    if(!supabase){setMemberToRemove(null);return}
     const {error}=await supabase
       .from('trip_members')
       .delete()
       .eq('trip_id',trip.id)
       .eq('user_id',member.id)
     if(error){setError(userFacingError(error));return}
+    setMemberToRemove(null)
     await logChange(trip.id,'member',null,'removed',`Se expulsó a ${member.name} del viaje.`)
     await loadConnectedData(true)
   }
@@ -842,62 +841,17 @@ export default function TripWorkspace({tripId}:{tripId:string}){
         {([['Reservas',ClipboardCheck],['Lugares',MapIcon],['Integrantes',Users]] as const).map(([target,Icon])=><button key={target} role="menuitem" className={tab===target?'active':''} onClick={()=>{setTab(target);setMobileMoreOpen(false)}}><Icon size={18}/>{target}</button>)}
       </div>}
 
-      {editingExpense&&<ExpenseModal expense={editingExpense} activities={acts} categoryOptions={expenseCategories} onClose={()=>setEditingExpense(null)} onSave={saveExpense} onDelete={(expense)=>{setEditingExpense(null);setExpenseToDelete(expense)}}/>}
+      {editingExpense&&<ExpenseModal expense={editingExpense} activities={acts} categoryOptions={expenseCategories} minDate={trip.startDate} maxDate={trip.endDate} onClose={()=>setEditingExpense(null)} onSave={saveExpense} onDelete={(expense)=>{setEditingExpense(null);setExpenseToDelete(expense)}}/>}
       {editingPacking&&<PackingItemModal item={editingPacking} categoryOptions={packingCategories} onClose={()=>setEditingPacking(null)} onSave={savePacking} onDelete={(item)=>{setEditingPacking(null);setPackingToDelete(item)}}/>}
       {editingReservation&&<ReservationModal reservation={editingReservation} onClose={()=>setEditingReservation(null)} onSave={saveReservation} onDelete={(reservation)=>{setEditingReservation(null);setReservationToDelete(reservation)}}/>}
       {editingPlace&&<PlaceModal place={editingPlace} categoryOptions={placeCategories} onClose={()=>setEditingPlace(null)} onSave={savePlace} onDelete={(place)=>{setEditingPlace(null);setPlaceToDelete(place)}}/>}
       {inviteOpen&&<InviteModal tripId={trip.id} onClose={()=>setInviteOpen(false)}/>}
-      {addKind&&<QuickAddModal kind={addKind} categoryOptions={addKind==='expense'?expenseCategories:addKind==='packing'?packingCategories:addKind==='place'?placeCategories:[]} onClose={()=>setAddKind(null)} onSave={addQuick}/>}
-      {memberToRemove&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setMemberToRemove(null)}}>
-        <div className="modal confirm-modal">
-          <h2>Expulsar integrante</h2>
-          <p className="muted">Vas a quitar a <b>{memberToRemove.name}</b> de este viaje. Ya no podrá ver ni editar la planificación compartida.</p>
-          <div className="modal-actions">
-            <button className="btn btn-secondary" onClick={()=>setMemberToRemove(null)}>Cancelar</button>
-            <button className="btn btn-danger" onClick={confirmRemoveMember}><UserMinus size={16}/> Expulsar</button>
-          </div>
-        </div>
-      </div>}
-      {expenseToDelete&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setExpenseToDelete(null)}}>
-        <div className="modal confirm-modal">
-          <h2>Eliminar gasto</h2>
-          <p className="muted">Vas a eliminar <b>{expenseToDelete.title}</b> del presupuesto. Esta acción no se puede deshacer desde la app.</p>
-          <div className="modal-actions">
-            <button className="btn btn-secondary" onClick={()=>setExpenseToDelete(null)}>Cancelar</button>
-            <button className="btn btn-danger" onClick={confirmDeleteExpense}><Trash2 size={16}/> Eliminar</button>
-          </div>
-        </div>
-      </div>}
-      {packingToDelete&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setPackingToDelete(null)}}>
-        <div className="modal confirm-modal">
-          <h2>Eliminar ítem</h2>
-          <p className="muted">Vas a eliminar <b>{packingToDelete.label}</b> de tu valija. Esta acción no se puede deshacer desde la app.</p>
-          <div className="modal-actions">
-            <button className="btn btn-secondary" onClick={()=>setPackingToDelete(null)}>Cancelar</button>
-            <button className="btn btn-danger" onClick={confirmDeletePacking}><Trash2 size={16}/> Eliminar</button>
-          </div>
-        </div>
-      </div>}
-      {reservationToDelete&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setReservationToDelete(null)}}>
-        <div className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-reservation-title">
-          <h2 id="delete-reservation-title">Eliminar reserva</h2>
-          <p className="muted">Vas a eliminar <b>{reservationToDelete.title}</b>. Esta acción no se puede deshacer desde la app.</p>
-          <div className="modal-actions">
-            <button className="btn btn-secondary" onClick={()=>setReservationToDelete(null)}>Cancelar</button>
-            <button className="btn btn-danger" onClick={confirmDeleteReservation}><Trash2 size={16}/> Eliminar</button>
-          </div>
-        </div>
-      </div>}
-      {placeToDelete&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setPlaceToDelete(null)}}>
-        <div className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-place-title">
-          <h2 id="delete-place-title">Eliminar lugar</h2>
-          <p className="muted">Vas a eliminar <b>{placeToDelete.name}</b>{placeToDelete.isBase?' y dejar el viaje sin esa base':''}. Esta acción no se puede deshacer desde la app.</p>
-          <div className="modal-actions">
-            <button className="btn btn-secondary" onClick={()=>setPlaceToDelete(null)}>Cancelar</button>
-            <button className="btn btn-danger" onClick={confirmDeletePlace}><Trash2 size={16}/> Eliminar</button>
-          </div>
-        </div>
-      </div>}
+      {addKind&&<QuickAddModal kind={addKind} categoryOptions={addKind==='expense'?expenseCategories:addKind==='packing'?packingCategories:addKind==='place'?placeCategories:[]} minDate={trip.startDate} maxDate={trip.endDate} onClose={()=>setAddKind(null)} onSave={addQuick}/>}
+      {memberToRemove&&<ConfirmDialog title="Expulsar integrante" confirmLabel="Expulsar" confirmIcon={<UserMinus size={16}/>} onClose={()=>setMemberToRemove(null)} onConfirm={confirmRemoveMember}>Vas a quitar a <b>{memberToRemove.name}</b> de este viaje. Ya no podrá ver ni editar la planificación compartida.</ConfirmDialog>}
+      {expenseToDelete&&<ConfirmDialog title="Eliminar gasto" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setExpenseToDelete(null)} onConfirm={confirmDeleteExpense}>Vas a eliminar <b>{expenseToDelete.title}</b> del presupuesto. Esta acción no se puede deshacer desde la app.</ConfirmDialog>}
+      {packingToDelete&&<ConfirmDialog title="Eliminar ítem" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setPackingToDelete(null)} onConfirm={confirmDeletePacking}>Vas a eliminar <b>{packingToDelete.label}</b> de tu valija. Esta acción no se puede deshacer desde la app.</ConfirmDialog>}
+      {reservationToDelete&&<ConfirmDialog title="Eliminar reserva" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setReservationToDelete(null)} onConfirm={confirmDeleteReservation}>Vas a eliminar <b>{reservationToDelete.title}</b>. Esta acción no se puede deshacer desde la app.</ConfirmDialog>}
+      {placeToDelete&&<ConfirmDialog title="Eliminar lugar" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setPlaceToDelete(null)} onConfirm={confirmDeletePlace}>Vas a eliminar <b>{placeToDelete.name}</b>{placeToDelete.isBase?' y dejar el viaje sin esa base':''}. Esta acción no se puede deshacer desde la app.</ConfirmDialog>}
     </main>
   </div>
 }

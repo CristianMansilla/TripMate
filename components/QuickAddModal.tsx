@@ -3,6 +3,7 @@ import { FormEvent, useState } from 'react'
 import CategoryPicker from './CategoryPicker'
 import { useModalBehavior } from './useModalBehavior'
 import { userFacingError } from '@/lib/ui-text'
+import { useSubmissionGuard } from './useSubmissionGuard'
 
 type Kind='expense'|'reservation'|'packing'|'place'
 
@@ -11,8 +12,8 @@ function validExternalUrl(value:string){
   try{return ['http:','https:'].includes(new URL(value).protocol)}catch{return false}
 }
 
-export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[]}:{kind:Kind,onClose:()=>void,onSave:(payload:any)=>Promise<void>|void,categoryOptions?:string[]}){
-  useModalBehavior(onClose)
+export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],minDate,maxDate}:{kind:Kind,onClose:()=>void,onSave:(payload:any)=>Promise<void>|void,categoryOptions?:string[],minDate?:string,maxDate?:string}){
+  const dialogRef=useModalBehavior<HTMLFormElement>(onClose)
   const [title,setTitle]=useState('')
   const [amount,setAmount]=useState('')
   const [amountBasis,setAmountBasis]=useState<'per_person'|'group'>('per_person')
@@ -29,30 +30,34 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[]}:{
   const [notes,setNotes]=useState('')
   const [loading,setLoading]=useState(false)
   const [message,setMessage]=useState('')
+  const runOnce=useSubmissionGuard()
   const labels={expense:'Nuevo gasto',reservation:'Nueva reserva',packing:'Agregar a valija',place:'Nuevo lugar'} as const
   async function submit(e:FormEvent){
     e.preventDefault();setMessage('')
     if(kind==='expense' && (!amount.trim() || !Number.isFinite(Number(amount)) || Number(amount)<0)){setMessage('El importe debe ser cero o mayor.');return}
     if(kind==='reservation' && amount.trim() && (!Number.isFinite(Number(amount)) || Number(amount)<0)){setMessage('El importe debe ser cero o mayor.');return}
     if(kind==='place' && !validExternalUrl(url.trim())){setMessage('El enlace debe comenzar con http:// o https://.');return}
-    setLoading(true)
-    try{
-      await onSave({title:title.trim(),amount:amount.trim()===''?undefined:Number(amount),amountBasis,category:category.trim(),priority,dueDate,address,url,notes,date,startTime,endTime,place,optional})
-      onClose()
-    }catch(error){setMessage(userFacingError(error,'No pudimos guardar. Intentá nuevamente.'))}
-    finally{setLoading(false)}
+    if(kind==='expense' && date && ((minDate && date<minDate) || (maxDate && date>maxDate))){setMessage('El día del itinerario debe estar dentro de las fechas del viaje.');return}
+    await runOnce(async()=>{
+      setLoading(true)
+      try{
+        await onSave({title:title.trim(),amount:amount.trim()===''?undefined:Number(amount),amountBasis,category:category.trim(),priority,dueDate,address,url,notes,date,startTime,endTime,place,optional})
+        onClose()
+      }catch(error){setMessage(userFacingError(error,'No pudimos guardar. Intentá nuevamente.'))}
+      finally{setLoading(false)}
+    })
   }
   return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
-    <form className="modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-title" onSubmit={submit}>
+    <form ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-title" tabIndex={-1} onSubmit={submit} noValidate>
       <h2 id="quick-add-title">{labels[kind]}</h2>
       {message&&<div className="notice error">{message}</div>}
       <div className="form-grid">
-        <div className="field full"><label htmlFor="quick-title">{kind==='packing'?'Ítem':'Nombre'}</label><input id="quick-title" value={title} onChange={e=>setTitle(e.target.value)} required autoFocus/></div>
+        <div className="field full"><label htmlFor="quick-title">{kind==='packing'?'Ítem':'Nombre'}</label><input id="quick-title" value={title} onChange={e=>setTitle(e.target.value)} required/></div>
         {kind==='expense'&&<>
           <CategoryPicker value={category} options={categoryOptions} onChange={setCategory} required/>
           <div className="field"><label htmlFor="quick-amount">{amountBasis==='group'?'Importe total del servicio':'Importe por persona'}</label><input id="quick-amount" type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} required/></div>
           <div className="field"><label htmlFor="quick-basis">El importe corresponde a</label><select id="quick-basis" value={amountBasis} onChange={e=>setAmountBasis(e.target.value as 'per_person'|'group')}><option value="per_person">Cada persona</option><option value="group">Todo el grupo o servicio</option></select></div>
-          <div className="field"><label htmlFor="quick-date">Día en itinerario</label><input id="quick-date" type="date" value={date} onChange={e=>setDate(e.target.value)}/></div>
+          <div className="field"><label htmlFor="quick-date">Día en itinerario</label><input id="quick-date" type="date" min={minDate} max={maxDate} value={date} onChange={e=>setDate(e.target.value)}/></div>
           <div className="field"><label htmlFor="quick-place">Lugar</label><input id="quick-place" value={place} onChange={e=>setPlace(e.target.value)} placeholder="Terminal, hotel, restaurante..."/></div>
           <div className="field"><label htmlFor="quick-start">Desde</label><input id="quick-start" type="time" value={startTime} onChange={e=>setStartTime(e.target.value)}/></div>
           <div className="field"><label htmlFor="quick-end">Hasta</label><input id="quick-end" type="time" value={endTime} onChange={e=>setEndTime(e.target.value)}/></div>

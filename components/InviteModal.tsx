@@ -5,30 +5,30 @@ import { createClient } from '@/lib/supabase-client'
 import type { TripRole } from '@/lib/types'
 import { useModalBehavior } from './useModalBehavior'
 import { userFacingError } from '@/lib/ui-text'
+import { useSubmissionGuard } from './useSubmissionGuard'
 
 export default function InviteModal({tripId,onClose}:{tripId:string,onClose:()=>void}){
-  useModalBehavior(onClose)
+  const dialogRef=useModalBehavior<HTMLDivElement>(onClose)
   const [role,setRole]=useState<TripRole>('editor')
   const [url,setUrl]=useState('')
   const [loading,setLoading]=useState(false)
   const [copied,setCopied]=useState(false)
   const [message,setMessage]=useState('')
+  const runOnce=useSubmissionGuard()
 
   async function generate(){
-    setLoading(true);setMessage('')
-    const supabase=createClient()
-    if(!supabase){
-      setMessage('En modo demo no se pueden crear invitaciones reales.')
-      setLoading(false);return
-    }
-    const {data:{user}}=await supabase.auth.getUser()
-    if(!user){setMessage('Tu sesión venció. Volvé a iniciar sesión.');setLoading(false);return}
-    const {data,error}=await supabase.from('trip_invites').insert({
-      trip_id:tripId,role,max_uses:10,created_by:user.id
-    }).select('code').single()
-    setLoading(false)
-    if(error){setMessage(userFacingError(error,'No pudimos generar la invitación. Intentá nuevamente.'));return}
-    setUrl(`${window.location.origin}/join/${data.code}`)
+    await runOnce(async()=>{
+      setLoading(true);setMessage('')
+      try{
+        const supabase=createClient()
+        if(!supabase){setMessage('En modo demo no se pueden crear invitaciones reales.');return}
+        const {data:{user}}=await supabase.auth.getUser()
+        if(!user){setMessage('Tu sesión venció. Volvé a iniciar sesión.');return}
+        const {data,error}=await supabase.from('trip_invites').insert({trip_id:tripId,role,max_uses:10,created_by:user.id}).select('code').single()
+        if(error){setMessage(userFacingError(error,'No pudimos generar la invitación. Intentá nuevamente.'));return}
+        setUrl(`${window.location.origin}/join/${data.code}`)
+      }finally{setLoading(false)}
+    })
   }
 
   async function copy(){
@@ -42,7 +42,7 @@ export default function InviteModal({tripId,onClose}:{tripId:string,onClose:()=>
   }
 
   return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
-    <div className="modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
+    <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title" tabIndex={-1}>
       <h2 id="invite-modal-title">Invitar al viaje</h2>
       <p className="muted">Generá un enlace. La persona deberá crear o iniciar sesión antes de unirse.</p>
       {message&&<div className="notice">{message}</div>}
