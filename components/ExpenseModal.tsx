@@ -4,6 +4,7 @@ import { Activity, Expense } from '@/lib/types'
 import { Trash2 } from 'lucide-react'
 import CategoryPicker from './CategoryPicker'
 import { useModalBehavior } from './useModalBehavior'
+import { userFacingError } from '@/lib/ui-text'
 
 type ExpenseDraft = Expense & {
 }
@@ -25,7 +26,7 @@ export default function ExpenseModal({expense,activities,onClose,onSave,onDelete
     if(!Number.isFinite(draft.amount) || draft.amount<0){setMessage('El importe debe ser cero o mayor.');return}
     setLoading(true)
     try{await onSave({...draft,title:draft.title.trim(),category:draft.category.trim()})}
-    catch(error:any){setMessage(error?.message || 'No pudimos guardar el gasto. Intentá nuevamente.')}
+    catch(error){setMessage(userFacingError(error,'No pudimos guardar el gasto. Intentá nuevamente.'))}
     finally{setLoading(false)}
   }
 

@@ -2,6 +2,7 @@
 import { FormEvent, useState } from 'react'
 import { Trip } from '@/lib/types'
 import { useModalBehavior } from './useModalBehavior'
+import { userFacingError } from '@/lib/ui-text'
 
 export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCreate:(input:Omit<Trip,'id'|'status'|'memberNames'>)=>Promise<void>}){
   useModalBehavior(onClose)
@@ -22,7 +23,7 @@ export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCrea
     try{
       await onCreate({name,destination,country,startDate,endDate,currency})
       onClose()
-    }catch(err:any){setError(err?.message || 'No se pudo crear el viaje.')}
+    }catch(error){setError(userFacingError(error,'No se pudo crear el viaje.'))}
     finally{setLoading(false)}
   }
 

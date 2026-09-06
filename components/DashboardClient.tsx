@@ -9,6 +9,7 @@ import { createClient, hasSupabaseEnv } from '@/lib/supabase-client'
 import { mapTrip } from '@/lib/db-mappers'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { tripRoleLabel } from '@/lib/ui-text'
 
 function dateRange(start:string,end:string){
   const a=new Date(start+'T12:00:00'), b=new Date(end+'T12:00:00')
@@ -114,7 +115,7 @@ export default function DashboardClient(){
             <div><div style={{opacity:.72,fontSize:13,marginBottom:6}}><MapPin size={13} style={{verticalAlign:'-2px'}}/> {trip.destination}</div><h2>{trip.name}</h2></div>
           </div>
           <div className="trip-body">
-            <div className="trip-meta"><span><Users size={14} style={{verticalAlign:'-2px'}}/> {trip.memberNames.join(' · ') || 'Sólo vos'}</span><span>{trip.role || 'demo'}</span></div>
+            <div className="trip-meta"><span><Users size={14} style={{verticalAlign:'-2px'}}/> {trip.memberNames.join(' · ') || 'Sólo vos'}</span><span>{tripRoleLabel(trip.role || 'demo')}</span></div>
           </div>
         </Link>)}
         <button className="trip-card dashed-card" onClick={()=>setShowNew(true)}><span><Plus size={28}/><br/><b>Crear otro viaje</b><br/><small>Brasil, Bariloche, Europa…</small></span></button>

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase-client'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Compass } from 'lucide-react'
+import { userFacingError } from '@/lib/ui-text'
 
 export default function JoinPage(){
   const params=useParams<{code:string}>()
@@ -31,7 +32,7 @@ export default function JoinPage(){
       localStorage.removeItem('tripmate-pending-invite-code')
       const {data,error}=await supabase.rpc('join_trip_by_code',{p_code:code})
       if(!alive)return
-      if(error){setState('error');setMessage(error.message);return}
+      if(error){setState('error');setMessage(userFacingError(error,'No pudimos aceptar la invitación. Puede haber vencido o alcanzado su límite.'));return}
       router.replace(`/trip/${data}`)
       router.refresh()
     }

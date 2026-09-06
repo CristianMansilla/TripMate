@@ -2,6 +2,7 @@
 import { FormEvent, useState } from 'react'
 import CategoryPicker from './CategoryPicker'
 import { useModalBehavior } from './useModalBehavior'
+import { userFacingError } from '@/lib/ui-text'
 
 type Kind='expense'|'reservation'|'packing'|'place'
 
@@ -30,7 +31,7 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[]}:{
     try{
       await onSave({title:title.trim(),amount:Number(amount||0),amountBasis,category:category.trim(),priority,address,url,notes,date,startTime,endTime,place,optional})
       onClose()
-    }catch(error:any){setMessage(error?.message || 'No pudimos guardar. Intentá nuevamente.')}
+    }catch(error){setMessage(userFacingError(error,'No pudimos guardar. Intentá nuevamente.'))}
     finally{setLoading(false)}
   }
   return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>

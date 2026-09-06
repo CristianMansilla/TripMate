@@ -13,6 +13,7 @@ import { mapActivity, mapExpense, mapPacking, mapPlace, mapReservation, mapTrip 
 import { logChange } from '@/lib/change-log'
 import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Edit3, ExternalLink, History, Link2, Luggage, Map as MapIcon, MapPin, Menu, Navigation, Plus, ReceiptText, Share2, Star, Trash2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { changeActionLabel, tripRoleLabel, userFacingError } from '@/lib/ui-text'
 
 const tabs = ['Resumen','Itinerario','Presupuesto','Reservas','Lugares','Valija','Integrantes'] as const
 type Tab = typeof tabs[number]
@@ -52,9 +53,6 @@ function reservationChip(status:Reservation['status']){
 }
 function expenseStatusLabel(status:Expense['status']){
   return ({estimated:'',confirmed:'Confirmado',paid:'Pagado'})[status]
-}
-function roleLabel(role:TripMember['role']){
-  return ({owner:'Dueño',editor:'Editor',viewer:'Lector'})[role]
 }
 function roleDescription(role:TripMember['role']){
   return ({owner:'Organizador del viaje',editor:'Puede editar el viaje',viewer:'Sólo puede consultar'})[role]
@@ -198,7 +196,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     const members=(membersQ.data||[]) as any[]
     const queryError=[membersQ,actsQ,expQ,resQ,placesQ,packQ,logQ].find(result=>result.error)?.error
     if(queryError){
-      setError(`No pudimos sincronizar todos los datos: ${queryError.message}`)
+      setError(userFacingError(queryError,'No pudimos sincronizar todos los datos. Revisá la conexión e intentá nuevamente.'))
       setSyncStatus('error')
       setLoading(false)
       return true
@@ -356,7 +354,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setExp(items=>items.map(expense=>expense.id===id?next:expense))
     if(!supabase)return
     const {error}=await supabase.rpc('save_expense_plan',expenseRpcPayload(next))
-    if(error){setError(error.message);await loadConnectedData(true);return}
+    if(error){setError(userFacingError(error));await loadConnectedData(true);return}
     await loadConnectedData(true)
     await logChange(trip.id,'expense',id,'updated',`Se actualizó “${next.title}” a ${money(next.amount,trip.currency)}.`)
   }
@@ -393,7 +391,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       return
     }
     const {error}=await supabase.rpc('save_expense_plan',expenseRpcPayload(next))
-    if(error)throw new Error(error.message)
+    if(error)throw new Error(userFacingError(error,'No pudimos guardar el gasto. Intentá nuevamente.'))
     await loadConnectedData(true)
     setEditingExpense(null)
     await logChange(trip.id,'expense',next.id,'updated',`Se actualizó el gasto “${next.title}”.`)
@@ -410,7 +408,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       return
     }
     const {error}=await supabase.rpc('delete_expense_plan',{p_expense_id:expense.id,p_trip_id:trip.id})
-    if(error){setError(error.message);return}
+    if(error){setError(userFacingError(error,'No pudimos eliminar el gasto. Intentá nuevamente.'));return}
     setExpenseToDelete(null)
     await loadConnectedData(true)
     await logChange(trip.id,'expense',expense.id,'deleted',`Se eliminó el gasto “${expense.title}”.`)
@@ -422,7 +420,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setExp(c=>c.map(e=>e.id===id?{...e,included}:e))
     const supabase=createClient();if(!supabase)return
     const {error}=await supabase.from('expenses').update({included}).eq('id',id)
-    if(error){setError(error.message);await loadConnectedData(true);return}
+    if(error){setError(userFacingError(error));await loadConnectedData(true);return}
     await logChange(trip.id,'expense',id,'updated',`${included?'Se incluyó':'Se excluyó'} “${current.title}” del presupuesto.`)
   }
 
@@ -432,7 +430,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setPack(c=>c.map(p=>p.id===id?{...p,packed:next}:p))
     const supabase=createClient();if(!supabase)return
     const {error}=await supabase.from('packing_items').update({packed:next}).eq('id',id)
-    if(error){setError(error.message);await loadConnectedData(true);return}
+    if(error){setError(userFacingError(error));await loadConnectedData(true);return}
   }
 
   async function savePacking(item:PackingItem){
@@ -445,7 +443,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       return
     }
     const {error}=await supabase.from('packing_items').update({label:next.label,category:next.category}).eq('id',next.id)
-    if(error)throw new Error(error.message)
+    if(error)throw new Error(userFacingError(error,'No pudimos guardar el ítem. Intentá nuevamente.'))
     setPack(current=>current.map(p=>p.id===next.id?next:p))
     setEditingPacking(null)
   }
@@ -458,7 +456,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     const supabase=createClient()
     if(!supabase)return
     const {error}=await supabase.from('packing_items').delete().eq('id',item.id)
-    if(error){setError(error.message);await loadConnectedData(true);return}
+    if(error){setError(userFacingError(error));await loadConnectedData(true);return}
   }
 
   async function cycleReservation(id:string){
@@ -468,7 +466,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setRes(c=>c.map(r=>r.id===id?{...r,status}:r))
     const supabase=createClient();if(!supabase)return
     const {error}=await supabase.from('reservations').update({status}).eq('id',id)
-    if(error){setError(error.message);await loadConnectedData(true);return}
+    if(error){setError(userFacingError(error));await loadConnectedData(true);return}
     await logChange(trip.id,'reservation',id,'updated',`“${current.title}” pasó a ${reservationLabel(status)}.`)
   }
 
@@ -490,7 +488,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     const supabase=createClient()
     if(!supabase)return
     const {error}=await supabase.rpc('move_reservation',{p_reservation_id:reservation.id,p_trip_id:trip.id,p_direction:direction})
-    if(error){setError(error.message);await loadConnectedData(true);return}
+    if(error){setError(userFacingError(error));await loadConnectedData(true);return}
     await loadConnectedData(true)
     await logChange(trip.id,'reservation',reservation.id,'updated',`Se reordenó “${reservation.title}”.`)
   }
@@ -545,9 +543,9 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     const supabase=createClient()
     if(!supabase)return
     const clear=await supabase.from('places').update({is_base:false}).eq('trip_id',trip.id)
-    if(clear.error){setError(clear.error.message);await loadConnectedData(true);return}
+    if(clear.error){setError(userFacingError(clear.error));await loadConnectedData(true);return}
     const {error}=await supabase.from('places').update({is_base:true}).eq('id',place.id)
-    if(error){setError(error.message);await loadConnectedData(true);return}
+    if(error){setError(userFacingError(error));await loadConnectedData(true);return}
     await logChange(trip.id,'place',place.id,'updated',`Se marcó “${place.name}” como base del viaje.`)
   }
 
@@ -562,7 +560,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       .delete()
       .eq('trip_id',trip.id)
       .eq('user_id',member.id)
-    if(error){setError(error.message);return}
+    if(error){setError(userFacingError(error));return}
     await logChange(trip.id,'member',null,'removed',`Se expulsó a ${member.name} del viaje.`)
     await loadConnectedData(true)
   }
@@ -577,8 +575,8 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       .update({role})
       .eq('trip_id',trip.id)
       .eq('user_id',member.id)
-    if(error){setError(error.message);await loadConnectedData(true);return}
-    await logChange(trip.id,'member',null,'updated',`${member.name} ahora tiene rol ${roleLabel(role)}.`)
+    if(error){setError(userFacingError(error));await loadConnectedData(true);return}
+    await logChange(trip.id,'member',null,'updated',`${member.name} ahora tiene rol ${tripRoleLabel(role)}.`)
   }
 
   if(loading)return <div className="shell"><AppBar/><main className="container workspace-skeleton" aria-busy="true" aria-label="Cargando viaje"><div className="skeleton-block skeleton-hero"/><div className="skeleton-block skeleton-tabs"/><div className="two-col"><div className="panel">{[0,1,2,3].map(item=><div className="skeleton-row" key={item}><div className="skeleton-line wide"/><div className="skeleton-line"/></div>)}</div><div className="panel"><div className="skeleton-line wide"/><div className="skeleton-block skeleton-summary"/></div></div></main></div>
@@ -631,7 +629,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
           </section>
           {isOwner&&<section className="panel">
             <div className="panel-head"><h3>Actividad reciente</h3><History size={18} className="muted"/></div>
-            {connected&&changes.length?<div className="list">{changes.slice(0,5).map(c=><div className="change-row" key={c.id}><span className="change-dot"/><div><strong>{c.summary || c.action}</strong><small>{new Date(c.createdAt).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</small></div></div>)}</div>:<div className="muted" style={{fontSize:13}}>Cuando usen Supabase, acá verán qué cambió el grupo.</div>}
+            {connected&&changes.length?<div className="list">{changes.slice(0,5).map(c=><div className="change-row" key={c.id}><span className="change-dot"/><div><strong>{c.summary || changeActionLabel(c.action)}</strong><small>{new Date(c.createdAt).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</small></div></div>)}</div>:<div className="muted" style={{fontSize:13}}>Cuando usen Supabase, acá verán qué cambió el grupo.</div>}
           </section>}
         </aside>
       </div>}
@@ -732,7 +730,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
               {isOwner&&member.role!=='owner'?<select className="role-select" value={member.role} onChange={e=>updateMemberRole(member,e.target.value as TripMember['role'])}>
                 <option value="editor">Editor</option>
                 <option value="viewer">Lector</option>
-              </select>:<span className={`chip ${member.role==='owner'?'green':''}`}>{roleLabel(member.role)}</span>}
+              </select>:<span className={`chip ${member.role==='owner'?'green':''}`}>{tripRoleLabel(member.role)}</span>}
               {isOwner&&member.role!=='owner'&&<button className="icon-btn" title={`Expulsar a ${member.name}`} aria-label={`Expulsar a ${member.name}`} onClick={()=>setMemberToRemove(member)}><UserMinus size={17}/></button>}
             </div>
           </div>):trip.memberNames.map((name,i)=><div className="list-row" key={`${name}-${i}`}>

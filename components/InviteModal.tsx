@@ -4,6 +4,7 @@ import { Copy, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import type { TripRole } from '@/lib/types'
 import { useModalBehavior } from './useModalBehavior'
+import { userFacingError } from '@/lib/ui-text'
 
 export default function InviteModal({tripId,onClose}:{tripId:string,onClose:()=>void}){
   useModalBehavior(onClose)
@@ -26,7 +27,7 @@ export default function InviteModal({tripId,onClose}:{tripId:string,onClose:()=>
       trip_id:tripId,role,max_uses:10,created_by:user.id
     }).select('code').single()
     setLoading(false)
-    if(error){setMessage(error.message);return}
+    if(error){setMessage(userFacingError(error,'No pudimos generar la invitación. Intentá nuevamente.'));return}
     setUrl(`${window.location.origin}/join/${data.code}`)
   }
 

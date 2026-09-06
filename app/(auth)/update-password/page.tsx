@@ -3,6 +3,7 @@ import { FormEvent, useState } from 'react'
 import { Compass } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import { useRouter } from 'next/navigation'
+import { userFacingError } from '@/lib/ui-text'
 
 export default function UpdatePassword(){
   const [password,setPassword]=useState('')
@@ -13,7 +14,7 @@ export default function UpdatePassword(){
     const supabase=createClient()
     if(!supabase){setMessage('Supabase no está configurado.');return}
     const {error}=await supabase.auth.updateUser({password})
-    if(error){setMessage(error.message);return}
+    if(error){setMessage(userFacingError(error,'No pudimos actualizar la contraseña. Intentá nuevamente.'));return}
     router.replace('/dashboard')
     router.refresh()
   }

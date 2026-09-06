@@ -63,6 +63,8 @@ Luego de desplegar, agregar también la URL de Vercel.
 
 ## 5. Probar local
 
+Instalar Node.js 22 antes de ejecutar el proyecto. Si usás un gestor de versiones, los archivos `.nvmrc` y `.node-version` seleccionan la versión requerida.
+
 ```bash
 npm install
 npm run dev

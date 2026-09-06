@@ -3,6 +3,7 @@ import { FormEvent, useState } from 'react'
 import { Compass } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import Link from 'next/link'
+import { userFacingError } from '@/lib/ui-text'
 
 export default function ForgotPassword(){
   const [email,setEmail]=useState('')
@@ -15,7 +16,7 @@ export default function ForgotPassword(){
     setLoading(true)
     const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:`${window.location.origin}/auth/callback?next=${encodeURIComponent('/update-password')}`})
     setLoading(false)
-    setMessage(error?error.message:'Te enviamos un enlace para cambiar tu contraseña.')
+    setMessage(error?userFacingError(error,'No pudimos enviar el email de recuperación. Intentá nuevamente.'):'Te enviamos un enlace para cambiar tu contraseña.')
   }
   return <main className="auth-shell"><form className="auth-card" onSubmit={submit}>
     <div className="brand-mark"><Compass size={19}/></div>

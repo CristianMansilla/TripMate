@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase-client'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { safeInternalPath } from '@/lib/safe-redirect'
+import { userFacingError } from '@/lib/ui-text'
 
 function SignupForm(){
   const [name,setName]=useState('')
@@ -46,7 +47,7 @@ function SignupForm(){
       options:{data:{name,username:cleanUsername},emailRedirectTo:redirectTo}
     })
     setLoading(false)
-    if(error){setMessage(error.message);return}
+    if(error){setMessage(userFacingError(error,'No pudimos crear la cuenta. Intentá nuevamente.'));return}
     setCreated(true)
     setMessage('Cuenta creada. Revisá tu email para confirmar la cuenta. Si no lo ves, buscá también en correo no deseado o spam.')
   }

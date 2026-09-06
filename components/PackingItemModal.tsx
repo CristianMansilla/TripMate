@@ -4,6 +4,7 @@ import { PackingItem } from '@/lib/types'
 import { Trash2 } from 'lucide-react'
 import CategoryPicker from './CategoryPicker'
 import { useModalBehavior } from './useModalBehavior'
+import { userFacingError } from '@/lib/ui-text'
 
 export default function PackingItemModal({
   item,
@@ -30,8 +31,8 @@ export default function PackingItemModal({
     setLoading(true)
     try{
       await onSave({...item,label:label.trim(),category:category.trim() || 'General'})
-    }catch(error:any){
-      setMessage(error?.message || 'No pudimos guardar el ítem. Intentá nuevamente.')
+    }catch(error){
+      setMessage(userFacingError(error,'No pudimos guardar el ítem. Intentá nuevamente.'))
     }finally{
       setLoading(false)
     }

@@ -235,7 +235,7 @@ Evidencia: [progreso fijo](../components/DashboardClient.tsx#L113), [perfil](../
 - Invitaciones sin vencimiento por defecto y sin pantalla para revocar. Tras expulsar a alguien, un enlace aún válido podría permitir que vuelva a unirse. Agregar revocación y una política de reingreso explícita.
 - Falta una suite versionada de pruebas de permisos, cálculos y flujos. Typecheck/build no prueban estas reglas.
 - El componente principal concentra carga, permisos, cálculo, persistencia y todas las vistas. Extraer esas responsabilidades al corregir el núcleo, sin una reescritura total.
-- Hay dependencias declaradas como `latest`. El lockfile fija esta instalación, pero conviene controlar las actualizaciones y usar una versión de Node compatible. La ejecución local emitió un aviso de Supabase sobre Node 20.
+- Hay dependencias declaradas como `latest`. El lockfile fija esta instalación, pero conviene controlar las actualizaciones. Node quedó fijado en la versión 22 y la compilación fue verificada con ese runtime.
 
 Evidencia: [migración](../supabase/v0.3.sql#L7), [esquema](../supabase/schema.sql#L104), [miembros](../supabase/schema.sql#L281), [invitaciones](../supabase/schema.sql#L147), [cambio de base](../components/TripWorkspace.tsx#L586), [dependencias](../package.json).
 

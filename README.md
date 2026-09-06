@@ -30,6 +30,8 @@ TripMate es una aplicación web colaborativa y mobile-first para planificar **cu
 
 ## Arranque local
 
+Requiere Node.js 22. El proyecto incluye `.nvmrc` y `.node-version` para seleccionar esa versión automáticamente con un gestor compatible.
+
 ```bash
 npm install
 npm run dev
