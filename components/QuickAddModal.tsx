@@ -1,5 +1,6 @@
 'use client'
 import { FormEvent, useState } from 'react'
+import CategoryPicker from './CategoryPicker'
 
 type Kind='expense'|'reservation'|'packing'|'place'
 
@@ -12,18 +13,16 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[]}:{
   const [endTime,setEndTime]=useState('')
   const [place,setPlace]=useState('')
   const [optional,setOptional]=useState(false)
-  const [assignedTo,setAssignedTo]=useState('Compartido')
   const [priority,setPriority]=useState('medium')
   const [address,setAddress]=useState('')
   const [url,setUrl]=useState('')
   const [notes,setNotes]=useState('')
   const [loading,setLoading]=useState(false)
   const labels={expense:'Nuevo gasto',reservation:'Nueva reserva',packing:'Agregar a valija',place:'Nuevo lugar'} as const
-  const categoryListId=`${kind}-category-options`
   async function submit(e:FormEvent){
     e.preventDefault();setLoading(true)
     try{
-      await onSave({title,amount:Number(amount||0),category,assignedTo,priority,address,url,notes,date,startTime,endTime,place,optional})
+      await onSave({title,amount:Number(amount||0),category,priority,address,url,notes,date,startTime,endTime,place,optional})
       onClose()
     }finally{setLoading(false)}
   }
@@ -32,9 +31,8 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[]}:{
       <h2>{labels[kind]}</h2>
       <div className="form-grid">
         <div className="field full"><label>{kind==='packing'?'Ítem':'Nombre'}</label><input value={title} onChange={e=>setTitle(e.target.value)} required autoFocus/></div>
-        {(kind==='expense'||kind==='packing'||kind==='place')&&categoryOptions.length>0&&<datalist id={categoryListId}>{categoryOptions.map(option=><option key={option} value={option}/>)}</datalist>}
         {kind==='expense'&&<>
-          <div className="field"><label>Categoría</label><input list={categoryListId} value={category} onChange={e=>setCategory(e.target.value)} required/></div>
+          <CategoryPicker value={category} options={categoryOptions} onChange={setCategory} required/>
           <div className="field"><label>Importe por persona</label><input type="number" min="0" value={amount} onChange={e=>setAmount(e.target.value)} required/></div>
           <div className="field"><label>Día en itinerario</label><input type="date" value={date} onChange={e=>setDate(e.target.value)}/></div>
           <div className="field"><label>Lugar</label><input value={place} onChange={e=>setPlace(e.target.value)} placeholder="Terminal, hotel, restaurante..."/></div>
@@ -50,9 +48,9 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[]}:{
           <div className="field full"><label>Notas</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Detalle para el itinerario"/></div>
         </>}
         {kind==='reservation'&&<><div className="field"><label>Prioridad</label><select value={priority} onChange={e=>setPriority(e.target.value)}><option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option></select></div><div className="field"><label>Importe por persona (opcional)</label><input type="number" min="0" value={amount} onChange={e=>setAmount(e.target.value)}/></div></>}
-        {kind==='packing'&&<><div className="field"><label>Categoría</label><input list={categoryListId} value={category} onChange={e=>setCategory(e.target.value)}/></div><div className="field"><label>Asignado a</label><input value={assignedTo} onChange={e=>setAssignedTo(e.target.value)} placeholder="Compartido"/></div></>}
+        {kind==='packing'&&<CategoryPicker className="full" value={category} options={categoryOptions} onChange={setCategory}/>}
         {kind==='place'&&<>
-          <div className="field"><label>Categoría</label><input list={categoryListId} value={category} onChange={e=>setCategory(e.target.value)} placeholder="Alojamiento, comida, paseo..." required/></div>
+          <CategoryPicker value={category} options={categoryOptions} onChange={setCategory} required/>
           <div className="field"><label>Dirección</label><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="Dirección o zona"/></div>
           <div className="field full"><label>Link</label><input type="url" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://..."/></div>
           <div className="field full"><label>Notas</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Horarios, referencias, recomendaciones..."/></div>

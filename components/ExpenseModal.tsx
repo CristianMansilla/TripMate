@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Activity, Expense } from '@/lib/types'
 import { Trash2 } from 'lucide-react'
+import CategoryPicker from './CategoryPicker'
 
 type ExpenseDraft = Expense & {
   date?: string
@@ -22,9 +23,8 @@ export default function ExpenseModal({expense,activities,onClose,onSave,onDelete
     <div className="modal">
       <h2>Editar gasto</h2>
       <div className="form-grid">
-        {categoryOptions.length>0&&<datalist id="expense-edit-category-options">{categoryOptions.map(option=><option key={option} value={option}/>)}</datalist>}
         <div className="field full"><label>Nombre</label><input value={draft.title} onChange={e=>patch('title',e.target.value)} required/></div>
-        <div className="field"><label>Categoría</label><input list="expense-edit-category-options" value={draft.category} onChange={e=>patch('category',e.target.value)} required/></div>
+        <CategoryPicker value={draft.category} options={categoryOptions} onChange={value=>patch('category',value)} required/>
         <div className="field"><label>Importe por persona</label><input type="number" min="0" value={draft.amount} onChange={e=>patch('amount',Number(e.target.value))} required/></div>
         <div className="field"><label>Día en itinerario</label><input type="date" value={draft.date || ''} onChange={e=>patch('date',e.target.value)}/></div>
         <div className="field"><label>Lugar</label><input value={draft.place || ''} onChange={e=>patch('place',e.target.value)} placeholder="Terminal, hotel, restaurante..."/></div>

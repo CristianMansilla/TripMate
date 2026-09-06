@@ -30,7 +30,7 @@ export async function importCordobaDemo() {
     trip_id:tripId,title:r.title,status:r.status,priority:r.priority,due_date:r.dueDate||null,amount:r.amount??null,notes:r.notes||null,created_by:uid
   }))
   const packingRows=packing.filter(p=>p.tripId===source.id).map((p,index)=>({
-    trip_id:tripId,label:p.label,assigned_label:p.assignedTo,packed:p.packed,category:p.category,position:index,created_by:uid
+    trip_id:tripId,label:p.label,assigned_to:uid,assigned_label:null,packed:p.packed,category:p.category,position:index,created_by:uid
   }))
 
   const results=await Promise.all([

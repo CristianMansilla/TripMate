@@ -91,8 +91,9 @@ export function mapPacking(row: any): PackingItem {
   return {
     id: row.id,
     tripId: row.trip_id,
+    assignedToId: row.assigned_to || null,
     label: row.label,
-    assignedTo: row.assigned_label || 'Compartido',
+    assignedTo: row.assigned_label || 'Personal',
     packed: Boolean(row.packed),
     category: row.category || 'General',
   }

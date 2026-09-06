@@ -66,6 +66,7 @@ export type PackingItem = {
   id: string
   tripId: string
   label: string
+  assignedToId?: string | null
   assignedTo: string
   packed: boolean
   category: string

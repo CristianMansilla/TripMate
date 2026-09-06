@@ -4,6 +4,7 @@ import { AppBar } from './AppBar'
 import ActivityModal from './ActivityModal'
 import ExpenseModal from './ExpenseModal'
 import InviteModal from './InviteModal'
+import PackingItemModal from './PackingItemModal'
 import QuickAddModal from './QuickAddModal'
 import { activities as seedActivities, expenses as seedExpenses, packing as seedPacking, reservations as seedReservations, trips as demoTrips } from '@/lib/demo-data'
 import { Activity, Expense, PackingItem, Place, Reservation, Trip, ChangeLogItem } from '@/lib/types'
@@ -160,12 +161,15 @@ export default function TripWorkspace({tripId}:{tripId:string}){
   const [changes,setChanges]=useState<ChangeLogItem[]>([])
   const [editing,setEditing]=useState<Activity|null>(null)
   const [editingExpense,setEditingExpense]=useState<Expense|null>(null)
+  const [editingPacking,setEditingPacking]=useState<PackingItem|null>(null)
   const [activityToDelete,setActivityToDelete]=useState<Activity|null>(null)
   const [expenseToDelete,setExpenseToDelete]=useState<Expense|null>(null)
+  const [packingToDelete,setPackingToDelete]=useState<PackingItem|null>(null)
   const [inviteOpen,setInviteOpen]=useState(false)
   const [memberToRemove,setMemberToRemove]=useState<TripMember|null>(null)
   const [addKind,setAddKind]=useState<AddKind>(null)
   const [expenseCategoryFilter,setExpenseCategoryFilter]=useState<string|null>(null)
+  const [currentUserId,setCurrentUserId]=useState<string|null>(null)
   const [hydrated,setHydrated]=useState(false)
   const [connected,setConnected]=useState(false)
   const [loading,setLoading]=useState(true)
@@ -178,6 +182,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     if(!supabase)return false
     const {data:{user}}=await supabase.auth.getUser()
     if(!user){router.replace(`/login?next=${encodeURIComponent(`/trip/${tripId}`)}`);return true}
+    setCurrentUserId(user.id)
     setConnected(true)
     if(!silent)setLoading(true)
 
@@ -193,7 +198,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       supabase.from('expenses').select('*').eq('trip_id',tripId).order('created_at'),
       supabase.from('reservations').select('*').eq('trip_id',tripId).order('position').order('created_at'),
       supabase.from('places').select('*').eq('trip_id',tripId).order('is_base',{ascending:false}).order('created_at'),
-      supabase.from('packing_items').select('*').eq('trip_id',tripId).order('position').order('created_at'),
+      supabase.from('packing_items').select('*').eq('trip_id',tripId).eq('assigned_to',user.id).order('position').order('created_at'),
       supabase.from('change_log').select('*').eq('trip_id',tripId).order('created_at',{ascending:false}).limit(8),
     ])
 
@@ -457,6 +462,30 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     await logChange(trip.id,'packing',id,'updated',`${next?'Se marcó':'Se desmarcó'} “${current.label}”.`)
   }
 
+  async function savePacking(item:PackingItem){
+    if(!canEdit)return
+    const next={...item,label:item.label.trim(),category:item.category.trim() || 'General'}
+    setEditingPacking(null)
+    setPack(current=>current.map(p=>p.id===next.id?next:p))
+    const supabase=createClient()
+    if(!supabase)return
+    const {error}=await supabase.from('packing_items').update({label:next.label,category:next.category}).eq('id',next.id)
+    if(error){setError(error.message);await loadConnectedData(true);return}
+    await logChange(trip.id,'packing',next.id,'updated',`Se actualizó “${next.label}” en tu valija.`)
+  }
+
+  async function confirmDeletePacking(){
+    const item=packingToDelete
+    if(!item || !canEdit)return
+    setPackingToDelete(null)
+    setPack(current=>current.filter(p=>p.id!==item.id))
+    const supabase=createClient()
+    if(!supabase)return
+    const {error}=await supabase.from('packing_items').delete().eq('id',item.id)
+    if(error){setError(error.message);await loadConnectedData(true);return}
+    await logChange(trip.id,'packing',item.id,'deleted',`Se eliminó “${item.label}” de tu valija.`)
+  }
+
   async function cycleReservation(id:string){
     const current=res.find(r=>r.id===id);if(!current)return
     const order:Reservation['status'][]=['watching','pending','reserved','paid']
@@ -536,9 +565,10 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       await logChange(trip.id,'reservation',data.id,'created',`Se agregó la reserva “${item.title}”.`)
     }
     if(addKind==='packing'){
-      const item:PackingItem={id:`p-${Date.now()}`,tripId:trip.id,label:payload.title,assignedTo:payload.assignedTo||'Compartido',packed:false,category:payload.category||'General'}
+      const item:PackingItem={id:`p-${Date.now()}`,tripId:trip.id,assignedToId:currentUserId,label:payload.title,assignedTo:'Personal',packed:false,category:payload.category||'General'}
       if(!supabase){setPack(c=>[...c,item]);return}
-      const {data,error}=await supabase.from('packing_items').insert({trip_id:trip.id,label:item.label,assigned_label:item.assignedTo,packed:false,category:item.category}).select('*').single()
+      const {data:{user}}=await supabase.auth.getUser()
+      const {data,error}=await supabase.from('packing_items').insert({trip_id:trip.id,label:item.label,assigned_to:user?.id||null,assigned_label:null,packed:false,category:item.category,created_by:user?.id||null}).select('*').single()
       if(error)throw error
       setPack(c=>[...c,mapPacking(data)])
       await logChange(trip.id,'packing',data.id,'created',`Se agregó “${item.label}” a la valija.`)
@@ -790,9 +820,10 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       </div>}
 
       {tab==='Valija' && <section className="panel">
-        <div className="panel-head"><div><h3>Valija compartida</h3><div className="muted subcopy">{packedCount} de {pack.length} listos.</div></div><div style={{display:'flex',gap:8,alignItems:'center'}}>{canEdit&&<button className="btn btn-primary" onClick={()=>setAddKind('packing')}><Plus size={16}/> Ítem</button>}<Luggage size={19} className="muted"/></div></div>
+        <div className="panel-head"><div><h3>Mi valija</h3><div className="muted subcopy">{packedCount} de {pack.length} listos.</div></div><div style={{display:'flex',gap:8,alignItems:'center'}}>{canEdit&&<button className="btn btn-primary" onClick={()=>setAddKind('packing')}><Plus size={16}/> Ítem</button>}<Luggage size={19} className="muted"/></div></div>
         <div className="progress" style={{marginBottom:16}}><i style={{width:`${pctPacked}%`}}/></div>
-        <div className="list">{pack.map(p=><button key={p.id} className="list-row" disabled={!canEdit} style={{width:'100%',background:'white',textAlign:'left',color:'inherit',cursor:canEdit?'pointer':'default'}} onClick={()=>togglePacking(p.id)}><div style={{display:'flex',alignItems:'center',gap:10}}>{p.packed?<CheckCircle2 size={20} color="var(--green)"/>:<span className="check-empty"/>}<div><strong style={{textDecoration:p.packed?'line-through':'none',opacity:p.packed?0.65:1}}>{p.label}</strong><small>{p.assignedTo} · {p.category}</small></div></div></button>)}</div>
+        <div className="list">{pack.map(p=><div key={p.id} className="list-row packing-row"><div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className="packing-check" disabled={!canEdit} onClick={()=>togglePacking(p.id)} aria-label={`${p.packed?'Desmarcar':'Marcar'} ${p.label}`}>{p.packed?<CheckCircle2 size={20} color="var(--green)"/>:<span className="check-empty"/>}</button><div><strong style={{textDecoration:p.packed?'line-through':'none',opacity:p.packed?0.65:1}}>{p.label}</strong><small>{p.category}</small></div></div>{canEdit&&<div className="packing-actions"><button className="icon-btn" title={`Editar ${p.label}`} aria-label={`Editar ${p.label}`} onClick={()=>setEditingPacking(p)}><Edit3 size={16}/></button><button className="icon-btn" title={`Eliminar ${p.label}`} aria-label={`Eliminar ${p.label}`} onClick={()=>setPackingToDelete(p)}><Trash2 size={16}/></button></div>}</div>)}</div>
+        {!pack.length&&<div className="empty compact">Todavía no cargaste ítems para tu valija.</div>}
       </section>}
 
       {tab==='Integrantes' && <section className="panel">
@@ -826,6 +857,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
 
       {editing&&<ActivityModal activity={editing} onClose={()=>setEditing(null)} onSave={saveActivity} onDelete={(activity)=>{setEditing(null);setActivityToDelete(activity)}}/>}
       {editingExpense&&<ExpenseModal expense={editingExpense} activities={acts} categoryOptions={expenseCategories} onClose={()=>setEditingExpense(null)} onSave={saveExpense} onDelete={(expense)=>{setEditingExpense(null);setExpenseToDelete(expense)}}/>}
+      {editingPacking&&<PackingItemModal item={editingPacking} categoryOptions={packingCategories} onClose={()=>setEditingPacking(null)} onSave={savePacking} onDelete={(item)=>{setEditingPacking(null);setPackingToDelete(item)}}/>}
       {inviteOpen&&<InviteModal tripId={trip.id} onClose={()=>setInviteOpen(false)}/>}
       {addKind&&<QuickAddModal kind={addKind} categoryOptions={addKind==='expense'?expenseCategories:addKind==='packing'?packingCategories:addKind==='place'?placeCategories:[]} onClose={()=>setAddKind(null)} onSave={addQuick}/>}
       {memberToRemove&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setMemberToRemove(null)}}>
@@ -855,6 +887,16 @@ export default function TripWorkspace({tripId}:{tripId:string}){
           <div className="modal-actions">
             <button className="btn btn-secondary" onClick={()=>setExpenseToDelete(null)}>Cancelar</button>
             <button className="btn btn-danger" onClick={confirmDeleteExpense}><Trash2 size={16}/> Eliminar</button>
+          </div>
+        </div>
+      </div>}
+      {packingToDelete&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setPackingToDelete(null)}}>
+        <div className="modal confirm-modal">
+          <h2>Eliminar ítem</h2>
+          <p className="muted">Vas a eliminar <b>{packingToDelete.label}</b> de tu valija. Esta acción no se puede deshacer desde la app.</p>
+          <div className="modal-actions">
+            <button className="btn btn-secondary" onClick={()=>setPackingToDelete(null)}>Cancelar</button>
+            <button className="btn btn-danger" onClick={confirmDeletePacking}><Trash2 size={16}/> Eliminar</button>
           </div>
         </div>
       </div>}

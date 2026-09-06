@@ -87,7 +87,7 @@ a Redirect URLs.
 2. Invitar → rol Editor.
 3. Copiar enlace.
 4. Usuario B abre el enlace, crea/inicia sesión.
-5. B cambia una actividad o un costo.
+5. B cambia un gasto, reserva o lugar.
 6. A debe ver el cambio por Realtime.
 
 ## 9. Antes de hacerla pública

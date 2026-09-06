@@ -6,10 +6,11 @@ Una sola fuente de verdad para un viaje compartido. Reduce chats dispersos, capt
 ## Principios UX
 - **Resumen antes que texto:** mostrar primero decisiones, costos, horarios y estados.
 - **Mobile-first:** durante el viaje el teléfono es el dispositivo principal.
-- **Edición en contexto:** tocar una actividad y cambiarla, sin buscar formularios separados.
-- **Compartido por diseño:** cada cambio pertenece a un viaje y queda disponible para todos los miembros.
+- **Edición en contexto:** editar el gasto completo desde Presupuesto y reflejarlo automáticamente en Itinerario.
+- **Compartido por diseño:** cada cambio del viaje queda disponible para sus miembros; las listas personales, como Valija, pertenecen al usuario logueado.
 - **Estado visible:** idea → planificado → reservado → pagado → hecho.
-- **Presupuesto trazable:** estimado vs real, compartido vs individual, por categoría y por persona.
+- **Presupuesto trazable:** importes por persona, estado del gasto, categoría, inclusión en total y relación con el itinerario.
+- **Costo cero por defecto:** preferir funciones sin APIs pagas; usar enlaces externos cuando resuelven el caso sin sumar complejidad.
 - **Universal:** ningún componente depende de Córdoba, Argentina, ARS o dos viajeros.
 
 ## Navegación propuesta
@@ -25,10 +26,13 @@ Una sola fuente de verdad para un viaje compartido. Reduce chats dispersos, capt
 
 ## Roadmap
 ### MVP
-Viajes múltiples, miembros, itinerario, gastos, reservas, valija, realtime.
+Viajes múltiples, miembros, presupuesto conectado al itinerario, reservas, lugares, valija personal y realtime.
+
+### V0.4
+Notificaciones agrupadas, gastos repetibles, auditoría de datos, adjuntos privados y notas compartidas.
 
 ### V1
-Mapas, archivos, historial, votos, chat por viaje, filtros, offline y notificaciones.
+Historial avanzado, votos, chat por viaje, filtros, offline y mejoras gratuitas de rutas con enlaces externos.
 
 ### V2
-Importación asistida de reservas, sugerencias IA, optimización de rutas, clima/contexto, listas públicas/plantillas de viaje.
+Importación asistida de reservas, sugerencias IA, clima/contexto, listas públicas/plantillas de viaje y optimización de rutas sólo si hay una alternativa gratuita sostenible.

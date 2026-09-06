@@ -289,8 +289,10 @@ create policy "members read reservations" on public.reservations for select to a
 create policy "editors write reservations" on public.reservations for all to authenticated using(public.can_edit_trip(trip_id)) with check(public.can_edit_trip(trip_id));
 create policy "members read places" on public.places for select to authenticated using(public.is_trip_member(trip_id));
 create policy "editors write places" on public.places for all to authenticated using(public.can_edit_trip(trip_id)) with check(public.can_edit_trip(trip_id));
-create policy "members read packing" on public.packing_items for select to authenticated using(public.is_trip_member(trip_id));
-create policy "editors write packing" on public.packing_items for all to authenticated using(public.can_edit_trip(trip_id)) with check(public.can_edit_trip(trip_id));
+create policy "members read own packing" on public.packing_items for select to authenticated using(public.is_trip_member(trip_id) and assigned_to=auth.uid());
+create policy "editors insert own packing" on public.packing_items for insert to authenticated with check(public.can_edit_trip(trip_id) and assigned_to=auth.uid());
+create policy "editors update own packing" on public.packing_items for update to authenticated using(public.can_edit_trip(trip_id) and assigned_to=auth.uid()) with check(public.can_edit_trip(trip_id) and assigned_to=auth.uid());
+create policy "editors delete own packing" on public.packing_items for delete to authenticated using(public.can_edit_trip(trip_id) and assigned_to=auth.uid());
 create policy "members read notes" on public.trip_notes for select to authenticated using(public.is_trip_member(trip_id));
 create policy "editors write notes" on public.trip_notes for all to authenticated using(public.can_edit_trip(trip_id)) with check(public.can_edit_trip(trip_id));
 create policy "owners read invites" on public.trip_invites for select to authenticated using(public.is_trip_owner(trip_id));

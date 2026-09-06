@@ -221,6 +221,10 @@ button { cursor: pointer; }
 .budget-actions { display:flex; align-items:center; justify-content:flex-end; gap:4px; }
 .reservation-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; }
 .reservation-actions .icon-btn:disabled { opacity:.35; cursor:default; }
+.packing-row { align-items:center; }
+.packing-check { border:0; background:transparent; padding:0; display:grid; place-items:center; color:inherit; }
+.packing-check:disabled { cursor:default; }
+.packing-actions { display:flex; align-items:center; justify-content:flex-end; gap:4px; }
 .status-button { border:0; cursor:pointer; }
 .status-button:disabled { cursor:default; }
 .chip.reservation-watching { background:#eef1f6; color:#566078; }
@@ -254,6 +258,8 @@ button { cursor: pointer; }
   .budget-actions { width:100%; justify-content:space-between; }
   .reservation-row { flex-direction:column; align-items:flex-start !important; }
   .reservation-actions { width:100%; justify-content:space-between; }
+  .packing-row { align-items:flex-start; }
+  .packing-actions { flex:0 0 auto; }
   .sync-badge { display:none; }
   .user-name { display:none; }
   .place-row { flex-direction:column; }
