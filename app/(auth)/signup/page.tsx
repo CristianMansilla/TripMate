@@ -4,6 +4,7 @@ import { Compass, Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { safeInternalPath } from '@/lib/safe-redirect'
 
 function SignupForm(){
   const [name,setName]=useState('')
@@ -17,7 +18,7 @@ function SignupForm(){
   const [showPassword,setShowPassword]=useState(false)
   const [showConfirmPassword,setShowConfirmPassword]=useState(false)
   const search=useSearchParams()
-  const next=search.get('next') || '/dashboard'
+  const next=safeInternalPath(search.get('next'))
 
   useEffect(()=>{
     const match=next.match(/^\/join\/([^/?#]+)/)
@@ -39,12 +40,6 @@ function SignupForm(){
     const supabase=createClient()
     if(!supabase){setMessage('Configurá Supabase para habilitar registro.');return}
     setLoading(true)
-    const {data:existingUsername}=await supabase.rpc('resolve_login_identifier',{p_identifier:cleanUsername})
-    if(existingUsername){
-      setLoading(false)
-      setMessage('Ese nombre de usuario ya está en uso.')
-      return
-    }
     const redirectTo=`${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
     const {error}=await supabase.auth.signUp({
       email,password,

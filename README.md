@@ -1,4 +1,4 @@
-# TripMate · v0.3
+# TripMate · v0.4 en desarrollo
 
 TripMate es una aplicación web colaborativa y mobile-first para planificar **cualquier viaje**: Córdoba, Brasil, Europa, escapadas con amigos, etc. Cada usuario puede crear múltiples viajes, invitar acompañantes y compartir itinerario, presupuesto, reservas y lugares. La valija es personal para cada usuario logueado.
 
@@ -47,6 +47,7 @@ Sin variables de entorno funciona en modo demo.
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+SUPABASE_SERVICE_ROLE_KEY=tu_service_role_solo_del_servidor
 ```
 
 Si tu proyecto todavía muestra la clave legacy `anon`, también se admite `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
@@ -57,6 +58,9 @@ Si tu proyecto todavía muestra la clave legacy `anon`, también se admite `NEXT
 
 Si venís desde una base `v0.1`, ejecutar `supabase/v0.2.sql` una sola vez antes de usar nombres de usuario.
 Si ya estabas en `v0.2`, ejecutar `supabase/v0.3.sql` para habilitar lugares con base, orden manual de reservas y valija personal por usuario.
+Después de `v0.3`, ejecutar `supabase/v0.4.sql` para activar el guardado transaccional de gastos e itinerario, los importes por persona/grupo y los permisos corregidos.
+
+`SUPABASE_SERVICE_ROLE_KEY` sólo se usa en el servidor para resolver el login por nombre de usuario. Debe configurarse también en Vercel y nunca llevar el prefijo `NEXT_PUBLIC_`.
 
 ## Primer uso recomendado
 

@@ -56,14 +56,8 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
     setSaving(true)
     const {data:{user}}=await supabase.auth.getUser()
     if(!user){setSaving(false);setProfileMessage('Tu sesión venció. Volvé a iniciar sesión.');return}
-    const {data:existing}=await supabase.rpc('resolve_login_identifier',{p_identifier:cleanUsername})
-    if(existing && existing!==user.email){
-      setSaving(false)
-      setProfileMessage('Ese nombre de usuario ya está en uso.')
-      return
-    }
     const {error}=await supabase.from('profiles').update({display_name:cleanName,username:cleanUsername}).eq('id',user.id)
-    if(error){setProfileMessage(error.message);setSaving(false);return}
+    if(error){setProfileMessage(error.code==='23505'?'Ese nombre de usuario ya está en uso.':'No pudimos guardar el perfil. Intentá nuevamente.');setSaving(false);return}
     await supabase.auth.updateUser({data:{name:cleanName,username:cleanUsername}})
     setName(cleanName)
     setUsername(cleanUsername)

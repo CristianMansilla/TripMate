@@ -3,8 +3,10 @@ import { useState } from 'react'
 import { Copy, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import type { TripRole } from '@/lib/types'
+import { useModalBehavior } from './useModalBehavior'
 
 export default function InviteModal({tripId,onClose}:{tripId:string,onClose:()=>void}){
+  useModalBehavior(onClose)
   const [role,setRole]=useState<TripRole>('editor')
   const [url,setUrl]=useState('')
   const [loading,setLoading]=useState(false)
@@ -30,16 +32,20 @@ export default function InviteModal({tripId,onClose}:{tripId:string,onClose:()=>
 
   async function copy(){
     if(!url)return
-    await navigator.clipboard.writeText(url)
-    setCopied(true);setTimeout(()=>setCopied(false),1500)
+    try{
+      await navigator.clipboard.writeText(url)
+      setCopied(true);setTimeout(()=>setCopied(false),1500)
+    }catch{
+      setMessage('No pudimos copiar el enlace. Seleccionalo manualmente.')
+    }
   }
 
   return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
-    <div className="modal">
-      <h2>Invitar al viaje</h2>
+    <div className="modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
+      <h2 id="invite-modal-title">Invitar al viaje</h2>
       <p className="muted">Generá un enlace. La persona deberá crear o iniciar sesión antes de unirse.</p>
       {message&&<div className="notice">{message}</div>}
-      <div className="field"><label>Permiso</label><select value={role} onChange={e=>setRole(e.target.value as TripRole)}>
+      <div className="field"><label htmlFor="invite-role">Permiso</label><select id="invite-role" value={role} onChange={e=>setRole(e.target.value as TripRole)} disabled={Boolean(url)}>
         <option value="editor">Editor · puede modificar</option>
         <option value="viewer">Lector · sólo consulta</option>
       </select></div>

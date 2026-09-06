@@ -29,6 +29,12 @@ Para actualizar de `v0.2` a `v0.3`, ejecutar:
 
 `supabase/v0.3.sql`
 
+Para actualizar de `v0.3` a `v0.4`, ejecutar después:
+
+`supabase/v0.4.sql`
+
+La migración v0.4 no elimina gastos ni actividades existentes. Copia al gasto los datos de agenda que ya tenga su actividad vinculada antes de activar el nuevo guardado.
+
 ## 3. Variables locales
 
 Crear `.env.local`:
@@ -36,7 +42,10 @@ Crear `.env.local`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://TU_PROYECTO.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=TU_CLAVE_PUBLICA
+SUPABASE_SERVICE_ROLE_KEY=TU_CLAVE_SECRETA_DE_SERVIDOR
 ```
+
+La clave `service_role` es necesaria para iniciar sesión con nombre de usuario. Es secreta: no debe tener prefijo `NEXT_PUBLIC_`, enviarse al navegador ni versionarse.
 
 ## 4. Auth
 
@@ -71,6 +80,7 @@ Durante pruebas, los emails enviados por Supabase Auth pueden llegar a correo no
 - Agregar Environment Variables:
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+  - `SUPABASE_SERVICE_ROLE_KEY`
 - Deploy.
 
 ## 7. Volver a Supabase

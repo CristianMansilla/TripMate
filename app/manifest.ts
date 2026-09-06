@@ -12,16 +12,22 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#5b4cf0',
     icons: [
       {
-        src: '/icon.svg',
+        src: '/icons/tripmate-192.png',
         sizes: '192x192',
-        type: 'image/svg+xml',
+        type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/icon.svg',
+        src: '/icons/tripmate-512.png',
         sizes: '512x512',
-        type: 'image/svg+xml',
+        type: 'image/png',
         purpose: 'any',
+      },
+      {
+        src: '/icons/tripmate-maskable-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
       },
     ],
   }

@@ -4,6 +4,7 @@ import { Compass, Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { safeInternalPath } from '@/lib/safe-redirect'
 
 function LoginForm(){
   const [identifier,setIdentifier]=useState('')
@@ -13,7 +14,7 @@ function LoginForm(){
   const [showPassword,setShowPassword]=useState(false)
   const router=useRouter()
   const search=useSearchParams()
-  const next=useMemo(()=>search.get('next') || '/dashboard',[search])
+  const next=useMemo(()=>safeInternalPath(search.get('next')),[search])
 
   async function submit(e:FormEvent){
     e.preventDefault()
@@ -24,19 +25,14 @@ function LoginForm(){
       return
     }
     setLoading(true)
-    let email=identifier.trim()
-    if(!email.includes('@')){
-      const {data,error}=await supabase.rpc('resolve_login_identifier',{p_identifier:email})
-      if(error || !data){
-        setLoading(false)
-        setMessage('No encontramos ese nombre de usuario.')
-        return
-      }
-      email=data
-    }
-    const {error}=await supabase.auth.signInWithPassword({email,password})
+    const response=await fetch('/api/auth/login',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({identifier,password}),
+    })
+    const result=await response.json().catch(()=>({message:'No pudimos iniciar sesión. Intentá nuevamente.'}))
     setLoading(false)
-    if(error){setMessage(error.message);return}
+    if(!response.ok){setMessage(result.message);return}
     router.replace(next)
     router.refresh()
   }

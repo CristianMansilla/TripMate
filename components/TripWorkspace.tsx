@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { AppBar } from './AppBar'
-import ActivityModal from './ActivityModal'
 import ExpenseModal from './ExpenseModal'
 import InviteModal from './InviteModal'
 import PackingItemModal from './PackingItemModal'
@@ -10,14 +9,15 @@ import { activities as seedActivities, expenses as seedExpenses, packing as seed
 import { Activity, Expense, PackingItem, Place, Reservation, Trip, ChangeLogItem } from '@/lib/types'
 import { money } from '@/lib/money'
 import { createClient } from '@/lib/supabase-client'
-import { activityToRow, mapActivity, mapExpense, mapPacking, mapPlace, mapReservation, mapTrip } from '@/lib/db-mappers'
+import { mapActivity, mapExpense, mapPacking, mapPlace, mapReservation, mapTrip } from '@/lib/db-mappers'
 import { logChange } from '@/lib/change-log'
-import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Edit3, ExternalLink, History, Link2, Luggage, Map as MapIcon, MapPin, Navigation, Plus, ReceiptText, Share2, Star, Trash2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Edit3, ExternalLink, History, Link2, Luggage, Map as MapIcon, MapPin, Menu, Navigation, Plus, ReceiptText, Share2, Star, Trash2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 const tabs = ['Resumen','Itinerario','Presupuesto','Reservas','Lugares','Valija','Integrantes'] as const
 type Tab = typeof tabs[number]
 type AddKind = 'expense'|'reservation'|'packing'|'place'|null
+type SyncStatus = 'demo'|'syncing'|'synced'|'error'
 type TripMember = { id:string; name:string; username?:string; role:'owner'|'editor'|'viewer'; joinedAt?:string }
 
 function dayLabel(date:string){
@@ -106,16 +106,6 @@ function normalizeMatch(value:string){
     .replace(/[^a-z0-9]+/g,' ')
     .trim()
 }
-function inferActivityId(expense:Expense, activities:Activity[]){
-  if(expense.activityId)return expense.activityId
-  const expenseText=normalizeMatch(expense.title)
-  if(!expenseText)return null
-  const match=activities.find(activity=>{
-    const activityText=normalizeMatch(activity.title)
-    return activityText.length>3 && (expenseText.includes(activityText) || activityText.includes(expenseText))
-  })
-  return match?.id || null
-}
 function activityCategoryFromExpense(category:string):Activity['category']{
   const normalized=normalizeMatch(category)
   if(normalized.includes('transporte') || normalized.includes('micro') || normalized.includes('uber') || normalized.includes('taxi'))return 'transport'
@@ -159,19 +149,20 @@ export default function TripWorkspace({tripId}:{tripId:string}){
   const [places,setPlaces]=useState<Place[]>([])
   const [members,setMembers]=useState<TripMember[]>([])
   const [changes,setChanges]=useState<ChangeLogItem[]>([])
-  const [editing,setEditing]=useState<Activity|null>(null)
   const [editingExpense,setEditingExpense]=useState<Expense|null>(null)
   const [editingPacking,setEditingPacking]=useState<PackingItem|null>(null)
-  const [activityToDelete,setActivityToDelete]=useState<Activity|null>(null)
   const [expenseToDelete,setExpenseToDelete]=useState<Expense|null>(null)
   const [packingToDelete,setPackingToDelete]=useState<PackingItem|null>(null)
   const [inviteOpen,setInviteOpen]=useState(false)
   const [memberToRemove,setMemberToRemove]=useState<TripMember|null>(null)
   const [addKind,setAddKind]=useState<AddKind>(null)
   const [expenseCategoryFilter,setExpenseCategoryFilter]=useState<string|null>(null)
+  const [expenseAmountDrafts,setExpenseAmountDrafts]=useState<Record<string,string>>({})
+  const [mobileMoreOpen,setMobileMoreOpen]=useState(false)
   const [currentUserId,setCurrentUserId]=useState<string|null>(null)
   const [hydrated,setHydrated]=useState(false)
   const [connected,setConnected]=useState(false)
+  const [syncStatus,setSyncStatus]=useState<SyncStatus>('demo')
   const [loading,setLoading]=useState(true)
   const [error,setError]=useState('')
 
@@ -184,11 +175,13 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     if(!user){router.replace(`/login?next=${encodeURIComponent(`/trip/${tripId}`)}`);return true}
     setCurrentUserId(user.id)
     setConnected(true)
+    setSyncStatus('syncing')
     if(!silent)setLoading(true)
 
     const {data:tripRow,error:tripError}=await supabase.from('trips').select('*').eq('id',tripId).single()
     if(tripError){
       setError('No pudimos abrir este viaje. Verificá que seas integrante o que la invitación sea válida.')
+      setSyncStatus('error')
       setLoading(false);return true
     }
 
@@ -203,6 +196,13 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     ])
 
     const members=(membersQ.data||[]) as any[]
+    const queryError=[membersQ,actsQ,expQ,resQ,placesQ,packQ,logQ].find(result=>result.error)?.error
+    if(queryError){
+      setError(`No pudimos sincronizar todos los datos: ${queryError.message}`)
+      setSyncStatus('error')
+      setLoading(false)
+      return true
+    }
     const memberIds=members.map(m=>m.user_id)
     const {data:profileRows}=memberIds.length?await supabase.from('profiles').select('id,display_name,username').in('id',memberIds):{data:[] as any[]}
     const nameById=new Map<string,string>((profileRows||[]).map((p:any)=>[String(p.id),String(p.display_name || 'Viajero')]))
@@ -212,10 +212,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setMembers(members.map((m:any)=>({id:String(m.user_id),name:nameById.get(String(m.user_id)) || 'Viajero',username:usernameById.get(String(m.user_id)) || undefined,role:m.role,joinedAt:m.joined_at})))
     setTrip(mapTrip(tripRow,names,myRole))
     const mappedActivities=(actsQ.data||[]).map(mapActivity)
-    const mappedExpenses=(expQ.data||[]).map((row:any)=>{
-      const expense=mapExpense(row)
-      return {...expense,activityId:inferActivityId(expense,mappedActivities)}
-    })
+    const mappedExpenses=(expQ.data||[]).map(mapExpense)
     setActs(mappedActivities)
     setExp(mappedExpenses)
     setRes((resQ.data||[]).map(mapReservation))
@@ -224,6 +221,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setChanges((logQ.data||[]).map((r:any)=>({
       id:r.id,tripId:r.trip_id,entityType:r.entity_type,entityId:r.entity_id,action:r.action,summary:r.summary,createdAt:r.created_at
     })))
+    setSyncStatus('synced')
     setLoading(false)
     return true
   }
@@ -270,23 +268,28 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       .on('postgres_changes',{event:'*',schema:'public',table:'reservations',filter:`trip_id=eq.${tripId}`},refresh)
       .on('postgres_changes',{event:'*',schema:'public',table:'places',filter:`trip_id=eq.${tripId}`},refresh)
       .on('postgres_changes',{event:'*',schema:'public',table:'packing_items',filter:`trip_id=eq.${tripId}`},refresh)
-      .subscribe()
+      .subscribe(status=>{
+        if(status==='SUBSCRIBED')setSyncStatus('synced')
+        if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED')setSyncStatus('error')
+      })
     return()=>{clearTimeout(timer);supabase.removeChannel(channel)}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[connected,tripId])
 
   const isExpenseLinked=(expense:Expense)=>Boolean(expense.activityId && acts.some(activity=>activity.id===expense.activityId))
-  const isExpenseIncluded=(expense:Expense)=>expense.included!==false && isExpenseLinked(expense)
-  const fixedBudget=exp.filter(isExpenseIncluded).reduce((s,e)=>s+e.amount,0)
+  const isExpenseIncluded=(expense:Expense)=>expense.included!==false
   const travellers=Math.max(1,trip.memberNames.length || 1)
-  const perPersonBudget=fixedBudget
-  const groupBudget=perPersonBudget*travellers
+  const expenseGroupAmount=(expense:Expense)=>expense.amountBasis==='group'?expense.amount:expense.amount*travellers
+  const groupBudget=exp.filter(isExpenseIncluded).reduce((sum,expense)=>sum+expenseGroupAmount(expense),0)
+  const perPersonBudget=groupBudget/travellers
+  const fixedBudget=perPersonBudget
   const visibleActivities=acts.filter(activity=>exp.some(expense=>expense.activityId===activity.id && isExpenseIncluded(expense)))
   const pendingReservations=res.filter(r=>r.status==='pending'||r.status==='watching').length
   const packedCount=pack.filter(p=>p.packed).length
   const pctPacked=pack.length?Math.round((packedCount/pack.length)*100):0
   const dates:string[]=[...new Set<string>(visibleActivities.map(a=>a.date))].sort()
   const canEdit=trip.role!=='viewer'
+  const canManagePacking=Boolean(trip.role)
   const isOwner=trip.role==='owner'
   const basePlace=places.find(p=>p.isBase) || places.find(p=>/aloj|hotel|hostel|depart|base/i.test(`${p.category} ${p.name}`))
   const alternativesFor=(activity:Activity)=>visibleActivities
@@ -295,22 +298,23 @@ export default function TripWorkspace({tripId}:{tripId:string}){
 
   const groupedExpenses=useMemo<[string,number][]>(()=>{
     const m=new Map<string,number>()
-    exp.filter(isExpenseIncluded).forEach(e=>m.set(e.category,(m.get(e.category)||0)+e.amount))
+    exp.filter(isExpenseIncluded).forEach(e=>m.set(e.category,(m.get(e.category)||0)+(expenseGroupAmount(e)/travellers)))
     return [...m.entries()].sort((a,b)=>b[1]-a[1])
-  },[exp,acts])
+  },[exp,travellers])
   const expenseCategories=useMemo(()=>uniqueCategories(exp.map(e=>e.category),['Transporte','Alojamiento','Comidas','Salidas','Paseos','Entradas','Otros']),[exp])
   const packingCategories=useMemo(()=>uniqueCategories(pack.map(p=>p.category),['Ropa','Documentos','Tecnología','Cuidado','Organización','General']),[pack])
   const placeCategories=useMemo(()=>uniqueCategories(places.map(p=>p.category),['Alojamiento','Comida','Paseo','Transporte','Noche','Compras','Otro']),[places])
   const maxExpense=Math.max(...groupedExpenses.map(x=>x[1]),1)
   const activityById=useMemo(()=>new Map(acts.map(activity=>[activity.id,activity])),[acts])
+  const expenseByActivityId=useMemo(()=>new Map(exp.filter(expense=>expense.activityId).map(expense=>[expense.activityId as string,expense])),[exp])
   const sortedExpenses=useMemo(()=>[...exp].sort((a,b)=>{
     const aActivity=a.activityId?activityById.get(a.activityId):undefined
     const bActivity=b.activityId?activityById.get(b.activityId):undefined
-    const aDate=aActivity?.date || '9999-12-31'
-    const bDate=bActivity?.date || '9999-12-31'
+    const aDate=a.date || aActivity?.date || '9999-12-31'
+    const bDate=b.date || bActivity?.date || '9999-12-31'
     if(aDate!==bDate)return aDate.localeCompare(bDate)
-    const aTime=aActivity?.startTime || '99:99'
-    const bTime=bActivity?.startTime || '99:99'
+    const aTime=a.startTime || aActivity?.startTime || '99:99'
+    const bTime=b.startTime || bActivity?.startTime || '99:99'
     if(aTime!==bTime)return aTime.localeCompare(bTime)
     return a.title.localeCompare(b.title)
   }),[exp,activityById])
@@ -319,131 +323,101 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     const groups=new Map<string,Expense[]>()
     visibleExpenses.forEach(expense=>{
       const activity=expense.activityId?activityById.get(expense.activityId):undefined
-      const key=activity?.date || 'sin-fecha'
+      const key=expense.date || activity?.date || 'sin-fecha'
       groups.set(key,[...(groups.get(key)||[]),expense])
     })
     return [...groups.entries()]
   },[visibleExpenses,activityById])
 
-  async function saveActivity(a:Activity){
-    const supabase=createClient()
-    if(a.id.startsWith('draft-')){
-      if(!supabase){setActs(current=>[...current,{...a,id:`new-${Date.now()}`}]);setEditing(null);return}
-      const {data:{user}}=await supabase.auth.getUser()
-      const {data,error}=await supabase.from('activities').insert({...activityToRow(a),created_by:user?.id||null,updated_by:user?.id||null}).select('*').single()
-      if(error){setError(error.message);return}
-      const created=mapActivity(data)
-      setActs(current=>[...current,created]);setEditing(null)
-      await logChange(trip.id,'activity',created.id,'created',`Se agregó “${created.title}”.`)
-      return
+  function expenseRpcPayload(expense:Expense){
+    return {
+      p_expense_id:expense.id.startsWith('e-')?null:expense.id,
+      p_trip_id:trip.id,
+      p_title:expense.title,
+      p_category:expense.category,
+      p_amount:expense.amount,
+      p_status:expense.status,
+      p_included:expense.included!==false,
+      p_amount_basis:expense.amountBasis || 'per_person',
+      p_date:expense.date || null,
+      p_start_time:expense.startTime || null,
+      p_end_time:expense.endTime || null,
+      p_place:expense.place || null,
+      p_notes:expense.notes || null,
+      p_optional:Boolean(expense.optional),
     }
-    setActs(current=>current.map(x=>x.id===a.id?a:x));setEditing(null)
-    if(!supabase)return
-    const {data:{user}}=await supabase.auth.getUser()
-    const {error}=await supabase.from('activities').update({...activityToRow(a),updated_by:user?.id||null}).eq('id',a.id)
-    if(error){setError(error.message);await loadConnectedData(true);return}
-    await logChange(trip.id,'activity',a.id,'updated',`Se actualizó “${a.title}”.`)
   }
-
-  async function addActivity(){
-    if(!canEdit)return
-    const date=dates[0] || trip.startDate
-    const draft:Activity={
-      id:`draft-${Date.now()}`,tripId:trip.id,date,title:'Nueva actividad',category:'activity',
-      estimatedCost:0,costScope:'shared',status:'planned',optional:false,position:acts.filter(a=>a.date===date).length
-    }
-    setEditing(draft)
-  }
-
-  function updateExpenseLocal(id:string,amount:number){setExp(c=>c.map(e=>e.id===id?{...e,amount}:e))}
-  async function persistExpense(id:string){
+  async function persistExpense(id:string,amountOverride?:number){
     const current=exp.find(e=>e.id===id)
     const supabase=createClient()
-    if(!supabase||!current)return
-    const {error}=await supabase.from('expenses').update({amount:current.amount}).eq('id',id)
+    if(!current)return
+    const next={...current,amount:amountOverride ?? current.amount}
+    if(!Number.isFinite(next.amount) || next.amount<0){setError('El importe debe ser cero o mayor.');return}
+    setExp(items=>items.map(expense=>expense.id===id?next:expense))
+    if(!supabase)return
+    const {error}=await supabase.rpc('save_expense_plan',expenseRpcPayload(next))
     if(error){setError(error.message);await loadConnectedData(true);return}
-    if(current.activityId){
-      const {error:activityError}=await supabase
-        .from('activities')
-        .update({
-          estimated_cost:current.amount,
-          actual_cost:current.status==='paid'?current.amount:null,
-        })
-        .eq('id',current.activityId)
-      if(activityError){setError(activityError.message);await loadConnectedData(true);return}
-      setActs(items=>items.map(activity=>activity.id===current.activityId?{...activity,estimatedCost:current.amount,actualCost:current.status==='paid'?current.amount:null}:activity))
+    await loadConnectedData(true)
+    await logChange(trip.id,'expense',id,'updated',`Se actualizó “${next.title}” a ${money(next.amount,trip.currency)}.`)
+  }
+  async function commitExpenseAmount(expense:Expense){
+    const raw=expenseAmountDrafts[expense.id]
+    if(raw===undefined)return
+    const amount=Number(raw)
+    setExpenseAmountDrafts(current=>{const next={...current};delete next[expense.id];return next})
+    if(!raw.trim() || !Number.isFinite(amount) || amount<0){
+      setError('El importe debe ser cero o mayor. No se guardó el cambio.')
+      return
     }
-    await logChange(trip.id,'expense',id,'updated',`Se actualizó “${current.title}” a ${money(current.amount,trip.currency)}.`)
+    await persistExpense(expense.id,amount)
   }
 
   async function saveExpense(expense:Expense){
-    const next={...expense,included:expense.activityId ? expense.included!==false : false}
-    setEditingExpense(null)
+    const next={...expense,title:expense.title.trim(),category:expense.category.trim(),amountBasis:expense.amountBasis || 'per_person'}
+    if(!next.title)throw new Error('El nombre no puede estar vacío.')
+    if(!next.category)throw new Error('La categoría no puede estar vacía.')
+    if(!Number.isFinite(next.amount) || next.amount<0)throw new Error('El importe debe ser cero o mayor.')
     const supabase=createClient()
-    if(!supabase){setExp(current=>current.map(e=>e.id===next.id?next:e));return}
-    const draft=expense as Expense & {date?:string;startTime?:string;endTime?:string;place?:string;notes?:string;optional?:boolean}
-    let activityId=next.activityId || null
-    if(draft.date){
-      const activityPayload={
-        trip_id:trip.id,
-        date:draft.date,
-        start_time:draft.startTime || null,
-        end_time:draft.endTime || null,
-        title:next.title,
-        category:activityCategoryFromExpense(next.category),
-        place:draft.place || null,
-        notes:draft.notes || null,
-        estimated_cost:next.amount,
-        actual_cost:next.status==='paid'?next.amount:null,
-        cost_scope:'shared',
-        status:statusFromExpense(next.status),
-        optional:Boolean(draft.optional),
+    if(!supabase){
+      let activityId=next.activityId || null
+      if(next.date){
+        const activity:Activity={id:activityId || `a-${Date.now()}`,tripId:trip.id,date:next.date,startTime:next.startTime,endTime:next.endTime,title:next.title,category:activityCategoryFromExpense(next.category),place:next.place,notes:next.notes,estimatedCost:next.amount,actualCost:next.status==='paid'?next.amount:null,costScope:next.amountBasis==='group'?'shared':'per_person',status:statusFromExpense(next.status),optional:Boolean(next.optional)}
+        activityId=activity.id
+        setActs(current=>current.some(item=>item.id===activity.id)?current.map(item=>item.id===activity.id?activity:item):[...current,activity])
+      }else if(activityId){
+        setActs(current=>current.filter(item=>item.id!==activityId))
+        activityId=null
       }
-      if(activityId){
-        const {data,error}=await supabase.from('activities').update(activityPayload).eq('id',activityId).select('*').single()
-        if(error){setError(error.message);await loadConnectedData(true);return}
-        setActs(current=>current.map(activity=>activity.id===activityId?mapActivity(data):activity))
-      }else{
-        const {data,error}=await supabase.from('activities').insert(activityPayload).select('*').single()
-        if(error){setError(error.message);await loadConnectedData(true);return}
-        const created=mapActivity(data)
-        activityId=created.id
-        setActs(current=>[...current,created])
-      }
+      setExp(current=>current.map(item=>item.id===next.id?{...next,activityId}:item))
+      setEditingExpense(null)
+      return
     }
-    const included=Boolean(activityId) && next.included!==false
-    const {error}=await supabase.from('expenses').update({
-      title:next.title,
-      category:next.category,
-      amount:next.amount,
-      status:next.status,
-      included,
-      activity_id:activityId,
-    }).eq('id',next.id)
-    if(error){setError(error.message);await loadConnectedData(true);return}
-    setExp(current=>current.map(e=>e.id===next.id?{...next,activityId,included}:e))
+    const {error}=await supabase.rpc('save_expense_plan',expenseRpcPayload(next))
+    if(error)throw new Error(error.message)
+    await loadConnectedData(true)
+    setEditingExpense(null)
     await logChange(trip.id,'expense',next.id,'updated',`Se actualizó el gasto “${next.title}”.`)
   }
 
   async function confirmDeleteExpense(){
     const expense=expenseToDelete
     if(!expense || !canEdit)return
-    setExpenseToDelete(null)
-    setExp(current=>current.filter(e=>e.id!==expense.id))
     const supabase=createClient()
-    if(!supabase)return
-    const {error}=await supabase.from('expenses').delete().eq('id',expense.id)
-    if(error){setError(error.message);await loadConnectedData(true);return}
-    if(expense.activityId){
-      await supabase.from('activities').delete().eq('id',expense.activityId)
+    if(!supabase){
+      setExpenseToDelete(null)
+      setExp(current=>current.filter(e=>e.id!==expense.id))
       setActs(current=>current.filter(activity=>activity.id!==expense.activityId))
+      return
     }
+    const {error}=await supabase.rpc('delete_expense_plan',{p_expense_id:expense.id,p_trip_id:trip.id})
+    if(error){setError(error.message);return}
+    setExpenseToDelete(null)
+    await loadConnectedData(true)
     await logChange(trip.id,'expense',expense.id,'deleted',`Se eliminó el gasto “${expense.title}”.`)
   }
 
   async function toggleExpenseIncluded(id:string){
     const current=exp.find(e=>e.id===id);if(!current)return
-    if(!isExpenseLinked(current)){setError('Vinculá este gasto con una actividad del itinerario antes de incluirlo en el presupuesto.');return}
     const included=current.included===false
     setExp(c=>c.map(e=>e.id===id?{...e,included}:e))
     const supabase=createClient();if(!supabase)return
@@ -459,31 +433,32 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     const supabase=createClient();if(!supabase)return
     const {error}=await supabase.from('packing_items').update({packed:next}).eq('id',id)
     if(error){setError(error.message);await loadConnectedData(true);return}
-    await logChange(trip.id,'packing',id,'updated',`${next?'Se marcó':'Se desmarcó'} “${current.label}”.`)
   }
 
   async function savePacking(item:PackingItem){
-    if(!canEdit)return
+    if(!canManagePacking)return
     const next={...item,label:item.label.trim(),category:item.category.trim() || 'General'}
-    setEditingPacking(null)
-    setPack(current=>current.map(p=>p.id===next.id?next:p))
     const supabase=createClient()
-    if(!supabase)return
+    if(!supabase){
+      setPack(current=>current.map(p=>p.id===next.id?next:p))
+      setEditingPacking(null)
+      return
+    }
     const {error}=await supabase.from('packing_items').update({label:next.label,category:next.category}).eq('id',next.id)
-    if(error){setError(error.message);await loadConnectedData(true);return}
-    await logChange(trip.id,'packing',next.id,'updated',`Se actualizó “${next.label}” en tu valija.`)
+    if(error)throw new Error(error.message)
+    setPack(current=>current.map(p=>p.id===next.id?next:p))
+    setEditingPacking(null)
   }
 
   async function confirmDeletePacking(){
     const item=packingToDelete
-    if(!item || !canEdit)return
+    if(!item || !canManagePacking)return
     setPackingToDelete(null)
     setPack(current=>current.filter(p=>p.id!==item.id))
     const supabase=createClient()
     if(!supabase)return
     const {error}=await supabase.from('packing_items').delete().eq('id',item.id)
     if(error){setError(error.message);await loadConnectedData(true);return}
-    await logChange(trip.id,'packing',item.id,'deleted',`Se eliminó “${item.label}” de tu valija.`)
   }
 
   async function cycleReservation(id:string){
@@ -503,63 +478,45 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     const index=ordered.findIndex(item=>item.id===reservation.id)
     const swapIndex=index+direction
     if(index<0 || swapIndex<0 || swapIndex>=ordered.length)return
-    const normalized=ordered.map((item,i)=>({...item,position:i}))
-    const current=normalized[index]
-    const target=normalized[swapIndex]
-    current.position=swapIndex
-    target.position=index
+    const current=ordered[index]
+    const target=ordered[swapIndex]
+    const currentPosition=index
+    const targetPosition=swapIndex
     setRes(items=>items.map(item=>{
-      if(item.id===current.id)return {...item,position:current.position}
-      if(item.id===target.id)return {...item,position:target.position}
+      if(item.id===current.id)return {...item,position:targetPosition}
+      if(item.id===target.id)return {...item,position:currentPosition}
       return item
     }))
     const supabase=createClient()
     if(!supabase)return
-    const [currentUpdate,targetUpdate]=await Promise.all([
-      supabase.from('reservations').update({position:current.position}).eq('id',current.id),
-      supabase.from('reservations').update({position:target.position}).eq('id',target.id),
-    ])
-    const error=currentUpdate.error || targetUpdate.error
+    const {error}=await supabase.rpc('move_reservation',{p_reservation_id:reservation.id,p_trip_id:trip.id,p_direction:direction})
     if(error){setError(error.message);await loadConnectedData(true);return}
+    await loadConnectedData(true)
     await logChange(trip.id,'reservation',reservation.id,'updated',`Se reordenó “${reservation.title}”.`)
   }
 
   async function addQuick(payload:any){
     const supabase=createClient()
     if(addKind==='expense'){
-      let activityId:string|null=null
-      const item:Expense={id:`e-${Date.now()}`,tripId:trip.id,activityId:null,title:payload.title,category:payload.category,amount:payload.amount,status:'estimated',scope:'shared',currency:trip.currency,included:false}
-      if(!supabase){setExp(c=>[...c,item]);return}
-      if(payload.date){
-        const {data:activityData,error:activityError}=await supabase.from('activities').insert({
-          trip_id:trip.id,
-          date:payload.date,
-          start_time:payload.startTime || null,
-          end_time:payload.endTime || null,
-          title:item.title,
-          category:activityCategoryFromExpense(item.category),
-          place:payload.place || null,
-          notes:payload.notes || null,
-          estimated_cost:item.amount,
-          actual_cost:null,
-          cost_scope:'shared',
-          status:'planned',
-          optional:Boolean(payload.optional),
-        }).select('*').single()
-        if(activityError)throw activityError
-        const createdActivity=mapActivity(activityData)
-        activityId=createdActivity.id
-        setActs(c=>[...c,createdActivity])
+      const item:Expense={id:`e-${Date.now()}`,tripId:trip.id,activityId:null,title:payload.title,category:payload.category,amount:payload.amount,amountBasis:payload.amountBasis || 'per_person',status:'estimated',scope:'per_person',currency:trip.currency,included:false,date:payload.date || undefined,startTime:payload.startTime || undefined,endTime:payload.endTime || undefined,place:payload.place || undefined,notes:payload.notes || undefined,optional:Boolean(payload.optional)}
+      if(!supabase){
+        if(item.date){
+          const activity:Activity={id:`a-${Date.now()}`,tripId:trip.id,date:item.date,startTime:item.startTime,endTime:item.endTime,title:item.title,category:activityCategoryFromExpense(item.category),place:item.place,notes:item.notes,estimatedCost:item.amount,actualCost:null,costScope:item.amountBasis==='group'?'shared':'per_person',status:'planned',optional:item.optional}
+          item.activityId=activity.id
+          setActs(c=>[...c,activity])
+        }
+        setExp(c=>[...c,item]);return
       }
-      const {data,error}=await supabase.from('expenses').insert({trip_id:trip.id,activity_id:activityId,title:item.title,category:item.category,amount:item.amount,currency:trip.currency,status:'estimated',scope:'shared',included:false}).select('*').single()
+      const {data,error}=await supabase.rpc('save_expense_plan',expenseRpcPayload(item))
       if(error)throw error
-      setExp(c=>[...c,mapExpense(data)])
-      await logChange(trip.id,'expense',data.id,'created',`Se agregó el gasto “${item.title}”.`)
+      await loadConnectedData(true)
+      await logChange(trip.id,'expense',data,'created',`Se agregó el gasto “${item.title}”.`)
     }
     if(addKind==='reservation'){
-      const item:Reservation={id:`r-${Date.now()}`,tripId:trip.id,title:payload.title,status:'pending',priority:payload.priority,amount:payload.amount||undefined}
+      const nextPosition=res.length?Math.max(...res.map(item=>item.position ?? 0))+1:0
+      const item:Reservation={id:`r-${Date.now()}`,tripId:trip.id,title:payload.title,status:'pending',priority:payload.priority,amount:payload.amount||undefined,position:nextPosition}
       if(!supabase){setRes(c=>[...c,item]);return}
-      const {data,error}=await supabase.from('reservations').insert({trip_id:trip.id,title:item.title,status:'pending',priority:item.priority,amount:item.amount||null}).select('*').single()
+      const {data,error}=await supabase.from('reservations').insert({trip_id:trip.id,title:item.title,status:'pending',priority:item.priority,amount:item.amount||null,position:nextPosition}).select('*').single()
       if(error)throw error
       setRes(c=>[...c,mapReservation(data)])
       await logChange(trip.id,'reservation',data.id,'created',`Se agregó la reserva “${item.title}”.`)
@@ -571,7 +528,6 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       const {data,error}=await supabase.from('packing_items').insert({trip_id:trip.id,label:item.label,assigned_to:user?.id||null,assigned_label:null,packed:false,category:item.category,created_by:user?.id||null}).select('*').single()
       if(error)throw error
       setPack(c=>[...c,mapPacking(data)])
-      await logChange(trip.id,'packing',data.id,'created',`Se agregó “${item.label}” a la valija.`)
     }
     if(addKind==='place'){
       const item:Place={id:`pl-${Date.now()}`,tripId:trip.id,name:payload.title,category:payload.category||'General',address:payload.address||undefined,url:payload.url||undefined,notes:payload.notes||undefined,status:'saved',isBase:false}
@@ -593,71 +549,6 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     const {error}=await supabase.from('places').update({is_base:true}).eq('id',place.id)
     if(error){setError(error.message);await loadConnectedData(true);return}
     await logChange(trip.id,'place',place.id,'updated',`Se marcó “${place.name}” como base del viaje.`)
-  }
-
-  async function moveActivity(activity:Activity,direction:-1|1){
-    if(!canEdit)return
-    const dayActs=acts.filter(a=>a.date===activity.date).sort(sortActivities)
-    const index=dayActs.findIndex(a=>a.id===activity.id)
-    const swapIndex=index+direction
-    if(index<0 || swapIndex<0 || swapIndex>=dayActs.length)return
-    const nextDayActs=dayActs.map((a,i)=>({...a,position:i}))
-    const current=nextDayActs[index]
-    const target=nextDayActs[swapIndex]
-    current.position=swapIndex
-    target.position=index
-    setActs(all=>all.map(a=>{
-      if(a.id===current.id)return {...a,position:current.position}
-      if(a.id===target.id)return {...a,position:target.position}
-      return a
-    }))
-    const supabase=createClient()
-    if(!supabase)return
-    const [currentUpdate,targetUpdate]=await Promise.all([
-      supabase.from('activities').update({position:current.position}).eq('id',current.id),
-      supabase.from('activities').update({position:target.position}).eq('id',target.id),
-    ])
-    const error=currentUpdate.error || targetUpdate.error
-    if(error){setError(error.message);await loadConnectedData(true);return}
-    await logChange(trip.id,'activity',activity.id,'updated',`Se reordenó “${activity.title}”.`)
-  }
-
-  async function promoteAlternative(current:Activity, alternative:Activity){
-    if(!canEdit)return
-    const promoted:Activity={
-      ...alternative,
-      optional:false,
-      status:alternative.status==='idea'?'planned':alternative.status,
-      position:current.position,
-    }
-    const demoted:Activity={...current,optional:true,position:alternative.position}
-    setActs(all=>all.map(a=>{
-      if(a.id===promoted.id)return promoted
-      if(a.id===demoted.id)return demoted
-      return a
-    }))
-    const supabase=createClient()
-    if(!supabase)return
-    const [promotedUpdate,demotedUpdate]=await Promise.all([
-      supabase.from('activities').update({optional:promoted.optional,status:promoted.status,position:promoted.position || 0}).eq('id',promoted.id),
-      supabase.from('activities').update({optional:demoted.optional,position:demoted.position || 0}).eq('id',demoted.id),
-    ])
-    const error=promotedUpdate.error || demotedUpdate.error
-    if(error){setError(error.message);await loadConnectedData(true);return}
-    await logChange(trip.id,'activity',promoted.id,'updated',`“${promoted.title}” pasó a ser la opción principal del horario.`)
-  }
-
-  async function confirmDeleteActivity(){
-    const activity=activityToDelete
-    if(!activity || !canEdit)return
-    setActivityToDelete(null)
-    setActs(current=>current.filter(a=>a.id!==activity.id))
-    const supabase=createClient()
-    if(!supabase)return
-    const {error}=await supabase.from('activities').delete().eq('id',activity.id)
-    if(error){setError(error.message);await loadConnectedData(true);return}
-    await supabase.from('expenses').update({included:false}).eq('activity_id',activity.id)
-    await logChange(trip.id,'activity',activity.id,'deleted',`Se eliminó “${activity.title}”.`)
   }
 
   async function confirmRemoveMember(){
@@ -690,7 +581,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     await logChange(trip.id,'member',null,'updated',`${member.name} ahora tiene rol ${roleLabel(role)}.`)
   }
 
-  if(loading)return <div className="shell"><AppBar/><main className="container"><div className="empty">Cargando viaje…</div></main></div>
+  if(loading)return <div className="shell"><AppBar/><main className="container workspace-skeleton" aria-busy="true" aria-label="Cargando viaje"><div className="skeleton-block skeleton-hero"/><div className="skeleton-block skeleton-tabs"/><div className="two-col"><div className="panel">{[0,1,2,3].map(item=><div className="skeleton-row" key={item}><div className="skeleton-line wide"/><div className="skeleton-line"/></div>)}</div><div className="panel"><div className="skeleton-line wide"/><div className="skeleton-block skeleton-summary"/></div></div></main></div>
 
   return <div className="shell">
     <AppBar/>
@@ -705,7 +596,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
           </div>
           <div className="hero-actions">
             {isOwner&&<button className="btn btn-secondary" onClick={()=>setInviteOpen(true)}><Share2 size={16}/> Invitar</button>}
-            <div className={`sync-badge ${connected?'online':'demo'}`}>{connected?<><Wifi size={13}/> Sincronizado</>:<><WifiOff size={13}/> Demo</>}</div>
+            <div className={`sync-badge ${syncStatus==='synced'?'online':'demo'}`} title={syncStatus==='error'?'No se pudieron sincronizar todos los cambios':undefined}>{syncStatus==='synced'?<><Wifi size={13}/> Sincronizado</>:syncStatus==='syncing'?<><Wifi size={13}/> Sincronizando…</>:syncStatus==='error'?<><WifiOff size={13}/> Sin conexión</>:<><WifiOff size={13}/> Demo</>}</div>
             <div style={{display:'flex',marginLeft:2}}>{trip.memberNames.map((n,i)=><div key={`${n}-${i}`} className="avatar" title={n} style={{marginLeft:i?-8:0,border:'2px solid rgba(255,255,255,.6)',background:i?'#f1d9e8':'#dfe8ff'}}>{n[0]}</div>)}</div>
           </div>
         </div>
@@ -760,7 +651,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
                 <div>{alternativesFor(a).slice(0,3).map(alt=><span className="alternative-pill" key={alt.id}>{alt.startTime||'Sin hora'} · {alt.title}</span>)}</div>
               </div>}
             </div>
-            <div className="activity-side"><div className="price">{money(a.actualCost ?? a.estimatedCost,trip.currency)}</div></div>
+            <div className="activity-side"><div className="price">{money(a.actualCost ?? a.estimatedCost,trip.currency)}</div>{canEdit&&expenseByActivityId.get(a.id)&&<button className="icon-btn" title={`Editar ${a.title} en Presupuesto`} aria-label={`Editar ${a.title} en Presupuesto`} onClick={()=>setEditingExpense(expenseByActivityId.get(a.id)!)}><Edit3 size={16}/></button>}</div>
           </div>)}
         </div>)}
         {!dates.length&&<div className="empty"><h3>Itinerario vacío</h3><p>Agregá o editá un gasto en Presupuesto, cargale día y marcá incluir para que aparezca acá.</p>{canEdit&&<button className="btn btn-primary" onClick={()=>setTab('Presupuesto')}>Ir a Presupuesto</button>}</div>}
@@ -768,11 +659,11 @@ export default function TripWorkspace({tripId}:{tripId:string}){
 
       {tab==='Presupuesto' && <div className="two-col">
         <section className="panel">
-          <div className="panel-head"><div><h3>Presupuesto editable</h3><div className="muted subcopy">Importes por persona. Cargá un solo valor y TripMate calcula el total del grupo.</div></div>{canEdit&&<button className="btn btn-primary" onClick={()=>setAddKind('expense')}><Plus size={16}/> Gasto</button>}</div>
+          <div className="panel-head"><div><h3>Presupuesto editable</h3><div className="muted subcopy">Cada gasto indica si el importe es por persona o por todo el grupo.</div></div>{canEdit&&<button className="btn btn-primary" onClick={()=>setAddKind('expense')}><Plus size={16}/> Gasto</button>}</div>
           {expenseCategoryFilter&&<div className="filter-notice">Mostrando gastos de <b>{expenseCategoryFilter}</b><button onClick={()=>setExpenseCategoryFilter(null)}>Ver todos</button></div>}
           <div className="budget-days">{expensesByDay.map(([date,items])=><div className="budget-day" key={date}>
             <div className="day-heading budget-day-heading"><strong>{date==='sin-fecha'?'Sin día en itinerario':dayLabel(date)}</strong><span>{items.length} {items.length===1?'gasto':'gastos'}</span></div>
-            <div className="list">{items.map(e=>{const status=expenseStatusLabel(e.status);const linked=isExpenseLinked(e);const included=isExpenseIncluded(e);const activity=e.activityId?activityById.get(e.activityId):undefined;return <div className={`list-row budget-line ${!included?'excluded':''}`} key={e.id} style={{alignItems:'center'}}><div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className={`budget-check ${included?'on':''}`} disabled={!canEdit || !linked} onClick={()=>toggleExpenseIncluded(e.id)} aria-label={`${included?'Excluir':'Incluir'} ${e.title}`}>{included?'✓':''}</button><div><strong>{e.title}</strong><small>{[activity?.startTime,activity?.place,e.category,status,!linked?'sin día en itinerario':!included?'fuera del total':''].filter(Boolean).join(' · ')}</small></div></div><div className="budget-actions"><div className="money-input"><span>{trip.currency}</span><input aria-label={`Costo ${e.title}`} disabled={!canEdit} type="number" value={e.amount} onChange={ev=>updateExpenseLocal(e.id,Number(ev.target.value))} onBlur={()=>persistExpense(e.id)}/></div>{canEdit&&<><button className="icon-btn" title={`Editar ${e.title}`} aria-label={`Editar ${e.title}`} onClick={()=>setEditingExpense(e)}><Edit3 size={16}/></button><button className="icon-btn" title={`Eliminar ${e.title}`} aria-label={`Eliminar ${e.title}`} onClick={()=>setExpenseToDelete(e)}><Trash2 size={16}/></button></>}</div></div>})}</div>
+            <div className="list">{items.map(e=>{const status=expenseStatusLabel(e.status);const linked=isExpenseLinked(e);const included=isExpenseIncluded(e);const activity=e.activityId?activityById.get(e.activityId):undefined;return <div className={`list-row budget-line ${!included?'excluded':''}`} key={e.id} style={{alignItems:'center'}}><div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className={`budget-check ${included?'on':''}`} disabled={!canEdit} onClick={()=>toggleExpenseIncluded(e.id)} aria-label={`${included?'Excluir':'Incluir'} ${e.title}`}>{included?'✓':''}</button><div><strong>{e.title}</strong><small>{[e.startTime||activity?.startTime,e.place||activity?.place,e.category,e.amountBasis==='group'?'total grupo':'por persona',status,!linked?'sin día en itinerario':!included?'fuera del total':''].filter(Boolean).join(' · ')}</small></div></div><div className="budget-actions"><div className="money-input"><span>{trip.currency}</span><input aria-label={`Costo ${e.title}`} disabled={!canEdit} min="0" step="0.01" type="number" value={expenseAmountDrafts[e.id] ?? String(e.amount)} onChange={ev=>setExpenseAmountDrafts(current=>({...current,[e.id]:ev.target.value}))} onBlur={()=>commitExpenseAmount(e)}/></div>{canEdit&&<><button className="icon-btn" title={`Editar ${e.title}`} aria-label={`Editar ${e.title}`} onClick={()=>setEditingExpense(e)}><Edit3 size={16}/></button><button className="icon-btn" title={`Eliminar ${e.title}`} aria-label={`Eliminar ${e.title}`} onClick={()=>setExpenseToDelete(e)}><Trash2 size={16}/></button></>}</div></div>})}</div>
           </div>)}</div>
         </section>
         <aside className="panel">
@@ -820,9 +711,9 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       </div>}
 
       {tab==='Valija' && <section className="panel">
-        <div className="panel-head"><div><h3>Mi valija</h3><div className="muted subcopy">{packedCount} de {pack.length} listos.</div></div><div style={{display:'flex',gap:8,alignItems:'center'}}>{canEdit&&<button className="btn btn-primary" onClick={()=>setAddKind('packing')}><Plus size={16}/> Ítem</button>}<Luggage size={19} className="muted"/></div></div>
+        <div className="panel-head"><div><h3>Mi valija</h3><div className="muted subcopy">{packedCount} de {pack.length} listos.</div></div><div style={{display:'flex',gap:8,alignItems:'center'}}>{canManagePacking&&<button className="btn btn-primary" onClick={()=>setAddKind('packing')}><Plus size={16}/> Ítem</button>}<Luggage size={19} className="muted"/></div></div>
         <div className="progress" style={{marginBottom:16}}><i style={{width:`${pctPacked}%`}}/></div>
-        <div className="list">{pack.map(p=><div key={p.id} className="list-row packing-row"><div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className="packing-check" disabled={!canEdit} onClick={()=>togglePacking(p.id)} aria-label={`${p.packed?'Desmarcar':'Marcar'} ${p.label}`}>{p.packed?<CheckCircle2 size={20} color="var(--green)"/>:<span className="check-empty"/>}</button><div><strong style={{textDecoration:p.packed?'line-through':'none',opacity:p.packed?0.65:1}}>{p.label}</strong><small>{p.category}</small></div></div>{canEdit&&<div className="packing-actions"><button className="icon-btn" title={`Editar ${p.label}`} aria-label={`Editar ${p.label}`} onClick={()=>setEditingPacking(p)}><Edit3 size={16}/></button><button className="icon-btn" title={`Eliminar ${p.label}`} aria-label={`Eliminar ${p.label}`} onClick={()=>setPackingToDelete(p)}><Trash2 size={16}/></button></div>}</div>)}</div>
+        <div className="list">{pack.map(p=><div key={p.id} className="list-row packing-row"><div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className="packing-check" disabled={!canManagePacking} onClick={()=>togglePacking(p.id)} aria-label={`${p.packed?'Desmarcar':'Marcar'} ${p.label}`}>{p.packed?<CheckCircle2 size={20} color="var(--green)"/>:<span className="check-empty"/>}</button><div><strong style={{textDecoration:p.packed?'line-through':'none',opacity:p.packed?0.65:1}}>{p.label}</strong><small>{p.category}</small></div></div>{canManagePacking&&<div className="packing-actions"><button className="icon-btn" title={`Editar ${p.label}`} aria-label={`Editar ${p.label}`} onClick={()=>setEditingPacking(p)}><Edit3 size={16}/></button><button className="icon-btn" title={`Eliminar ${p.label}`} aria-label={`Eliminar ${p.label}`} onClick={()=>setPackingToDelete(p)}><Trash2 size={16}/></button></div>}</div>)}</div>
         {!pack.length&&<div className="empty compact">Todavía no cargaste ítems para tu valija.</div>}
       </section>}
 
@@ -853,9 +744,14 @@ export default function TripWorkspace({tripId}:{tripId:string}){
         </div>
       </section>}
 
-      <div className="bottom-nav">{tabs.map((t,i)=>{const Icon=[CalendarDays,Clock3,DollarSign,ClipboardCheck,MapIcon,Luggage,Users][i];return <button key={t} className={tab===t?'active':''} onClick={()=>setTab(t)}><Icon size={18}/>{t}</button>})}</div>
+      <div className="bottom-nav">
+        {(['Resumen','Itinerario','Presupuesto','Valija'] as Tab[]).map((t,i)=>{const Icon=[CalendarDays,Clock3,DollarSign,Luggage][i];return <button key={t} className={tab===t?'active':''} onClick={()=>{setTab(t);setMobileMoreOpen(false)}}><Icon size={18}/>{t}</button>})}
+        <button className={(['Reservas','Lugares','Integrantes'] as Tab[]).includes(tab)||mobileMoreOpen?'active':''} onClick={()=>setMobileMoreOpen(value=>!value)} aria-expanded={mobileMoreOpen}><Menu size={18}/>Más</button>
+      </div>
+      {mobileMoreOpen&&<div className="mobile-more-menu" role="menu">
+        {([['Reservas',ClipboardCheck],['Lugares',MapIcon],['Integrantes',Users]] as const).map(([target,Icon])=><button key={target} role="menuitem" className={tab===target?'active':''} onClick={()=>{setTab(target);setMobileMoreOpen(false)}}><Icon size={18}/>{target}</button>)}
+      </div>}
 
-      {editing&&<ActivityModal activity={editing} onClose={()=>setEditing(null)} onSave={saveActivity} onDelete={(activity)=>{setEditing(null);setActivityToDelete(activity)}}/>}
       {editingExpense&&<ExpenseModal expense={editingExpense} activities={acts} categoryOptions={expenseCategories} onClose={()=>setEditingExpense(null)} onSave={saveExpense} onDelete={(expense)=>{setEditingExpense(null);setExpenseToDelete(expense)}}/>}
       {editingPacking&&<PackingItemModal item={editingPacking} categoryOptions={packingCategories} onClose={()=>setEditingPacking(null)} onSave={savePacking} onDelete={(item)=>{setEditingPacking(null);setPackingToDelete(item)}}/>}
       {inviteOpen&&<InviteModal tripId={trip.id} onClose={()=>setInviteOpen(false)}/>}
@@ -867,16 +763,6 @@ export default function TripWorkspace({tripId}:{tripId:string}){
           <div className="modal-actions">
             <button className="btn btn-secondary" onClick={()=>setMemberToRemove(null)}>Cancelar</button>
             <button className="btn btn-danger" onClick={confirmRemoveMember}><UserMinus size={16}/> Expulsar</button>
-          </div>
-        </div>
-      </div>}
-      {activityToDelete&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setActivityToDelete(null)}}>
-        <div className="modal confirm-modal">
-          <h2>Eliminar actividad</h2>
-          <p className="muted">Vas a eliminar <b>{activityToDelete.title}</b> del itinerario. Esta acción no se puede deshacer desde la app.</p>
-          <div className="modal-actions">
-            <button className="btn btn-secondary" onClick={()=>setActivityToDelete(null)}>Cancelar</button>
-            <button className="btn btn-danger" onClick={confirmDeleteActivity}><Trash2 size={16}/> Eliminar</button>
           </div>
         </div>
       </div>}

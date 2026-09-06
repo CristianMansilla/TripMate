@@ -124,6 +124,19 @@ button { cursor: pointer; }
 .status-dot { width:9px; height:9px; border-radius:50%; background:var(--amber); margin-right:8px; display:inline-block; }
 .status-dot.done { background:var(--green); }
 .bottom-nav { display:none; }
+.mobile-more-menu { display:none; }
+.skeleton-block,.skeleton-line { background:#e8ebf2; overflow:hidden; position:relative; }
+.skeleton-block::after,.skeleton-line::after { content:""; position:absolute; inset:0; transform:translateX(-100%); background:linear-gradient(90deg,transparent,rgba(255,255,255,.72),transparent); animation:skeleton-sweep 1.35s ease-in-out infinite; }
+.skeleton-cover { height:170px; }
+.skeleton-card { pointer-events:none; }
+.skeleton-line { height:13px; width:58%; border-radius:4px; margin:8px 0; }
+.skeleton-line.wide { width:82%; height:18px; }
+.skeleton-hero { height:220px; border-radius:8px; margin-bottom:18px; }
+.skeleton-tabs { height:62px; border-radius:8px; margin-bottom:18px; }
+.skeleton-row { min-height:76px; padding:12px 0; border-bottom:1px solid var(--line); }
+.skeleton-summary { height:150px; border-radius:8px; margin-top:20px; }
+@keyframes skeleton-sweep { to { transform:translateX(100%); } }
+@media (prefers-reduced-motion:reduce){.skeleton-block::after,.skeleton-line::after{animation:none}}
 .modal-backdrop { position:fixed; inset:0; background:rgba(13,19,36,.45); backdrop-filter:blur(4px); z-index:2147483647; display:flex; align-items:flex-start; justify-content:center; overflow:auto; padding:24px 16px; }
 .modal { width:min(580px,100%); max-height:calc(100vh - 48px); overflow:auto; background:white; border-radius:24px; box-shadow:0 30px 90px rgba(20,26,60,.28); padding:22px; }
 .confirm-modal { width:min(460px,100%); }
@@ -178,6 +191,10 @@ button { cursor: pointer; }
   .bottom-nav { display:flex; position:fixed; z-index:70; bottom:0; left:0; right:0; height:68px; background:rgba(255,255,255,.94); border-top:1px solid var(--line); backdrop-filter:blur(18px); justify-content:space-around; align-items:center; padding-bottom:max(env(safe-area-inset-bottom),4px); }
   .bottom-nav button { border:0; background:transparent; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10px; font-weight:700; }
   .bottom-nav button.active { color:var(--brand); }
+  .bottom-nav button { min-width:0; flex:1; }
+  .mobile-more-menu { display:grid; position:fixed; z-index:71; right:10px; bottom:76px; width:min(220px,calc(100vw - 20px)); padding:8px; gap:4px; border:1px solid var(--line); border-radius:16px; background:white; box-shadow:var(--shadow); }
+  .mobile-more-menu button { min-height:44px; border:0; border-radius:10px; background:transparent; color:var(--ink); display:flex; align-items:center; gap:10px; padding:10px 12px; font-weight:750; }
+  .mobile-more-menu button.active { background:var(--brand-soft); color:var(--brand); }
 }
 
 

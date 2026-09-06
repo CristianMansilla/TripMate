@@ -66,10 +66,17 @@ export function mapExpense(row: any): Expense {
     title: row.title,
     category: row.category,
     amount: Number(row.amount || 0),
+    amountBasis: row.amount_basis || 'per_person',
     currency: row.currency || 'ARS',
     status: row.status || 'estimated',
     scope: row.scope || 'shared',
     included: row.included !== false,
+    date: row.expense_date || undefined,
+    startTime: row.itinerary_start_time?.slice(0, 5) || undefined,
+    endTime: row.itinerary_end_time?.slice(0, 5) || undefined,
+    place: row.place || undefined,
+    notes: row.notes || undefined,
+    optional: Boolean(row.optional),
   }
 }
 

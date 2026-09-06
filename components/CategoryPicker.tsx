@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 
 const customValue='__custom_category__'
 
@@ -30,6 +30,7 @@ export default function CategoryPicker({
   required?:boolean
   className?:string
 }){
+  const fieldId=useId()
   const choices=uniqueOptions(options)
   const matchesChoice=choices.some(option=>option.toLowerCase()===value.trim().toLowerCase())
   const [customMode,setCustomMode]=useState(Boolean(value.trim()) && !matchesChoice)
@@ -37,12 +38,13 @@ export default function CategoryPicker({
   const selectValue=customMode || usingCustom?customValue:value
 
   useEffect(()=>{
-    if(matchesChoice)setCustomMode(false)
-  },[matchesChoice])
+    if(!value.trim())return
+    if(!matchesChoice)setCustomMode(true)
+  },[matchesChoice,value])
 
   return <div className={`field ${className}`.trim()}>
-    <label>{label}</label>
-    <select value={selectValue} onChange={e=>{
+    <label htmlFor={`${fieldId}-select`}>{label}</label>
+    <select id={`${fieldId}-select`} value={selectValue} onChange={e=>{
       const next=e.target.value
       setCustomMode(next===customValue)
       onChange(next===customValue?'':next)
@@ -50,6 +52,6 @@ export default function CategoryPicker({
       {choices.map(option=><option key={option} value={option}>{option}</option>)}
       <option value={customValue}>Otra categoría...</option>
     </select>
-    {(selectValue===customValue || usingCustom)&&<input value={value} onChange={e=>onChange(e.target.value)} placeholder="Nueva categoría" required={required} autoFocus/>}
+    {(selectValue===customValue || usingCustom)&&<input aria-label="Nueva categoría" value={value} onChange={e=>onChange(e.target.value)} placeholder="Nueva categoría" required={required} autoFocus/>}
   </div>
 }

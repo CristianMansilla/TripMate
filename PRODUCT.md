@@ -29,10 +29,10 @@ Una sola fuente de verdad para un viaje compartido. Reduce chats dispersos, capt
 Viajes múltiples, miembros, presupuesto conectado al itinerario, reservas, lugares, valija personal y realtime.
 
 ### V0.4
-Notificaciones agrupadas, gastos repetibles, auditoría de datos, adjuntos privados y notas compartidas.
+Integridad entre presupuesto e itinerario, edición completa de reservas y lugares, estados de guardado, navegación móvil, accesibilidad, skeletons y gastos repetibles básicos.
 
-### V1
-Historial avanzado, votos, chat por viaje, filtros, offline y mejoras gratuitas de rutas con enlaces externos.
+### V0.5
+Alternativas elegibles, exportación, consulta offline de agenda, copia de valija y notas compartidas.
 
-### V2
-Importación asistida de reservas, sugerencias IA, clima/contexto, listas públicas/plantillas de viaje y optimización de rutas sólo si hay una alternativa gratuita sostenible.
+### V0.6 o posterior
+Adjuntos privados, avisos agrupados, votaciones y reparto de gastos sólo si existe una necesidad comprobada. Chat, IA, clima y optimización de rutas quedan postergados.

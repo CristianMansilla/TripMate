@@ -3,6 +3,7 @@ import { FormEvent, useState } from 'react'
 import { PackingItem } from '@/lib/types'
 import { Trash2 } from 'lucide-react'
 import CategoryPicker from './CategoryPicker'
+import { useModalBehavior } from './useModalBehavior'
 
 export default function PackingItemModal({
   item,
@@ -17,25 +18,31 @@ export default function PackingItemModal({
   onSave:(item:PackingItem)=>Promise<void>|void
   onDelete:(item:PackingItem)=>void
 }){
+  useModalBehavior(onClose)
   const [label,setLabel]=useState(item.label)
   const [category,setCategory]=useState(item.category)
   const [loading,setLoading]=useState(false)
+  const [message,setMessage]=useState('')
 
   async function submit(e:FormEvent){
     e.preventDefault()
+    setMessage('')
     setLoading(true)
     try{
       await onSave({...item,label:label.trim(),category:category.trim() || 'General'})
+    }catch(error:any){
+      setMessage(error?.message || 'No pudimos guardar el ítem. Intentá nuevamente.')
     }finally{
       setLoading(false)
     }
   }
 
   return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
-    <form className="modal" onSubmit={submit}>
-      <h2>Editar ítem</h2>
+    <form className="modal" role="dialog" aria-modal="true" aria-labelledby="packing-modal-title" onSubmit={submit}>
+      <h2 id="packing-modal-title">Editar ítem</h2>
+      {message&&<div className="notice error">{message}</div>}
       <div className="form-grid">
-        <div className="field full"><label>Ítem</label><input value={label} onChange={e=>setLabel(e.target.value)} required autoFocus/></div>
+        <div className="field full"><label htmlFor="packing-label">Ítem</label><input id="packing-label" value={label} onChange={e=>setLabel(e.target.value)} required autoFocus/></div>
         <CategoryPicker className="full" value={category} options={categoryOptions} onChange={setCategory}/>
       </div>
       <div className="modal-actions split">

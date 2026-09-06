@@ -56,10 +56,17 @@ export type Expense = {
   title: string
   category: string
   amount: number
+  amountBasis?: 'per_person' | 'group'
   currency?: string
   status: 'estimated' | 'confirmed' | 'paid'
   scope: CostScope
   included?: boolean
+  date?: string
+  startTime?: string
+  endTime?: string
+  place?: string
+  notes?: string
+  optional?: boolean
 }
 
 export type PackingItem = {

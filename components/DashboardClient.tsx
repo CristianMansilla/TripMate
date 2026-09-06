@@ -16,15 +16,18 @@ function dateRange(start:string,end:string){
 }
 
 export default function DashboardClient(){
-  const [trips,setTrips]=useState<Trip[]>(demoTrips)
+  const [trips,setTrips]=useState<Trip[]>(hasSupabaseEnv()?[]:demoTrips)
   const [loading,setLoading]=useState(hasSupabaseEnv())
   const [connected,setConnected]=useState(false)
+  const [error,setError]=useState('')
+  const [reloadKey,setReloadKey]=useState(0)
   const [showNew,setShowNew]=useState(false)
   const router=useRouter()
 
   useEffect(()=>{
     let alive=true
     async function load(){
+      setError('')
       const supabase=createClient()
       if(!supabase){setLoading(false);return}
       const {data:{user}}=await supabase.auth.getUser()
@@ -41,6 +44,7 @@ export default function DashboardClient(){
           return
         }
         localStorage.removeItem('tripmate-pending-invite-code')
+        if(error)setError('No pudimos aceptar la invitación. Puede haber vencido o alcanzado su límite de usos.')
       }
 
       const {data:memberships,error}=await supabase
@@ -48,7 +52,7 @@ export default function DashboardClient(){
         .select('role, trips(*)')
         .eq('user_id',user.id)
         .order('joined_at',{ascending:false})
-      if(error){console.error(error);setLoading(false);return}
+      if(error){setError('No pudimos cargar tus viajes. Revisá la conexión e intentá nuevamente.');setLoading(false);return}
 
       const loaded:Trip[]=[]
       for(const membership of memberships || []){
@@ -65,7 +69,7 @@ export default function DashboardClient(){
     }
     load()
     return()=>{alive=false}
-  },[router])
+  },[router,reloadKey])
 
   async function createTrip(input:Omit<Trip,'id'|'status'|'memberNames'>){
     const supabase=createClient()
@@ -97,11 +101,12 @@ export default function DashboardClient(){
         <button className="btn btn-primary" onClick={()=>setShowNew(true)}><Plus size={17}/> Nuevo viaje</button>
       </div>
 
-      <div className={`connection-pill ${connected?'online':'demo'}`}>
-        {connected?<><Wifi size={14}/> Conectado · cambios compartidos</>:<><WifiOff size={14}/> Modo demo · cambios sólo en este navegador</>}
+      <div className={`connection-pill ${connected&&!error?'online':'demo'}`}>
+        {connected&&!error?<><Wifi size={14}/> Conectado · cambios compartidos</>:hasSupabaseEnv()?<><WifiOff size={14}/> Sin conexión</>:<><WifiOff size={14}/> Modo demo · cambios sólo en este navegador</>}
       </div>
 
-      {loading?<div className="empty">Cargando tus viajes…</div>:trips.length===0?<div className="empty"><h3>Todavía no tenés viajes</h3><p>Creá el primero o abrí un enlace de invitación para sumarte a uno compartido.</p><div className="empty-actions"><button className="btn btn-primary" onClick={()=>setShowNew(true)}>Crear mi primer viaje</button></div></div>:
+      {error&&<div className="notice error dismissible" role="alert">{error}<button onClick={()=>{setLoading(true);setReloadKey(key=>key+1)}}>Reintentar</button></div>}
+      {loading?<div className="grid-trips skeleton-grid" aria-busy="true" aria-label="Cargando tus viajes">{[0,1,2].map(item=><div className="trip-card skeleton-card" key={item}><div className="skeleton-block skeleton-cover"/><div className="trip-body"><div className="skeleton-line wide"/><div className="skeleton-line"/></div></div>)}</div>:trips.length===0?<div className="empty"><h3>Todavía no tenés viajes</h3><p>Creá el primero o abrí un enlace de invitación para sumarte a uno compartido.</p><div className="empty-actions"><button className="btn btn-primary" onClick={()=>setShowNew(true)}>Crear mi primer viaje</button></div></div>:
       <div className="grid-trips">
         {trips.map((trip)=><Link className="trip-card" href={`/trip/${trip.id}`} key={trip.id}>
           <div className="trip-cover">
@@ -110,7 +115,6 @@ export default function DashboardClient(){
           </div>
           <div className="trip-body">
             <div className="trip-meta"><span><Users size={14} style={{verticalAlign:'-2px'}}/> {trip.memberNames.join(' · ') || 'Sólo vos'}</span><span>{trip.role || 'demo'}</span></div>
-            <div className="progress"><i style={{width:trip.status==='completed'?'100%':'66%'}}/></div>
           </div>
         </Link>)}
         <button className="trip-card dashed-card" onClick={()=>setShowNew(true)}><span><Plus size={28}/><br/><b>Crear otro viaje</b><br/><small>Brasil, Bariloche, Europa…</small></span></button>
