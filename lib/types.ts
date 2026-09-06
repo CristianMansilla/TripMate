@@ -2,6 +2,7 @@ export type TripStatus = 'planning' | 'active' | 'completed'
 export type ActivityStatus = 'idea' | 'planned' | 'reserved' | 'paid' | 'done'
 export type CostScope = 'shared' | 'per_person'
 export type TripRole = 'owner' | 'editor' | 'viewer'
+export type PlaceStatus = 'saved' | 'candidate' | 'confirmed' | 'discarded' | 'visited'
 
 export type Trip = {
   id: string
@@ -65,6 +66,20 @@ export type PackingItem = {
   assignedTo: string
   packed: boolean
   category: string
+}
+
+export type Place = {
+  id: string
+  tripId: string
+  name: string
+  category: string
+  address?: string
+  latitude?: number | null
+  longitude?: number | null
+  url?: string
+  notes?: string
+  status: PlaceStatus
+  isBase?: boolean
 }
 
 export type ChangeLogItem = {

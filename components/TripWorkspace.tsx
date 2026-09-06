@@ -5,17 +5,17 @@ import ActivityModal from './ActivityModal'
 import InviteModal from './InviteModal'
 import QuickAddModal from './QuickAddModal'
 import { activities as seedActivities, expenses as seedExpenses, packing as seedPacking, reservations as seedReservations, trips as demoTrips } from '@/lib/demo-data'
-import { Activity, Expense, PackingItem, Reservation, Trip, ChangeLogItem } from '@/lib/types'
+import { Activity, Expense, PackingItem, Place, Reservation, Trip, ChangeLogItem } from '@/lib/types'
 import { money } from '@/lib/money'
 import { createClient } from '@/lib/supabase-client'
-import { activityToRow, mapActivity, mapExpense, mapPacking, mapReservation, mapTrip } from '@/lib/db-mappers'
+import { activityToRow, mapActivity, mapExpense, mapPacking, mapPlace, mapReservation, mapTrip } from '@/lib/db-mappers'
 import { logChange } from '@/lib/change-log'
-import { CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Edit3, History, Luggage, MapPin, Plus, ReceiptText, Share2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Edit3, ExternalLink, History, Link2, Luggage, Map as MapIcon, MapPin, Navigation, Plus, ReceiptText, Share2, Star, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-const tabs = ['Resumen','Itinerario','Presupuesto','Reservas','Valija','Integrantes'] as const
+const tabs = ['Resumen','Itinerario','Presupuesto','Reservas','Lugares','Valija','Integrantes'] as const
 type Tab = typeof tabs[number]
-type AddKind = 'expense'|'reservation'|'packing'|null
+type AddKind = 'expense'|'reservation'|'packing'|'place'|null
 type TripMember = { id:string; name:string; username?:string; role:'owner'|'editor'|'viewer'; joinedAt?:string }
 
 function dayLabel(date:string){
@@ -41,6 +41,21 @@ function roleLabel(role:TripMember['role']){
 function roleDescription(role:TripMember['role']){
   return ({owner:'Organizador del viaje',editor:'Puede editar el viaje',viewer:'Sólo puede consultar'})[role]
 }
+function placeStatusLabel(status:Place['status']){
+  return ({saved:'Guardado',candidate:'Candidato',confirmed:'Confirmado',discarded:'Descartado',visited:'Visitado'})[status]
+}
+function placeLabel(place:Place, trip:Trip){
+  return [place.address || place.name, trip.destination, trip.country].filter(Boolean).join(', ')
+}
+function mapsSearchUrl(query:string){
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+}
+function mapsDirectionsUrl(origin:string,destination:string){
+  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving`
+}
+function mapsEmbedUrl(query:string){
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed`
+}
 function demoTripFor(id:string):Trip{
   return demoTrips.find(t=>t.id===id) || {
     id,name:'Viaje demo',destination:'Destino',country:'',startDate:new Date().toISOString().slice(0,10),
@@ -56,6 +71,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
   const [exp,setExp]=useState<Expense[]>(seedExpenses.filter(x=>x.tripId===tripId))
   const [res,setRes]=useState<Reservation[]>(seedReservations.filter(x=>x.tripId===tripId))
   const [pack,setPack]=useState<PackingItem[]>(seedPacking.filter(x=>x.tripId===tripId))
+  const [places,setPlaces]=useState<Place[]>([])
   const [members,setMembers]=useState<TripMember[]>([])
   const [changes,setChanges]=useState<ChangeLogItem[]>([])
   const [editing,setEditing]=useState<Activity|null>(null)
@@ -83,11 +99,12 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       setLoading(false);return true
     }
 
-    const [membersQ,actsQ,expQ,resQ,packQ,logQ]=await Promise.all([
+    const [membersQ,actsQ,expQ,resQ,placesQ,packQ,logQ]=await Promise.all([
       supabase.from('trip_members').select('role,user_id,joined_at').eq('trip_id',tripId),
       supabase.from('activities').select('*').eq('trip_id',tripId).order('date').order('start_time'),
       supabase.from('expenses').select('*').eq('trip_id',tripId).order('created_at'),
       supabase.from('reservations').select('*').eq('trip_id',tripId).order('priority'),
+      supabase.from('places').select('*').eq('trip_id',tripId).order('is_base',{ascending:false}).order('created_at'),
       supabase.from('packing_items').select('*').eq('trip_id',tripId).order('position').order('created_at'),
       supabase.from('change_log').select('*').eq('trip_id',tripId).order('created_at',{ascending:false}).limit(8),
     ])
@@ -104,6 +121,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setActs((actsQ.data||[]).map(mapActivity))
     setExp((expQ.data||[]).map(mapExpense))
     setRes((resQ.data||[]).map(mapReservation))
+    setPlaces((placesQ.data||[]).map(mapPlace))
     setPack((packQ.data||[]).map(mapPacking))
     setChanges((logQ.data||[]).map((r:any)=>({
       id:r.id,tripId:r.trip_id,entityType:r.entity_type,entityId:r.entity_id,action:r.action,summary:r.summary,createdAt:r.created_at
@@ -126,6 +144,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
           if(d.acts)setActs(d.acts)
           if(d.exp)setExp(d.exp)
           if(d.res)setRes(d.res)
+          if(d.places)setPlaces(d.places)
           if(d.pack)setPack(d.pack)
         }
       }catch{}
@@ -138,8 +157,8 @@ export default function TripWorkspace({tripId}:{tripId:string}){
 
   useEffect(()=>{
     if(connected||!hydrated)return
-    localStorage.setItem(storageKey,JSON.stringify({trip,acts,exp,res,pack}))
-  },[trip,acts,exp,res,pack,hydrated,connected,storageKey])
+    localStorage.setItem(storageKey,JSON.stringify({trip,acts,exp,res,places,pack}))
+  },[trip,acts,exp,res,places,pack,hydrated,connected,storageKey])
 
   useEffect(()=>{
     if(!connected)return
@@ -151,6 +170,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       .on('postgres_changes',{event:'*',schema:'public',table:'activities',filter:`trip_id=eq.${tripId}`},refresh)
       .on('postgres_changes',{event:'*',schema:'public',table:'expenses',filter:`trip_id=eq.${tripId}`},refresh)
       .on('postgres_changes',{event:'*',schema:'public',table:'reservations',filter:`trip_id=eq.${tripId}`},refresh)
+      .on('postgres_changes',{event:'*',schema:'public',table:'places',filter:`trip_id=eq.${tripId}`},refresh)
       .on('postgres_changes',{event:'*',schema:'public',table:'packing_items',filter:`trip_id=eq.${tripId}`},refresh)
       .subscribe()
     return()=>{clearTimeout(timer);supabase.removeChannel(channel)}
@@ -168,6 +188,8 @@ export default function TripWorkspace({tripId}:{tripId:string}){
   const pctPacked=pack.length?Math.round((packedCount/pack.length)*100):0
   const dates:string[]=[...new Set<string>(acts.map(a=>a.date))].sort()
   const canEdit=trip.role!=='viewer'
+  const basePlace=places.find(p=>p.isBase) || places.find(p=>/aloj|hotel|hostel|depart|base/i.test(`${p.category} ${p.name}`))
+  const mapFocus=basePlace || places[0]
 
   const groupedExpenses=useMemo<[string,number][]>(()=>{
     const m=new Map<string,number>()
@@ -270,6 +292,26 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       setPack(c=>[...c,mapPacking(data)])
       await logChange(trip.id,'packing',data.id,'created',`Se agregó “${item.label}” a la valija.`)
     }
+    if(addKind==='place'){
+      const item:Place={id:`pl-${Date.now()}`,tripId:trip.id,name:payload.title,category:payload.category||'General',address:payload.address||undefined,url:payload.url||undefined,notes:payload.notes||undefined,status:'saved',isBase:false}
+      if(!supabase){setPlaces(c=>[...c,item]);return}
+      const {data,error}=await supabase.from('places').insert({trip_id:trip.id,name:item.name,category:item.category,address:item.address||null,url:item.url||null,notes:item.notes||null,status:'saved',is_base:false}).select('*').single()
+      if(error)throw error
+      setPlaces(c=>[...c,mapPlace(data)])
+      await logChange(trip.id,'place',data.id,'created',`Se agregó el lugar “${item.name}”.`)
+    }
+  }
+
+  async function setBasePlace(place:Place){
+    if(!canEdit)return
+    setPlaces(current=>current.map(p=>({...p,isBase:p.id===place.id})))
+    const supabase=createClient()
+    if(!supabase)return
+    const clear=await supabase.from('places').update({is_base:false}).eq('trip_id',trip.id)
+    if(clear.error){setError(clear.error.message);await loadConnectedData(true);return}
+    const {error}=await supabase.from('places').update({is_base:true}).eq('id',place.id)
+    if(error){setError(error.message);await loadConnectedData(true);return}
+    await logChange(trip.id,'place',place.id,'updated',`Se marcó “${place.name}” como base del viaje.`)
   }
 
   async function confirmRemoveMember(){
@@ -388,6 +430,37 @@ export default function TripWorkspace({tripId}:{tripId:string}){
         {!res.length&&<div className="empty compact">No hay reservas cargadas.</div>}
       </section>}
 
+      {tab==='Lugares' && <div className="two-col places-layout">
+        <section className="panel">
+          <div className="panel-head"><div><h3>Lugares y rutas</h3><div className="muted subcopy">Guardá alojamientos, puntos de interés y direcciones útiles del viaje.</div></div>{canEdit&&<button className="btn btn-primary" onClick={()=>setAddKind('place')}><Plus size={16}/> Lugar</button>}</div>
+          {mapFocus?<div className="map-frame" title={`Mapa de ${mapFocus.name}`}><iframe src={mapsEmbedUrl(placeLabel(mapFocus,trip))} loading="lazy" referrerPolicy="no-referrer-when-downgrade"/></div>:<div className="empty compact"><MapIcon size={24}/><h3>Todavía no hay lugares</h3><p>Agregá el alojamiento o algún punto clave para armar rutas rápidas.</p>{canEdit&&<button className="btn btn-primary" onClick={()=>setAddKind('place')}>Agregar lugar</button>}</div>}
+          <div className="list places-list">
+            {places.map(place=><div className="list-row place-row" key={place.id}>
+              <div style={{display:'flex',alignItems:'flex-start',gap:10,minWidth:0}}>
+                <div className={`place-pin ${place.isBase?'base':''}`}>{place.isBase?<Star size={15}/>:<MapPin size={15}/>}</div>
+                <div style={{minWidth:0}}>
+                  <strong>{place.name}</strong>
+                  <small>{place.category}{place.address?` · ${place.address}`:''}</small>
+                  {place.notes&&<div className="place-notes">{place.notes}</div>}
+                  <div className="chips">{place.isBase&&<span className="chip green">Base</span>}<span className="chip">{placeStatusLabel(place.status)}</span></div>
+                </div>
+              </div>
+              <div className="place-actions">
+                <a className="icon-btn" href={mapsSearchUrl(placeLabel(place,trip))} target="_blank" rel="noreferrer" title="Abrir en Google Maps" aria-label={`Abrir ${place.name} en Google Maps`}><ExternalLink size={17}/></a>
+                {place.url&&<a className="icon-btn" href={place.url} target="_blank" rel="noreferrer" title="Abrir link guardado" aria-label={`Abrir link guardado de ${place.name}`}><Link2 size={17}/></a>}
+                {basePlace&&basePlace.id!==place.id&&<a className="icon-btn" href={mapsDirectionsUrl(placeLabel(basePlace,trip),placeLabel(place,trip))} target="_blank" rel="noreferrer" title="Ruta desde la base" aria-label={`Ruta desde la base hasta ${place.name}`}><Navigation size={17}/></a>}
+                {canEdit&&!place.isBase&&<button className="icon-btn" onClick={()=>setBasePlace(place)} title="Marcar como base" aria-label={`Marcar ${place.name} como base`}><Star size={17}/></button>}
+              </div>
+            </div>)}
+          </div>
+        </section>
+        <aside className="panel">
+          <div className="panel-head"><h3>Base del viaje</h3><MapPin size={18} className="muted"/></div>
+          {basePlace?<><div className="base-place-name">{basePlace.name}</div><div className="money-sub">{basePlace.address || trip.destination}</div><a className="btn btn-secondary route-wide" href={mapsSearchUrl(placeLabel(basePlace,trip))} target="_blank" rel="noreferrer"><ExternalLink size={16}/> Abrir mapa</a></>:<div className="muted" style={{fontSize:13,lineHeight:1.5}}>Marcá un alojamiento o punto de encuentro como base para crear rutas rápidas desde ahí.</div>}
+          <div className="route-hint"><b>Rutas sin costo:</b><br/>TripMate abre Google Maps con origen y destino ya cargados. No requiere API ni clave adicional.</div>
+        </aside>
+      </div>}
+
       {tab==='Valija' && <section className="panel">
         <div className="panel-head"><div><h3>Valija compartida</h3><div className="muted subcopy">{packedCount} de {pack.length} listos.</div></div><div style={{display:'flex',gap:8,alignItems:'center'}}>{canEdit&&<button className="btn btn-primary" onClick={()=>setAddKind('packing')}><Plus size={16}/> Ítem</button>}<Luggage size={19} className="muted"/></div></div>
         <div className="progress" style={{marginBottom:16}}><i style={{width:`${pctPacked}%`}}/></div>
@@ -421,7 +494,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
         </div>
       </section>}
 
-      <div className="bottom-nav">{tabs.map((t,i)=>{const Icon=[CalendarDays,Clock3,DollarSign,ClipboardCheck,Luggage,Users][i];return <button key={t} className={tab===t?'active':''} onClick={()=>setTab(t)}><Icon size={18}/>{t}</button>})}</div>
+      <div className="bottom-nav">{tabs.map((t,i)=>{const Icon=[CalendarDays,Clock3,DollarSign,ClipboardCheck,MapIcon,Luggage,Users][i];return <button key={t} className={tab===t?'active':''} onClick={()=>setTab(t)}><Icon size={18}/>{t}</button>})}</div>
 
       {editing&&<ActivityModal activity={editing} onClose={()=>setEditing(null)} onSave={saveActivity}/>}
       {inviteOpen&&<InviteModal tripId={trip.id} onClose={()=>setInviteOpen(false)}/>}

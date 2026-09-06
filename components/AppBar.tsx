@@ -7,9 +7,10 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 
 export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
-  const [name,setName]=useState('Usuario')
+  const [name,setName]=useState('')
   const [username,setUsername]=useState('')
   const [email,setEmail]=useState('')
+  const [profileLoaded,setProfileLoaded]=useState(false)
   const [profileOpen,setProfileOpen]=useState(false)
   const [profileMessage,setProfileMessage]=useState('')
   const [saving,setSaving]=useState(false)
@@ -24,12 +25,13 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
     setConnected(true)
     supabase.auth.getUser().then(async ({data})=>{
       const user=data.user
-      if(!user)return
+      if(!user){setProfileLoaded(true);return}
       setEmail(user.email || '')
       const fallback=user.user_metadata?.name || user.email?.split('@')[0] || 'Usuario'
       const {data:profile}=await supabase.from('profiles').select('display_name,username').eq('id',user.id).single()
       setName(profile?.display_name || fallback)
       setUsername(profile?.username || '')
+      setProfileLoaded(true)
     })
   },[])
 
@@ -94,8 +96,8 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
       <div style={{display:'flex',alignItems:'center',gap:10}}>
         {onNewTrip&&<button className="btn btn-secondary" style={{padding:'9px 12px'}} onClick={onNewTrip}><Plus size={16}/><span className="desktop-label">Viaje</span></button>}
         <div className="user-menu">
-          <button className="avatar avatar-button" title="Editar perfil" onClick={()=>setProfileOpen(true)}>{name[0]?.toUpperCase() || <UserRound size={16}/>}</button>
-          <button className="desktop-label user-name user-name-button" onClick={()=>setProfileOpen(true)}>{name}</button>
+          <button className="avatar avatar-button" title="Editar perfil" onClick={()=>profileLoaded&&setProfileOpen(true)} disabled={!profileLoaded}>{name[0]?.toUpperCase() || <UserRound size={16}/>}</button>
+          {profileLoaded&&name&&<button className="desktop-label user-name user-name-button" onClick={()=>setProfileOpen(true)}>{name}</button>}
           {connected&&<button className="icon-btn" title="Cerrar sesión" onClick={logout}><LogOut size={16}/></button>}
         </div>
       </div>

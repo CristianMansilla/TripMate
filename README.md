@@ -1,4 +1,4 @@
-# TripMate · v0.2
+# TripMate · v0.3
 
 TripMate es una aplicación web colaborativa y mobile-first para planificar **cualquier viaje**: Córdoba, Brasil, Europa, escapadas con amigos, etc. Cada usuario puede crear múltiples viajes, invitar acompañantes y compartir itinerario, presupuesto, reservas y valija.
 
@@ -15,6 +15,7 @@ TripMate es una aplicación web colaborativa y mobile-first para planificar **cu
 - Invitaciones por enlace/código.
 - Itinerario editable.
 - Alta rápida de gastos, reservas y valija.
+- Lugares guardados con mapa embebido y rutas rápidas desde una base.
 - Presupuesto editable con moneda base por viaje.
 - Sincronización Realtime de actividades, gastos, reservas y valija.
 - Historial de cambios básico.
@@ -51,6 +52,7 @@ Si tu proyecto todavía muestra la clave legacy `anon`, también se admite `NEXT
 7. Ejecutar la app y crear cuenta.
 
 Si venís desde una base `v0.1`, ejecutar `supabase/v0.2.sql` una sola vez antes de usar nombres de usuario.
+Si ya estabas en `v0.2`, ejecutar `supabase/v0.3.sql` para habilitar base del viaje en lugares.
 
 ## Primer uso recomendado
 
@@ -88,11 +90,11 @@ Ver `SETUP.md` para GitHub + Supabase + Vercel.
 
 ## Próximas mejoras
 
-- Mapa y lugares guardados.
+- Mejoras de mapa: orden de paradas, modos caminando/auto/transporte y geocoding.
 - Adjuntos privados en Supabase Storage.
 - Votación de lugares/actividades.
 - Conversión multi-moneda.
-- PWA/offline.
+- PWA/offline avanzado.
 - Exportación PDF/JSON.
 - Chat por viaje para coordinar decisiones sin salir de TripMate.
 - Mejor historial con nombre/avatar del editor.

@@ -1,4 +1,4 @@
-import { Activity, Expense, PackingItem, Reservation, Trip } from './types'
+import { Activity, Expense, PackingItem, Place, Reservation, Trip } from './types'
 
 export function mapTrip(row: any, memberNames: string[] = [], role?: Trip['role']): Trip {
   return {
@@ -91,5 +91,21 @@ export function mapPacking(row: any): PackingItem {
     assignedTo: row.assigned_label || 'Compartido',
     packed: Boolean(row.packed),
     category: row.category || 'General',
+  }
+}
+
+export function mapPlace(row: any): Place {
+  return {
+    id: row.id,
+    tripId: row.trip_id,
+    name: row.name,
+    category: row.category || 'General',
+    address: row.address || undefined,
+    latitude: row.latitude == null ? null : Number(row.latitude),
+    longitude: row.longitude == null ? null : Number(row.longitude),
+    url: row.url || undefined,
+    notes: row.notes || undefined,
+    status: row.status || 'saved',
+    isBase: Boolean(row.is_base),
   }
 }

@@ -111,6 +111,7 @@ create table public.places (
   url text,
   notes text,
   status text not null default 'saved' check(status in ('saved','candidate','confirmed','discarded','visited')),
+  is_base boolean not null default false,
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
