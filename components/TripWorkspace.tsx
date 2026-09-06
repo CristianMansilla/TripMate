@@ -4,7 +4,9 @@ import { AppBar } from './AppBar'
 import ExpenseModal from './ExpenseModal'
 import InviteModal from './InviteModal'
 import PackingItemModal from './PackingItemModal'
+import PlaceModal from './PlaceModal'
 import QuickAddModal from './QuickAddModal'
+import ReservationModal from './ReservationModal'
 import { activities as seedActivities, expenses as seedExpenses, packing as seedPacking, reservations as seedReservations, trips as demoTrips } from '@/lib/demo-data'
 import { Activity, Expense, PackingItem, Place, Reservation, Trip, ChangeLogItem } from '@/lib/types'
 import { money } from '@/lib/money'
@@ -51,6 +53,9 @@ function reservationLabel(status:Reservation['status']){
 function reservationChip(status:Reservation['status']){
   return `reservation-${status}`
 }
+function reservationPriorityLabel(priority:Reservation['priority']){
+  return ({high:'Prioridad alta',medium:'Prioridad media',low:'Prioridad baja'})[priority]
+}
 function expenseStatusLabel(status:Expense['status']){
   return ({estimated:'',confirmed:'Confirmado',paid:'Pagado'})[status]
 }
@@ -68,6 +73,13 @@ function mapsSearchUrl(query:string){
 }
 function mapsDirectionsUrl(origin:string,destination:string){
   return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving`
+}
+function safeExternalUrl(value?:string){
+  if(!value)return null
+  try{
+    const url=new URL(value)
+    return ['http:','https:'].includes(url.protocol)?url.toString():null
+  }catch{return null}
 }
 function timeToMinutes(time?:string){
   if(!time)return null
@@ -149,8 +161,12 @@ export default function TripWorkspace({tripId}:{tripId:string}){
   const [changes,setChanges]=useState<ChangeLogItem[]>([])
   const [editingExpense,setEditingExpense]=useState<Expense|null>(null)
   const [editingPacking,setEditingPacking]=useState<PackingItem|null>(null)
+  const [editingReservation,setEditingReservation]=useState<Reservation|null>(null)
+  const [editingPlace,setEditingPlace]=useState<Place|null>(null)
   const [expenseToDelete,setExpenseToDelete]=useState<Expense|null>(null)
   const [packingToDelete,setPackingToDelete]=useState<PackingItem|null>(null)
+  const [reservationToDelete,setReservationToDelete]=useState<Reservation|null>(null)
+  const [placeToDelete,setPlaceToDelete]=useState<Place|null>(null)
   const [inviteOpen,setInviteOpen]=useState(false)
   const [memberToRemove,setMemberToRemove]=useState<TripMember|null>(null)
   const [addKind,setAddKind]=useState<AddKind>(null)
@@ -493,6 +509,81 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     await logChange(trip.id,'reservation',reservation.id,'updated',`Se reordenó “${reservation.title}”.`)
   }
 
+  async function saveReservation(reservation:Reservation){
+    if(!canEdit)return
+    const next={...reservation,title:reservation.title.trim(),notes:reservation.notes?.trim() || undefined}
+    if(!next.title)throw new Error('El nombre no puede estar vacío.')
+    if(next.amount!==undefined && (!Number.isFinite(next.amount) || next.amount<0))throw new Error('El importe debe ser cero o mayor.')
+    const supabase=createClient()
+    if(!supabase){
+      setRes(current=>current.map(item=>item.id===next.id?next:item))
+      setEditingReservation(null)
+      return
+    }
+    const {error}=await supabase.from('reservations').update({
+      title:next.title,status:next.status,priority:next.priority,due_date:next.dueDate || null,
+      notes:next.notes || null,amount:next.amount ?? null,
+    }).eq('id',next.id).eq('trip_id',trip.id)
+    if(error)throw new Error(userFacingError(error,'No pudimos guardar la reserva. Intentá nuevamente.'))
+    setEditingReservation(null)
+    await loadConnectedData(true)
+    await logChange(trip.id,'reservation',next.id,'updated',`Se actualizó la reserva “${next.title}”.`)
+  }
+
+  async function confirmDeleteReservation(){
+    const reservation=reservationToDelete
+    if(!reservation || !canEdit)return
+    const supabase=createClient()
+    if(!supabase){
+      setRes(current=>current.filter(item=>item.id!==reservation.id))
+      setReservationToDelete(null)
+      return
+    }
+    const {error}=await supabase.from('reservations').delete().eq('id',reservation.id).eq('trip_id',trip.id)
+    if(error){setError(userFacingError(error,'No pudimos eliminar la reserva. Intentá nuevamente.'));return}
+    setReservationToDelete(null)
+    await loadConnectedData(true)
+    await logChange(trip.id,'reservation',reservation.id,'deleted',`Se eliminó la reserva “${reservation.title}”.`)
+  }
+
+  async function savePlace(place:Place){
+    if(!canEdit)return
+    const next={...place,name:place.name.trim(),category:place.category.trim(),address:place.address?.trim() || undefined,url:place.url?.trim() || undefined,notes:place.notes?.trim() || undefined}
+    if(!next.name)throw new Error('El nombre no puede estar vacío.')
+    if(!next.category)throw new Error('La categoría no puede estar vacía.')
+    if(next.url && !safeExternalUrl(next.url))throw new Error('El enlace debe comenzar con http:// o https://.')
+    const supabase=createClient()
+    if(!supabase){
+      setPlaces(current=>current.map(item=>item.id===next.id?next:item))
+      setEditingPlace(null)
+      return
+    }
+    const {error}=await supabase.from('places').update({
+      name:next.name,category:next.category,address:next.address || null,url:next.url || null,
+      notes:next.notes || null,status:next.status,
+    }).eq('id',next.id).eq('trip_id',trip.id)
+    if(error)throw new Error(userFacingError(error,'No pudimos guardar el lugar. Intentá nuevamente.'))
+    setEditingPlace(null)
+    await loadConnectedData(true)
+    await logChange(trip.id,'place',next.id,'updated',`Se actualizó el lugar “${next.name}”.`)
+  }
+
+  async function confirmDeletePlace(){
+    const place=placeToDelete
+    if(!place || !canEdit)return
+    const supabase=createClient()
+    if(!supabase){
+      setPlaces(current=>current.filter(item=>item.id!==place.id))
+      setPlaceToDelete(null)
+      return
+    }
+    const {error}=await supabase.from('places').delete().eq('id',place.id).eq('trip_id',trip.id)
+    if(error){setError(userFacingError(error,'No pudimos eliminar el lugar. Intentá nuevamente.'));return}
+    setPlaceToDelete(null)
+    await loadConnectedData(true)
+    await logChange(trip.id,'place',place.id,'deleted',`Se eliminó el lugar “${place.name}”.`)
+  }
+
   async function addQuick(payload:any){
     const supabase=createClient()
     if(addKind==='expense'){
@@ -512,9 +603,9 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     }
     if(addKind==='reservation'){
       const nextPosition=res.length?Math.max(...res.map(item=>item.position ?? 0))+1:0
-      const item:Reservation={id:`r-${Date.now()}`,tripId:trip.id,title:payload.title,status:'pending',priority:payload.priority,amount:payload.amount||undefined,position:nextPosition}
+      const item:Reservation={id:`r-${Date.now()}`,tripId:trip.id,title:payload.title,status:'pending',priority:payload.priority,dueDate:payload.dueDate||undefined,notes:payload.notes?.trim()||undefined,amount:payload.amount,position:nextPosition}
       if(!supabase){setRes(c=>[...c,item]);return}
-      const {data,error}=await supabase.from('reservations').insert({trip_id:trip.id,title:item.title,status:'pending',priority:item.priority,amount:item.amount||null,position:nextPosition}).select('*').single()
+      const {data,error}=await supabase.from('reservations').insert({trip_id:trip.id,title:item.title,status:'pending',priority:item.priority,due_date:item.dueDate||null,notes:item.notes||null,amount:item.amount??null,position:nextPosition}).select('*').single()
       if(error)throw error
       setRes(c=>[...c,mapReservation(data)])
       await logChange(trip.id,'reservation',data.id,'created',`Se agregó la reserva “${item.title}”.`)
@@ -673,7 +764,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
 
       {tab==='Reservas' && <section className="panel">
         <div className="panel-head"><div><h3>Reservas y compras</h3><div className="muted subcopy">Cambien el estado a medida que investigan o compran.</div></div>{canEdit&&<button className="btn btn-primary" onClick={()=>setAddKind('reservation')}><Plus size={16}/> Reserva</button>}</div>
-        <div className="list">{[...res].sort(sortReservations).map((r,index,items)=><div key={r.id} className="list-row reservation-row"><div><strong><span className={`status-dot ${r.status==='reserved'||r.status==='paid'?'done':''}`}/>{r.title}</strong><small>{r.notes || (r.amount?money(r.amount,trip.currency):'')}</small></div><div className="reservation-actions"><button className={`chip status-button ${reservationChip(r.status)}`} disabled={!canEdit} onClick={()=>cycleReservation(r.id)}>{reservationLabel(r.status)}</button>{canEdit&&<><button className="icon-btn" disabled={index===0} title="Subir reserva" aria-label={`Subir ${r.title}`} onClick={()=>moveReservation(r,-1)}><ArrowUp size={16}/></button><button className="icon-btn" disabled={index===items.length-1} title="Bajar reserva" aria-label={`Bajar ${r.title}`} onClick={()=>moveReservation(r,1)}><ArrowDown size={16}/></button></>}</div></div>)}</div>
+        <div className="list">{[...res].sort(sortReservations).map((r,index,items)=><div key={r.id} className="list-row reservation-row"><div><strong><span className={`status-dot ${r.status==='reserved'||r.status==='paid'?'done':''}`}/>{r.title}</strong><small>{[reservationPriorityLabel(r.priority),r.dueDate?`vence ${shortDate(r.dueDate)}`:'',r.amount!==undefined?money(r.amount,trip.currency):'',r.notes].filter(Boolean).join(' · ')}</small></div><div className="reservation-actions"><button className={`chip status-button ${reservationChip(r.status)}`} disabled={!canEdit} onClick={()=>cycleReservation(r.id)}>{reservationLabel(r.status)}</button>{canEdit&&<><button className="icon-btn" title={`Editar ${r.title}`} aria-label={`Editar ${r.title}`} onClick={()=>setEditingReservation(r)}><Edit3 size={16}/></button><button className="icon-btn" disabled={index===0} title="Subir reserva" aria-label={`Subir ${r.title}`} onClick={()=>moveReservation(r,-1)}><ArrowUp size={16}/></button><button className="icon-btn" disabled={index===items.length-1} title="Bajar reserva" aria-label={`Bajar ${r.title}`} onClick={()=>moveReservation(r,1)}><ArrowDown size={16}/></button><button className="icon-btn" title={`Eliminar ${r.title}`} aria-label={`Eliminar ${r.title}`} onClick={()=>setReservationToDelete(r)}><Trash2 size={16}/></button></>}</div></div>)}</div>
         {!res.length&&<div className="empty compact">No hay reservas cargadas.</div>}
       </section>}
 
@@ -694,9 +785,10 @@ export default function TripWorkspace({tripId}:{tripId:string}){
               </div>
               <div className="place-actions">
                 <a className="icon-btn" href={mapsSearchUrl(placeLabel(place,trip))} target="_blank" rel="noreferrer" title="Abrir en Google Maps" aria-label={`Abrir ${place.name} en Google Maps`}><ExternalLink size={17}/></a>
-                {place.url&&<a className="icon-btn" href={place.url} target="_blank" rel="noreferrer" title="Abrir link guardado" aria-label={`Abrir link guardado de ${place.name}`}><Link2 size={17}/></a>}
+                {safeExternalUrl(place.url)&&<a className="icon-btn" href={safeExternalUrl(place.url)!} target="_blank" rel="noreferrer" title="Abrir enlace guardado" aria-label={`Abrir enlace guardado de ${place.name}`}><Link2 size={17}/></a>}
                 {basePlace&&basePlace.id!==place.id&&<a className="icon-btn" href={mapsDirectionsUrl(placeLabel(basePlace,trip),placeLabel(place,trip))} target="_blank" rel="noreferrer" title="Ruta desde la base" aria-label={`Ruta desde la base hasta ${place.name}`}><Navigation size={17}/></a>}
                 {canEdit&&!place.isBase&&<button className="icon-btn" onClick={()=>setBasePlace(place)} title="Marcar como base" aria-label={`Marcar ${place.name} como base`}><Star size={17}/></button>}
+                {canEdit&&<><button className="icon-btn" title={`Editar ${place.name}`} aria-label={`Editar ${place.name}`} onClick={()=>setEditingPlace(place)}><Edit3 size={17}/></button><button className="icon-btn" title={`Eliminar ${place.name}`} aria-label={`Eliminar ${place.name}`} onClick={()=>setPlaceToDelete(place)}><Trash2 size={17}/></button></>}
               </div>
             </div>)}
           </div>
@@ -752,6 +844,8 @@ export default function TripWorkspace({tripId}:{tripId:string}){
 
       {editingExpense&&<ExpenseModal expense={editingExpense} activities={acts} categoryOptions={expenseCategories} onClose={()=>setEditingExpense(null)} onSave={saveExpense} onDelete={(expense)=>{setEditingExpense(null);setExpenseToDelete(expense)}}/>}
       {editingPacking&&<PackingItemModal item={editingPacking} categoryOptions={packingCategories} onClose={()=>setEditingPacking(null)} onSave={savePacking} onDelete={(item)=>{setEditingPacking(null);setPackingToDelete(item)}}/>}
+      {editingReservation&&<ReservationModal reservation={editingReservation} onClose={()=>setEditingReservation(null)} onSave={saveReservation} onDelete={(reservation)=>{setEditingReservation(null);setReservationToDelete(reservation)}}/>}
+      {editingPlace&&<PlaceModal place={editingPlace} categoryOptions={placeCategories} onClose={()=>setEditingPlace(null)} onSave={savePlace} onDelete={(place)=>{setEditingPlace(null);setPlaceToDelete(place)}}/>}
       {inviteOpen&&<InviteModal tripId={trip.id} onClose={()=>setInviteOpen(false)}/>}
       {addKind&&<QuickAddModal kind={addKind} categoryOptions={addKind==='expense'?expenseCategories:addKind==='packing'?packingCategories:addKind==='place'?placeCategories:[]} onClose={()=>setAddKind(null)} onSave={addQuick}/>}
       {memberToRemove&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setMemberToRemove(null)}}>
@@ -781,6 +875,26 @@ export default function TripWorkspace({tripId}:{tripId:string}){
           <div className="modal-actions">
             <button className="btn btn-secondary" onClick={()=>setPackingToDelete(null)}>Cancelar</button>
             <button className="btn btn-danger" onClick={confirmDeletePacking}><Trash2 size={16}/> Eliminar</button>
+          </div>
+        </div>
+      </div>}
+      {reservationToDelete&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setReservationToDelete(null)}}>
+        <div className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-reservation-title">
+          <h2 id="delete-reservation-title">Eliminar reserva</h2>
+          <p className="muted">Vas a eliminar <b>{reservationToDelete.title}</b>. Esta acción no se puede deshacer desde la app.</p>
+          <div className="modal-actions">
+            <button className="btn btn-secondary" onClick={()=>setReservationToDelete(null)}>Cancelar</button>
+            <button className="btn btn-danger" onClick={confirmDeleteReservation}><Trash2 size={16}/> Eliminar</button>
+          </div>
+        </div>
+      </div>}
+      {placeToDelete&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setPlaceToDelete(null)}}>
+        <div className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-place-title">
+          <h2 id="delete-place-title">Eliminar lugar</h2>
+          <p className="muted">Vas a eliminar <b>{placeToDelete.name}</b>{placeToDelete.isBase?' y dejar el viaje sin esa base':''}. Esta acción no se puede deshacer desde la app.</p>
+          <div className="modal-actions">
+            <button className="btn btn-secondary" onClick={()=>setPlaceToDelete(null)}>Cancelar</button>
+            <button className="btn btn-danger" onClick={confirmDeletePlace}><Trash2 size={16}/> Eliminar</button>
           </div>
         </div>
       </div>}

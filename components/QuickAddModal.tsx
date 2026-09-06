@@ -6,6 +6,11 @@ import { userFacingError } from '@/lib/ui-text'
 
 type Kind='expense'|'reservation'|'packing'|'place'
 
+function validExternalUrl(value:string){
+  if(!value)return true
+  try{return ['http:','https:'].includes(new URL(value).protocol)}catch{return false}
+}
+
 export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[]}:{kind:Kind,onClose:()=>void,onSave:(payload:any)=>Promise<void>|void,categoryOptions?:string[]}){
   useModalBehavior(onClose)
   const [title,setTitle]=useState('')
@@ -18,6 +23,7 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[]}:{
   const [place,setPlace]=useState('')
   const [optional,setOptional]=useState(false)
   const [priority,setPriority]=useState('medium')
+  const [dueDate,setDueDate]=useState('')
   const [address,setAddress]=useState('')
   const [url,setUrl]=useState('')
   const [notes,setNotes]=useState('')
@@ -26,10 +32,12 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[]}:{
   const labels={expense:'Nuevo gasto',reservation:'Nueva reserva',packing:'Agregar a valija',place:'Nuevo lugar'} as const
   async function submit(e:FormEvent){
     e.preventDefault();setMessage('')
-    if(kind==='expense' && (!amount.trim() || Number(amount)<0)){setMessage('El importe debe ser cero o mayor.');return}
+    if(kind==='expense' && (!amount.trim() || !Number.isFinite(Number(amount)) || Number(amount)<0)){setMessage('El importe debe ser cero o mayor.');return}
+    if(kind==='reservation' && amount.trim() && (!Number.isFinite(Number(amount)) || Number(amount)<0)){setMessage('El importe debe ser cero o mayor.');return}
+    if(kind==='place' && !validExternalUrl(url.trim())){setMessage('El enlace debe comenzar con http:// o https://.');return}
     setLoading(true)
     try{
-      await onSave({title:title.trim(),amount:Number(amount||0),amountBasis,category:category.trim(),priority,address,url,notes,date,startTime,endTime,place,optional})
+      await onSave({title:title.trim(),amount:amount.trim()===''?undefined:Number(amount),amountBasis,category:category.trim(),priority,dueDate,address,url,notes,date,startTime,endTime,place,optional})
       onClose()
     }catch(error){setMessage(userFacingError(error,'No pudimos guardar. Intentá nuevamente.'))}
     finally{setLoading(false)}
@@ -57,7 +65,12 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[]}:{
           </label>
           <div className="field full"><label htmlFor="quick-notes">Notas</label><textarea id="quick-notes" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Detalle para el itinerario"/></div>
         </>}
-        {kind==='reservation'&&<><div className="field"><label htmlFor="quick-priority">Prioridad</label><select id="quick-priority" value={priority} onChange={e=>setPriority(e.target.value)}><option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option></select></div><div className="field"><label htmlFor="quick-reservation-amount">Importe por persona (opcional)</label><input id="quick-reservation-amount" type="number" min="0" value={amount} onChange={e=>setAmount(e.target.value)}/></div></>}
+        {kind==='reservation'&&<>
+          <div className="field"><label htmlFor="quick-priority">Prioridad</label><select id="quick-priority" value={priority} onChange={e=>setPriority(e.target.value)}><option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option></select></div>
+          <div className="field"><label htmlFor="quick-reservation-due">Fecha límite</label><input id="quick-reservation-due" type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}/></div>
+          <div className="field"><label htmlFor="quick-reservation-amount">Importe por persona (opcional)</label><input id="quick-reservation-amount" type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)}/></div>
+          <div className="field full"><label htmlFor="quick-reservation-notes">Notas</label><textarea id="quick-reservation-notes" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Condiciones, contacto o recordatorios"/></div>
+        </>}
         {kind==='packing'&&<CategoryPicker className="full" value={category} options={categoryOptions} onChange={setCategory}/>}
         {kind==='place'&&<>
           <CategoryPicker value={category} options={categoryOptions} onChange={setCategory} required/>

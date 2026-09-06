@@ -26,7 +26,7 @@ Primera tanda aplicada el 6 de septiembre de 2026:
 - Diálogos principales con semántica, Escape, bloqueo del fondo, labels vinculadas y errores dentro del formulario.
 - Indicador de sincronización basado en carga y estado del canal Realtime.
 
-Pendiente para las siguientes tandas de v0.4: edición/eliminación completa de reservas y lugares, skeletons, formulario compacto, repetición en varios días, foco contenido/restaurado, pruebas con dos cuentas reales y revisión de importación/datos históricos.
+Segunda tanda aplicada: edición y eliminación completa de reservas y lugares, con confirmaciones, validación y conservación del orden manual. Pendiente para las siguientes tandas de v0.4: formulario compacto, repetición en varios días, foco contenido/restaurado, pruebas con dos cuentas reales y revisión de importación/datos históricos.
 
 ## Alcance y evidencia
 
