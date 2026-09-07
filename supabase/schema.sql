@@ -88,6 +88,10 @@ create table public.expenses (
   updated_at timestamptz not null default now()
 );
 
+create unique index expenses_one_per_activity
+  on public.expenses (activity_id)
+  where activity_id is not null;
+
 create table public.reservations (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references public.trips(id) on delete cascade,

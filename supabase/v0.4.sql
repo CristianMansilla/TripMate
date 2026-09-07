@@ -25,6 +25,12 @@ alter table public.expenses
 alter table public.expenses
   add constraint expenses_title_not_blank check (length(trim(title)) > 0) not valid;
 
+-- El modelo actual es uno a uno: un gasto puede generar una sola actividad y
+-- una actividad puede pertenecer a un solo gasto.
+create unique index if not exists expenses_one_per_activity
+  on public.expenses (activity_id)
+  where activity_id is not null;
+
 -- Copia datos actuales del itinerario al gasto para que puedan conservarse al quitar la fecha.
 update public.expenses e
 set expense_date = coalesce(e.expense_date, a.date),
