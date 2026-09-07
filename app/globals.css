@@ -257,6 +257,12 @@ button { cursor: pointer; }
 .invite-box input { min-width:0; border:1px solid var(--line); border-radius:13px; padding:11px 12px; background:#fbfcfe; color:var(--ink); }
 .role-select { border:1px solid var(--line); border-radius:999px; padding:7px 28px 7px 10px; background:#fbfcfe; color:#4d5870; font-size:12px; font-weight:800; outline:none; }
 .role-select:focus { border-color:#9a90f7; box-shadow:0 0 0 3px #efedff; }
+.traveler-setting { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:16px; padding:14px; border:1px solid var(--line); border-radius:16px; background:var(--surface-2); }
+.traveler-setting strong,.traveler-setting small { display:block; }
+.traveler-setting small { margin-top:3px; color:var(--muted); font-size:12px; line-height:1.4; }
+.traveler-stepper { display:grid; grid-template-columns:34px 42px 34px; align-items:center; flex:0 0 auto; }
+.traveler-stepper output { text-align:center; font-size:18px; font-weight:900; }
+.traveler-stepper .icon-btn { background:white; border:1px solid var(--line); }
 .places-layout { align-items:start; }
 .places-list { margin-top:12px; }
 .place-row { align-items:flex-start; }
@@ -281,6 +287,7 @@ button { cursor: pointer; }
   .user-name { display:none; }
   .place-row { flex-direction:column; }
   .place-actions { width:100%; justify-content:flex-end; }
+  .traveler-setting { align-items:flex-start; }
 }
 
 .budget-line.excluded { opacity:.56; background:#fafbfc; }

@@ -2,6 +2,60 @@
 -- Ejecutar una vez en SQL Editor sobre una base existente con v0.3 aplicada.
 -- No elimina gastos, actividades ni importes existentes.
 
+alter table public.trips
+  add column if not exists traveler_count integer;
+
+-- Conserva el comportamiento visible actual al migrar. Después el organizador
+-- puede ajustar esta cantidad sin agregar o expulsar cuentas del viaje.
+update public.trips trip
+set traveler_count = greatest(1, (
+  select count(*)::integer from public.trip_members member
+  where member.trip_id = trip.id
+))
+where trip.traveler_count is null;
+
+alter table public.trips
+  alter column traveler_count set default 1,
+  alter column traveler_count set not null;
+alter table public.trips
+  drop constraint if exists trips_traveler_count_valid;
+alter table public.trips
+  add constraint trips_traveler_count_valid check (traveler_count between 1 and 100);
+
+drop function if exists public.create_trip(text,text,text,date,date,text);
+create or replace function public.create_trip(
+  p_name text,
+  p_destination text,
+  p_country text,
+  p_start_date date,
+  p_end_date date,
+  p_currency text default 'ARS',
+  p_traveler_count integer default 1
+) returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_trip uuid;
+begin
+  if auth.uid() is null then raise exception 'No autenticado.'; end if;
+  if length(trim(coalesce(p_name,''))) = 0 then raise exception 'El nombre no puede estar vacío.'; end if;
+  if length(trim(coalesce(p_destination,''))) = 0 then raise exception 'El destino no puede estar vacío.'; end if;
+  if p_end_date < p_start_date then raise exception 'Las fechas del viaje no son válidas.'; end if;
+  if p_traveler_count is null or p_traveler_count not between 1 and 100 then
+    raise exception 'La cantidad de viajeros debe estar entre 1 y 100.';
+  end if;
+  insert into public.trips(name,destination,country,start_date,end_date,currency,traveler_count,created_by)
+  values(trim(p_name),trim(p_destination),nullif(trim(coalesce(p_country,'')),''),p_start_date,p_end_date,p_currency,p_traveler_count,auth.uid())
+  returning id into v_trip;
+  insert into public.trip_members(trip_id,user_id,role) values(v_trip,auth.uid(),'owner');
+  return v_trip;
+end;
+$$;
+
+revoke all on function public.create_trip(text,text,text,date,date,text,integer) from public, anon;
+grant execute on function public.create_trip(text,text,text,date,date,text,integer) to authenticated;
+
 alter table public.expenses
   add column if not exists amount_basis text not null default 'per_person',
   add column if not exists itinerary_start_time time,

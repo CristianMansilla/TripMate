@@ -10,6 +10,7 @@ export function mapTrip(row: any, memberNames: string[] = [], role?: Trip['role'
     endDate: row.end_date,
     currency: row.currency || 'ARS',
     status: row.status || 'planning',
+    travelerCount: Math.max(1, Number(row.traveler_count || memberNames.length || 1)),
     memberNames,
     role,
   }

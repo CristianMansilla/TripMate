@@ -24,6 +24,7 @@ create table public.trips (
   start_date date not null,
   end_date date not null,
   currency text not null default 'ARS',
+  traveler_count integer not null default 1 check(traveler_count between 1 and 100),
   status public.trip_status not null default 'planning',
   cover_url text,
   created_by uuid not null references auth.users(id),
@@ -205,16 +206,21 @@ as $$
 $$;
 
 create or replace function public.create_trip(
-  p_name text, p_destination text, p_country text, p_start_date date, p_end_date date, p_currency text default 'ARS'
+  p_name text, p_destination text, p_country text, p_start_date date, p_end_date date,
+  p_currency text default 'ARS', p_traveler_count integer default 1
 ) returns uuid language plpgsql security definer set search_path=public as $$
 declare v_trip uuid;
 begin
   if auth.uid() is null then raise exception 'Not authenticated'; end if;
-  insert into public.trips(name,destination,country,start_date,end_date,currency,created_by)
-  values(p_name,p_destination,p_country,p_start_date,p_end_date,p_currency,auth.uid()) returning id into v_trip;
+  if p_traveler_count is null or p_traveler_count not between 1 and 100 then raise exception 'Invalid traveler count'; end if;
+  insert into public.trips(name,destination,country,start_date,end_date,currency,traveler_count,created_by)
+  values(p_name,p_destination,p_country,p_start_date,p_end_date,p_currency,p_traveler_count,auth.uid()) returning id into v_trip;
   insert into public.trip_members(trip_id,user_id,role) values(v_trip,auth.uid(),'owner');
   return v_trip;
 end $$;
+
+revoke all on function public.create_trip(text,text,text,date,date,text,integer) from public, anon;
+grant execute on function public.create_trip(text,text,text,date,date,text,integer) to authenticated;
 
 create or replace function public.resolve_login_identifier(p_identifier text)
 returns text language sql stable security definer set search_path = public

@@ -89,6 +89,7 @@ export default function DashboardClient(){
       p_start_date:input.startDate,
       p_end_date:input.endDate,
       p_currency:input.currency,
+      p_traveler_count:input.travelerCount,
     })
     if(error)throw error
     router.push(`/trip/${data}`)

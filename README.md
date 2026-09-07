@@ -15,6 +15,7 @@ TripMate es una aplicación web colaborativa y mobile-first para planificar **cu
 - Invitaciones por enlace/código.
 - Itinerario armado desde los gastos incluidos que tienen día y horario.
 - Alta rápida de gastos, reservas, lugares y valija personal.
+- Cantidad de viajeros independiente de las cuentas invitadas, para calcular correctamente el presupuesto del grupo.
 - Gastos editables/eliminables con datos de itinerario, categoría, estado, opción de incluir y marca opcional.
 - Lugares editables y eliminables, con base del viaje y rutas externas en Google Maps, sin API paga.
 - Presupuesto editable por persona, con total de grupo calculado automáticamente y filtro interactivo por categoría.

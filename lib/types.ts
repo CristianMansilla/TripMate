@@ -13,6 +13,7 @@ export type Trip = {
   endDate: string
   currency: string
   status: TripStatus
+  travelerCount: number
   memberNames: string[]
   role?: TripRole
 }

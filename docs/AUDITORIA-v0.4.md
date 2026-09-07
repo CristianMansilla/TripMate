@@ -25,8 +25,9 @@ Primera tanda aplicada el 6 de septiembre de 2026:
 - Barra móvil reducida a cinco opciones y menú Más; comprobada sin desborde a 320 px.
 - Diálogos principales con semántica, Escape, bloqueo del fondo, labels vinculadas y errores dentro del formulario.
 - Indicador de sincronización basado en carga y estado del canal Realtime.
+- Cantidad de viajeros separada de las cuentas con acceso; sólo el organizador la ajusta y el presupuesto deja de depender de cuántos usuarios fueron invitados.
 
-Segunda tanda aplicada: edición y eliminación completa de reservas y lugares, con confirmaciones, validación y conservación del orden manual. Tercera tanda aplicada: fechas de itinerario limitadas al viaje también en SQL, protección contra envíos duplicados, foco contenido y restaurado en modales, y cambio transaccional de la base del viaje. Pendiente para las siguientes tandas de v0.4: formulario compacto, repetición en varios días, pruebas con dos cuentas reales y revisión de importación/datos históricos.
+Segunda tanda aplicada: edición y eliminación completa de reservas y lugares, con confirmaciones, validación y conservación del orden manual. Tercera tanda aplicada: fechas de itinerario limitadas al viaje también en SQL, protección contra envíos duplicados, foco contenido y restaurado en modales, cambio transaccional de la base del viaje y cantidad de viajeros independiente de los integrantes. La auditoría y reparación de datos históricos también finalizaron sin actividades huérfanas. Pendiente para las siguientes tandas de v0.4: formulario compacto, repetición en varios días y pruebas con dos cuentas reales.
 
 ## Alcance y evidencia
 

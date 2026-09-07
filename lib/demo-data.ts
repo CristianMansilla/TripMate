@@ -10,6 +10,7 @@ export const trips: Trip[] = [
     endDate: '2026-11-15',
     currency: 'ARS',
     status: 'planning',
+    travelerCount: 2,
     memberNames: ['Cristian', 'Luna']
   }
 ]

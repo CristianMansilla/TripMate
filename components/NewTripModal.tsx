@@ -13,6 +13,7 @@ export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCrea
   const [startDate,setStartDate]=useState('')
   const [endDate,setEndDate]=useState('')
   const [currency,setCurrency]=useState('ARS')
+  const [travelerCount,setTravelerCount]=useState(1)
   const [loading,setLoading]=useState(false)
   const [error,setError]=useState('')
   const runOnce=useSubmissionGuard()
@@ -25,7 +26,7 @@ export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCrea
     if(endDate<startDate){setError('La fecha de vuelta no puede ser anterior a la de salida.');return}
     await runOnce(async()=>{
       setLoading(true)
-      try{await onCreate({name:name.trim(),destination:destination.trim(),country:country.trim(),startDate,endDate,currency});onClose()}
+      try{await onCreate({name:name.trim(),destination:destination.trim(),country:country.trim(),startDate,endDate,currency,travelerCount});onClose()}
       catch(error){setError(userFacingError(error,'No se pudo crear el viaje.'))}
       finally{setLoading(false)}
     })
@@ -41,6 +42,7 @@ export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCrea
         <div className="field full"><label htmlFor="trip-destination">Destino</label><input id="trip-destination" placeholder="Río de Janeiro + Búzios" value={destination} onChange={e=>setDestination(e.target.value)} required/></div>
         <div className="field"><label htmlFor="trip-country">País</label><input id="trip-country" placeholder="Brasil" value={country} onChange={e=>setCountry(e.target.value)}/></div>
         <div className="field"><label htmlFor="trip-currency">Moneda base</label><select id="trip-currency" value={currency} onChange={e=>setCurrency(e.target.value)}><option>ARS</option><option>BRL</option><option>USD</option><option>EUR</option><option>CLP</option><option>UYU</option></select></div>
+        <div className="field full"><label htmlFor="trip-travelers">Personas que viajan</label><input id="trip-travelers" type="number" min="1" max="100" step="1" value={travelerCount} onChange={e=>setTravelerCount(Math.min(100,Math.max(1,Number(e.target.value)||1)))} required/></div>
         <div className="field"><label htmlFor="trip-start">Salida</label><input id="trip-start" type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} required/></div>
         <div className="field"><label htmlFor="trip-end">Vuelta</label><input id="trip-end" type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} required/></div>
       </div>

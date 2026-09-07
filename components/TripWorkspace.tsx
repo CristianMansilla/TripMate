@@ -14,7 +14,7 @@ import { money } from '@/lib/money'
 import { createClient } from '@/lib/supabase-client'
 import { mapActivity, mapExpense, mapPacking, mapPlace, mapReservation, mapTrip } from '@/lib/db-mappers'
 import { logChange } from '@/lib/change-log'
-import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Edit3, ExternalLink, History, Link2, Luggage, Map as MapIcon, MapPin, Menu, Navigation, Plus, ReceiptText, Share2, Star, Trash2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Edit3, ExternalLink, History, Link2, Luggage, Map as MapIcon, MapPin, Menu, Minus, Navigation, Plus, ReceiptText, Share2, Star, Trash2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { changeActionLabel, tripRoleLabel, userFacingError } from '@/lib/ui-text'
 
@@ -145,7 +145,7 @@ function uniqueCategories(existing:string[], fallback:string[]=[]){
 function demoTripFor(id:string):Trip{
   return demoTrips.find(t=>t.id===id) || {
     id,name:'Viaje demo',destination:'Destino',country:'',startDate:new Date().toISOString().slice(0,10),
-    endDate:new Date().toISOString().slice(0,10),currency:'ARS',status:'planning',memberNames:['Demo'],role:'owner'
+    endDate:new Date().toISOString().slice(0,10),currency:'ARS',status:'planning',travelerCount:1,memberNames:['Demo'],role:'owner'
   }
 }
 
@@ -178,6 +178,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
   const [hydrated,setHydrated]=useState(false)
   const [connected,setConnected]=useState(false)
   const [syncStatus,setSyncStatus]=useState<SyncStatus>('demo')
+  const [savingTravelerCount,setSavingTravelerCount]=useState(false)
   const [loading,setLoading]=useState(true)
   const [error,setError]=useState('')
 
@@ -251,7 +252,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
         const raw=localStorage.getItem(storageKey)
         if(raw){
           const d=JSON.parse(raw)
-          if(d.trip)setTrip(d.trip)
+          if(d.trip)setTrip({...d.trip,travelerCount:Math.max(1,Number(d.trip.travelerCount || d.trip.memberNames?.length || 1))})
           if(d.acts)setActs(d.acts)
           if(d.exp)setExp(d.exp)
           if(d.res)setRes(d.res)
@@ -293,7 +294,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
 
   const isExpenseLinked=(expense:Expense)=>Boolean(expense.activityId && acts.some(activity=>activity.id===expense.activityId))
   const isExpenseIncluded=(expense:Expense)=>expense.included!==false
-  const travellers=Math.max(1,trip.memberNames.length || 1)
+  const travellers=Math.max(1,trip.travelerCount || 1)
   const expenseGroupAmount=(expense:Expense)=>expense.amountBasis==='group'?expense.amount:expense.amount*travellers
   const groupBudget=exp.filter(isExpenseIncluded).reduce((sum,expense)=>sum+expenseGroupAmount(expense),0)
   const perPersonBudget=groupBudget/travellers
@@ -669,6 +670,29 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     await logChange(trip.id,'member',null,'updated',`${member.name} ahora tiene rol ${tripRoleLabel(role)}.`)
   }
 
+  async function updateTravelerCount(nextCount:number){
+    if(trip.role!=='owner' || savingTravelerCount)return
+    const next=Math.min(100,Math.max(1,nextCount))
+    if(next===trip.travelerCount)return
+    const previous=trip.travelerCount
+    setTrip(current=>({...current,travelerCount:next}))
+    const supabase=createClient()
+    if(!supabase)return
+    setSavingTravelerCount(true)
+    setSyncStatus('syncing')
+    const {error}=await supabase.from('trips').update({traveler_count:next}).eq('id',trip.id).select('traveler_count').single()
+    if(error){
+      setTrip(current=>({...current,travelerCount:previous}))
+      setError(userFacingError(error,'No pudimos actualizar la cantidad de viajeros.'))
+      setSyncStatus('error')
+      setSavingTravelerCount(false)
+      return
+    }
+    setSyncStatus('synced')
+    setSavingTravelerCount(false)
+    await logChange(trip.id,'trip',trip.id,'updated',`Se actualizó la cantidad de viajeros a ${next}.`)
+  }
+
   if(loading)return <div className="shell"><AppBar/><main className="container workspace-skeleton" aria-busy="true" aria-label="Cargando viaje"><div className="skeleton-block skeleton-hero"/><div className="skeleton-block skeleton-tabs"/><div className="two-col"><div className="panel">{[0,1,2,3].map(item=><div className="skeleton-row" key={item}><div className="skeleton-line wide"/><div className="skeleton-line"/></div>)}</div><div className="panel"><div className="skeleton-line wide"/><div className="skeleton-block skeleton-summary"/></div></div></main></div>
 
   return <div className="shell">
@@ -808,8 +832,16 @@ export default function TripWorkspace({tripId}:{tripId:string}){
 
       {tab==='Integrantes' && <section className="panel">
         <div className="panel-head">
-          <div><h3>Integrantes</h3><div className="muted subcopy">Personas que tienen acceso a este viaje.</div></div>
+          <div><h3>Integrantes</h3><div className="muted subcopy">Las cuentas con acceso no modifican automáticamente el presupuesto.</div></div>
           {isOwner&&<button className="btn btn-primary" onClick={()=>setInviteOpen(true)}><Share2 size={16}/> Invitar</button>}
+        </div>
+        <div className="traveler-setting">
+          <div><strong>Personas que viajan</strong><small>Se usa para calcular los importes por persona y el total del grupo.</small></div>
+          <div className="traveler-stepper" aria-label="Cantidad de personas que viajan">
+            {isOwner&&<button className="icon-btn" disabled={savingTravelerCount||travellers<=1} onClick={()=>updateTravelerCount(travellers-1)} title="Quitar viajero" aria-label="Quitar una persona"><Minus size={17}/></button>}
+            <output aria-live="polite">{travellers}</output>
+            {isOwner&&<button className="icon-btn" disabled={savingTravelerCount||travellers>=100} onClick={()=>updateTravelerCount(travellers+1)} title="Agregar viajero" aria-label="Agregar una persona"><Plus size={17}/></button>}
+          </div>
         </div>
         <div className="list">
           {members.length?members.map(member=><div className="list-row" key={member.id}>
