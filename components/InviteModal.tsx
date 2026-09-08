@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase-client'
 import type { TripRole } from '@/lib/types'
 import { useModalBehavior } from './useModalBehavior'
 import { userFacingError } from '@/lib/ui-text'
+import Snackbar from './Snackbar'
 import { useSubmissionGuard } from './useSubmissionGuard'
 
 export default function InviteModal({tripId,onClose}:{tripId:string,onClose:()=>void}){
@@ -45,7 +46,7 @@ export default function InviteModal({tripId,onClose}:{tripId:string,onClose:()=>
     <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title" tabIndex={-1}>
       <h2 id="invite-modal-title">Invitar al viaje</h2>
       <p className="muted">Generá un enlace. La persona deberá crear o iniciar sesión antes de unirse.</p>
-      {message&&<div className="notice">{message}</div>}
+      <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
       <div className="field"><label htmlFor="invite-role">Permiso</label><select id="invite-role" value={role} onChange={e=>setRole(e.target.value as TripRole)} disabled={Boolean(url)}>
         <option value="editor">Editor · puede modificar</option>
         <option value="viewer">Lector · sólo consulta</option>

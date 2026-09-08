@@ -61,8 +61,8 @@ Si tu proyecto todavía muestra la clave legacy `anon`, también se admite `NEXT
 
 Si venís desde una base `v0.1`, ejecutar `supabase/v0.2.sql` una sola vez antes de usar nombres de usuario.
 Si ya estabas en `v0.2`, ejecutar `supabase/v0.3.sql` para habilitar lugares con base, orden manual de reservas y valija personal por usuario.
-Después de `v0.3`, ejecutar `supabase/v0.4.sql` para activar el guardado transaccional de gastos e itinerario, los importes por persona/grupo y los permisos corregidos.
-Si ya ejecutaste una versión anterior de `v0.4.sql`, volvé a ejecutar el archivo actualizado para instalar la validación de fechas y el cambio transaccional de la base del viaje.
+Después de `v0.3`, ejecutar `supabase/v0.4.sql` para activar el guardado transaccional de gastos, apariciones y paradas del itinerario, los importes por persona/grupo y los permisos corregidos.
+Si ya ejecutaste una versión anterior de `v0.4.sql`, volvé a ejecutar el archivo actualizado. La versión actual agrega varios días por gasto y permite elegir entre un importe total o un importe por cada aparición.
 
 `SUPABASE_SERVICE_ROLE_KEY` sólo se usa en el servidor para resolver el login por nombre de usuario. Debe configurarse también en Vercel y nunca llevar el prefijo `NEXT_PUBLIC_`.
 
@@ -104,6 +104,7 @@ Ver `SETUP.md` para GitHub + Supabase + Vercel.
 
 - Notificaciones por viaje con resumen agrupado para evitar avisos repetidos cuando alguien carga muchos cambios seguidos.
 - Gastos repetibles con múltiples apariciones en itinerario, por ejemplo viandas o comidas que se repiten varios días.
+- Paradas o subactividades ordenadas dentro de una actividad principal, con horario, lugar, detalle, importe y estado opcional propios. El total del hito se calcula sumando sus paradas.
 - Auditoría de datos para detectar gastos incluidos sin día, actividades viejas sin gasto asociado, categorías duplicadas y montos sospechosos, sin borrar nada automáticamente.
 - Adjuntos privados en Supabase Storage.
 - Notas compartidas por viaje.

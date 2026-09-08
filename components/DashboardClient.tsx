@@ -10,6 +10,7 @@ import { mapTrip } from '@/lib/db-mappers'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { tripRoleLabel } from '@/lib/ui-text'
+import Snackbar from './Snackbar'
 
 function dateRange(start:string,end:string){
   const a=new Date(start+'T12:00:00'), b=new Date(end+'T12:00:00')
@@ -107,7 +108,7 @@ export default function DashboardClient(){
         {connected&&!error?<><Wifi size={14}/> Conectado · cambios compartidos</>:hasSupabaseEnv()?<><WifiOff size={14}/> Sin conexión</>:<><WifiOff size={14}/> Modo demo · cambios sólo en este navegador</>}
       </div>
 
-      {error&&<div className="notice error dismissible" role="alert">{error}<button onClick={()=>{setLoading(true);setReloadKey(key=>key+1)}}>Reintentar</button></div>}
+      <Snackbar message={error} tone="error" onClose={()=>setError('')} actionLabel="Reintentar" onAction={()=>{setError('');setLoading(true);setReloadKey(key=>key+1)}} duration={0}/>
       {loading?<div className="grid-trips skeleton-grid" aria-busy="true" aria-label="Cargando tus viajes">{[0,1,2].map(item=><div className="trip-card skeleton-card" key={item}><div className="skeleton-block skeleton-cover"/><div className="trip-body"><div className="skeleton-line wide"/><div className="skeleton-line"/></div></div>)}</div>:trips.length===0?<div className="empty"><h3>Todavía no tenés viajes</h3><p>Creá el primero o abrí un enlace de invitación para sumarte a uno compartido.</p><div className="empty-actions"><button className="btn btn-primary" onClick={()=>setShowNew(true)}>Crear mi primer viaje</button></div></div>:
       <div className="grid-trips">
         {trips.map((trip)=><Link className="trip-card" href={`/trip/${trip.id}`} key={trip.id}>

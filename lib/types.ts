@@ -4,6 +4,18 @@ export type CostScope = 'shared' | 'per_person'
 export type TripRole = 'owner' | 'editor' | 'viewer'
 export type PlaceStatus = 'saved' | 'candidate' | 'confirmed' | 'discarded' | 'visited'
 
+export type ActivityStep = {
+  id?: string
+  title: string
+  amount: number
+  startTime?: string
+  endTime?: string
+  place?: string
+  notes?: string
+  optional?: boolean
+  position?: number
+}
+
 export type Trip = {
   id: string
   name: string
@@ -21,6 +33,7 @@ export type Trip = {
 export type Activity = {
   id: string
   tripId: string
+  expenseId?: string | null
   date: string
   startTime?: string
   endTime?: string
@@ -36,6 +49,15 @@ export type Activity = {
   status: ActivityStatus
   optional?: boolean
   position?: number
+  steps?: ActivityStep[]
+}
+
+export type ExpenseOccurrence = {
+  id?: string
+  date: string
+  startTime?: string
+  endTime?: string
+  steps?: ActivityStep[]
 }
 
 export type Reservation = {
@@ -58,6 +80,8 @@ export type Expense = {
   category: string
   amount: number
   amountBasis?: 'per_person' | 'group'
+  occurrencePricing?: 'total' | 'per_occurrence'
+  occurrences?: ExpenseOccurrence[]
   currency?: string
   status: 'estimated' | 'confirmed' | 'paid'
   scope: CostScope

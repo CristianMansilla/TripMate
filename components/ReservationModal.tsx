@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import type { Reservation } from '@/lib/types'
 import { userFacingError } from '@/lib/ui-text'
+import Snackbar from './Snackbar'
 import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
 
@@ -35,9 +36,9 @@ export default function ReservationModal({reservation,onClose,onSave,onDelete}:{
   }
 
   return <div className="modal-backdrop" onMouseDown={event=>{if(event.currentTarget===event.target)onClose()}}>
-    <form ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="reservation-modal-title" tabIndex={-1} onSubmit={submit}>
+    <form ref={dialogRef} className="modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="reservation-modal-title" tabIndex={-1} onSubmit={submit}>
       <h2 id="reservation-modal-title">Editar reserva</h2>
-      {message&&<div className="notice error" role="alert">{message}</div>}
+      <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
       <div className="form-grid">
         <div className="field full"><label htmlFor="reservation-title">Nombre</label><input id="reservation-title" value={draft.title} onChange={event=>patch('title',event.target.value)} required/></div>
         <div className="field"><label htmlFor="reservation-status">Estado</label><select id="reservation-status" value={draft.status} onChange={event=>patch('status',event.target.value as Reservation['status'])}><option value="watching">Esperando</option><option value="pending">Pendiente</option><option value="reserved">Reservado</option><option value="paid">Pagado</option></select></div>

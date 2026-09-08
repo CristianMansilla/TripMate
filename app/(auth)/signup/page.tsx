@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { safeInternalPath } from '@/lib/safe-redirect'
 import { userFacingError } from '@/lib/ui-text'
+import Snackbar from '@/components/Snackbar'
 
 function SignupForm(){
   const [name,setName]=useState('')
@@ -56,7 +57,7 @@ function SignupForm(){
     <div className="brand-mark"><Compass size={19}/></div>
     <h1>Creá tu cuenta</h1>
     <p>Después vas a poder crear viajes e invitar a otras personas.</p>
-    {message&&<div className="notice">{message}</div>}
+    <Snackbar message={message} tone={created?'success':'error'} onClose={()=>setMessage('')} duration={created?0:6000}/>
     <div className="field"><label>Nombre</label><input value={name} onChange={e=>setName(e.target.value)} required autoComplete="name"/></div>
     <div className="field" style={{marginTop:12}}><label>Nombre de usuario</label><input value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} required minLength={3} maxLength={24} pattern="[a-z0-9_]{3,24}" autoComplete="username"/></div>
     <div className="field" style={{marginTop:12}}><label>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email"/></div>

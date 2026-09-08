@@ -84,6 +84,7 @@ create table public.expenses (
   place text,
   notes text,
   optional boolean not null default false,
+  occurrence_pricing text not null default 'total' check(occurrence_pricing in ('total','per_occurrence')),
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -92,6 +93,29 @@ create table public.expenses (
 create unique index expenses_one_per_activity
   on public.expenses (activity_id)
   where activity_id is not null;
+
+alter table public.activities
+  add column expense_id uuid references public.expenses(id) on delete cascade;
+create index activities_expense_id_idx on public.activities(expense_id);
+
+create table public.activity_steps (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references public.trips(id) on delete cascade,
+  activity_id uuid not null references public.activities(id) on delete cascade,
+  title text not null check(length(trim(title)) > 0),
+  amount numeric(14,2) not null default 0 check(amount >= 0),
+  start_time time,
+  end_time time,
+  place text,
+  notes text,
+  optional boolean not null default false,
+  position integer not null default 0,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index activity_steps_activity_position_idx on public.activity_steps(activity_id, position);
 
 create table public.reservations (
   id uuid primary key default gen_random_uuid(),
@@ -382,6 +406,194 @@ begin
 end;
 $$;
 
+create or replace function public.save_expense_plan_v2(
+  p_expense_id uuid, p_trip_id uuid, p_title text, p_category text, p_amount numeric,
+  p_status text, p_included boolean, p_amount_basis text, p_occurrence_pricing text,
+  p_occurrences jsonb, p_place text, p_notes text, p_optional boolean
+) returns uuid
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_expense public.expenses%rowtype;
+  v_expense_id uuid;
+  v_legacy_activity_id uuid;
+  v_activity_id uuid;
+  v_first_activity_id uuid;
+  v_item jsonb;
+  v_step jsonb;
+  v_step_id uuid;
+  v_kept_step_ids uuid[];
+  v_step_position integer;
+  v_steps_total numeric(14,2);
+  v_activity_steps_total numeric(14,2);
+  v_date date;
+  v_start_time time;
+  v_end_time time;
+  v_kept_ids uuid[] := array[]::uuid[];
+  v_activity_category text;
+  v_activity_status public.activity_status;
+begin
+  if not public.can_edit_trip(p_trip_id) then raise exception 'No tenés permiso para editar este viaje.'; end if;
+  if length(trim(coalesce(p_title,''))) = 0 then raise exception 'El nombre no puede estar vacío.'; end if;
+  if length(trim(coalesce(p_category,''))) = 0 then raise exception 'La categoría no puede estar vacía.'; end if;
+  if p_amount is null or p_amount < 0 then raise exception 'El importe no puede ser negativo.'; end if;
+  if p_status not in ('estimated','confirmed','paid') then raise exception 'Estado de gasto inválido.'; end if;
+  if p_amount_basis not in ('per_person','group') then raise exception 'Base de importe inválida.'; end if;
+  if p_occurrence_pricing not in ('total','per_occurrence') then raise exception 'Cálculo de repeticiones inválido.'; end if;
+  if p_occurrences is not null and jsonb_typeof(p_occurrences) <> 'array' then raise exception 'Los días del itinerario no son válidos.'; end if;
+
+  v_activity_category := case
+    when lower(p_category) like any(array['%transporte%','%micro%','%uber%','%taxi%']) then 'transport'
+    when lower(p_category) like '%aloj%' then 'lodging'
+    when lower(p_category) like any(array['%comida%','%cena%','%almuerzo%']) then 'food'
+    when lower(p_category) like '%museo%' then 'museum'
+    when lower(p_category) like any(array['%salida%','%noche%','%boliche%']) then 'nightlife'
+    when lower(p_category) like any(array['%entrada%','%recital%']) then 'event'
+    else 'activity'
+  end;
+  v_activity_status := case p_status when 'paid' then 'paid'::public.activity_status when 'confirmed' then 'reserved'::public.activity_status else 'planned'::public.activity_status end;
+
+  if p_expense_id is not null then
+    select * into v_expense from public.expenses where id=p_expense_id and trip_id=p_trip_id for update;
+    if not found then raise exception 'No se encontró el gasto.'; end if;
+    v_expense_id := v_expense.id;
+    v_legacy_activity_id := v_expense.activity_id;
+    update public.expenses
+    set title=trim(p_title),category=trim(p_category),amount=p_amount,status=p_status,
+        included=coalesce(p_included,false),amount_basis=p_amount_basis,occurrence_pricing=p_occurrence_pricing,
+        place=nullif(trim(coalesce(p_place,'')),''),notes=nullif(trim(coalesce(p_notes,'')),''),
+        optional=coalesce(p_optional,false)
+    where id=v_expense_id;
+  else
+    insert into public.expenses(trip_id,title,category,amount,currency,status,scope,included,amount_basis,occurrence_pricing,place,notes,optional,created_by)
+    select p_trip_id,trim(p_title),trim(p_category),p_amount,trip.currency,p_status,'per_person',
+      coalesce(p_included,false),p_amount_basis,p_occurrence_pricing,nullif(trim(coalesce(p_place,'')),''),
+      nullif(trim(coalesce(p_notes,'')),''),coalesce(p_optional,false),auth.uid()
+    from public.trips trip where trip.id=p_trip_id
+    returning id into v_expense_id;
+  end if;
+
+  if v_expense_id is null then raise exception 'No se pudo guardar el gasto.'; end if;
+
+  for v_item in select value from jsonb_array_elements(coalesce(p_occurrences,'[]'::jsonb))
+  loop
+    v_activity_id := nullif(v_item->>'id','')::uuid;
+    v_date := nullif(v_item->>'date','')::date;
+    v_start_time := nullif(v_item->>'start_time','')::time;
+    v_end_time := nullif(v_item->>'end_time','')::time;
+    if v_date is null then raise exception 'Cada aparición debe tener un día.'; end if;
+    if not exists(select 1 from public.trips where id=p_trip_id and v_date between start_date and end_date) then
+      raise exception 'Los días del itinerario deben estar dentro de las fechas del viaje.';
+    end if;
+
+    if v_activity_id is null then
+      insert into public.activities(trip_id,expense_id,date,start_time,end_time,title,category,place,notes,estimated_cost,actual_cost,cost_scope,status,optional,created_by,updated_by)
+      values(p_trip_id,v_expense_id,v_date,v_start_time,v_end_time,trim(p_title),v_activity_category,
+        nullif(trim(coalesce(p_place,'')),''),nullif(trim(coalesce(p_notes,'')),''),p_amount,
+        case when p_status='paid' then p_amount else null end,
+        case when p_amount_basis='group' then 'shared'::public.cost_scope else 'per_person'::public.cost_scope end,
+        v_activity_status,coalesce(p_optional,false),auth.uid(),auth.uid())
+      returning id into v_activity_id;
+    else
+      update public.activities
+      set expense_id=v_expense_id,date=v_date,start_time=v_start_time,end_time=v_end_time,title=trim(p_title),
+          category=v_activity_category,place=nullif(trim(coalesce(p_place,'')),''),notes=nullif(trim(coalesce(p_notes,'')),''),
+          estimated_cost=p_amount,actual_cost=case when p_status='paid' then p_amount else null end,
+          cost_scope=case when p_amount_basis='group' then 'shared'::public.cost_scope else 'per_person'::public.cost_scope end,
+          status=v_activity_status,optional=coalesce(p_optional,false),updated_by=auth.uid()
+      where id=v_activity_id and trip_id=p_trip_id
+        and (expense_id=v_expense_id or (expense_id is null and id=v_legacy_activity_id));
+      if not found then raise exception 'Una aparición del itinerario no pertenece a este gasto.'; end if;
+    end if;
+
+    if v_item ? 'steps' and jsonb_typeof(v_item->'steps') <> 'array' then
+      raise exception 'Las paradas de una aparición no son válidas.';
+    end if;
+    v_kept_step_ids := array[]::uuid[];
+    v_step_position := 0;
+    for v_step in select value from jsonb_array_elements(coalesce(v_item->'steps','[]'::jsonb))
+    loop
+      if length(trim(coalesce(v_step->>'title',''))) = 0 then
+        raise exception 'Cada parada debe tener un nombre.';
+      end if;
+      if nullif(v_step->>'amount','') is null or (v_step->>'amount')::numeric < 0 then
+        raise exception 'El importe de cada parada debe ser cero o mayor.';
+      end if;
+      v_step_id := nullif(v_step->>'id','')::uuid;
+      if v_step_id is null then
+        insert into public.activity_steps(trip_id,activity_id,title,amount,start_time,end_time,place,notes,optional,position,created_by)
+        values(p_trip_id,v_activity_id,trim(v_step->>'title'),(v_step->>'amount')::numeric,nullif(v_step->>'start_time','')::time,
+          nullif(v_step->>'end_time','')::time,nullif(trim(coalesce(v_step->>'place','')),''),
+          nullif(trim(coalesce(v_step->>'notes','')),''),coalesce((v_step->>'optional')::boolean,false),
+          v_step_position,auth.uid())
+        returning id into v_step_id;
+      else
+        update public.activity_steps
+        set title=trim(v_step->>'title'),amount=(v_step->>'amount')::numeric,start_time=nullif(v_step->>'start_time','')::time,
+            end_time=nullif(v_step->>'end_time','')::time,place=nullif(trim(coalesce(v_step->>'place','')),''),
+            notes=nullif(trim(coalesce(v_step->>'notes','')),''),
+            optional=coalesce((v_step->>'optional')::boolean,false),position=v_step_position
+        where id=v_step_id and activity_id=v_activity_id and trip_id=p_trip_id;
+        if not found then raise exception 'Una parada no pertenece a esta aparición.'; end if;
+      end if;
+      if v_step_id=any(v_kept_step_ids) then raise exception 'Hay una parada repetida en el formulario.'; end if;
+      v_kept_step_ids := array_append(v_kept_step_ids,v_step_id);
+      v_step_position := v_step_position + 1;
+    end loop;
+
+    delete from public.activity_steps
+    where activity_id=v_activity_id
+      and (cardinality(v_kept_step_ids)=0 or not (id=any(v_kept_step_ids)));
+
+    if cardinality(v_kept_step_ids)>0 then
+      select coalesce(sum(amount),0) into v_activity_steps_total
+      from public.activity_steps where activity_id=v_activity_id;
+      update public.activities
+      set estimated_cost=v_activity_steps_total,
+          actual_cost=case when p_status='paid' then v_activity_steps_total else null end
+      where id=v_activity_id;
+    end if;
+
+    if v_activity_id=any(v_kept_ids) then raise exception 'Hay una aparición repetida en el formulario.'; end if;
+    v_kept_ids := array_append(v_kept_ids,v_activity_id);
+  end loop;
+
+  delete from public.activities
+  where expense_id=v_expense_id and (cardinality(v_kept_ids)=0 or not (id=any(v_kept_ids)));
+
+  if exists(
+    select 1 from public.activity_steps step
+    join public.activities activity on activity.id=step.activity_id
+    where activity.expense_id=v_expense_id
+  ) then
+    select coalesce(sum(step.amount),0) into v_steps_total
+    from public.activity_steps step
+    join public.activities activity on activity.id=step.activity_id
+    where activity.expense_id=v_expense_id;
+    update public.expenses
+    set amount=v_steps_total,occurrence_pricing='total'
+    where id=v_expense_id;
+  end if;
+
+  select id into v_first_activity_id from public.activities
+  where expense_id=v_expense_id order by date,start_time nulls last,id limit 1;
+
+  if v_first_activity_id is null then
+    update public.expenses set activity_id=null,expense_date=null,itinerary_start_time=null,itinerary_end_time=null
+    where id=v_expense_id;
+  else
+    update public.expenses expense
+    set activity_id=v_first_activity_id,expense_date=activity.date,
+        itinerary_start_time=activity.start_time,itinerary_end_time=activity.end_time
+    from public.activities activity
+    where expense.id=v_expense_id and activity.id=v_first_activity_id;
+  end if;
+  return v_expense_id;
+end;
+$$;
+
 create or replace function public.delete_expense_plan(p_expense_id uuid, p_trip_id uuid)
 returns void language plpgsql security invoker set search_path=public as $$
 declare v_activity_id uuid;
@@ -415,6 +627,7 @@ create trigger on_auth_user_created after insert on auth.users for each row exec
 create or replace function public.set_updated_at() returns trigger language plpgsql as $$ begin new.updated_at=now(); return new; end $$;
 create trigger trips_updated before update on public.trips for each row execute function public.set_updated_at();
 create trigger activities_updated before update on public.activities for each row execute function public.set_updated_at();
+create trigger activity_steps_updated before update on public.activity_steps for each row execute function public.set_updated_at();
 create trigger expenses_updated before update on public.expenses for each row execute function public.set_updated_at();
 create trigger reservations_updated before update on public.reservations for each row execute function public.set_updated_at();
 create trigger places_updated before update on public.places for each row execute function public.set_updated_at();
@@ -426,6 +639,7 @@ alter table public.profiles enable row level security;
 alter table public.trips enable row level security;
 alter table public.trip_members enable row level security;
 alter table public.activities enable row level security;
+alter table public.activity_steps enable row level security;
 alter table public.expenses enable row level security;
 alter table public.reservations enable row level security;
 alter table public.places enable row level security;
@@ -440,10 +654,12 @@ create policy "profile owner updates" on public.profiles for update to authentic
 revoke all on function public.resolve_login_identifier(text) from public, anon, authenticated;
 grant execute on function public.resolve_login_identifier(text) to service_role;
 revoke all on function public.save_expense_plan(uuid,uuid,text,text,numeric,text,boolean,text,date,time,time,text,text,boolean) from public, anon;
+revoke all on function public.save_expense_plan_v2(uuid,uuid,text,text,numeric,text,boolean,text,text,jsonb,text,text,boolean) from public, anon;
 revoke all on function public.delete_expense_plan(uuid,uuid) from public, anon;
 revoke all on function public.move_reservation(uuid,uuid,integer) from public, anon;
 revoke all on function public.set_trip_base_place(uuid,uuid) from public, anon;
 grant execute on function public.save_expense_plan(uuid,uuid,text,text,numeric,text,boolean,text,date,time,time,text,text,boolean) to authenticated;
+grant execute on function public.save_expense_plan_v2(uuid,uuid,text,text,numeric,text,boolean,text,text,jsonb,text,text,boolean) to authenticated;
 grant execute on function public.delete_expense_plan(uuid,uuid) to authenticated;
 grant execute on function public.move_reservation(uuid,uuid,integer) to authenticated;
 grant execute on function public.set_trip_base_place(uuid,uuid) to authenticated;
@@ -458,6 +674,16 @@ create policy "owners manage memberships" on public.trip_members for all to auth
 -- Generic member/edit policies per collaborative table
 create policy "members read activities" on public.activities for select to authenticated using(public.is_trip_member(trip_id));
 create policy "editors write activities" on public.activities for all to authenticated using(public.can_edit_trip(trip_id)) with check(public.can_edit_trip(trip_id));
+create policy "members read activity steps" on public.activity_steps for select to authenticated using(
+  public.is_trip_member(trip_id)
+  and exists(select 1 from public.activities activity where activity.id=activity_steps.activity_id and activity.trip_id=activity_steps.trip_id)
+);
+create policy "editors write activity steps" on public.activity_steps for all to authenticated
+  using(public.can_edit_trip(trip_id))
+  with check(
+    public.can_edit_trip(trip_id)
+    and exists(select 1 from public.activities activity where activity.id=activity_steps.activity_id and activity.trip_id=activity_steps.trip_id)
+  );
 create policy "members read expenses" on public.expenses for select to authenticated using(public.is_trip_member(trip_id));
 create policy "editors write expenses" on public.expenses for all to authenticated using(public.can_edit_trip(trip_id)) with check(public.can_edit_trip(trip_id));
 create policy "members read reservations" on public.reservations for select to authenticated using(public.is_trip_member(trip_id));
@@ -477,6 +703,7 @@ create policy "editors write log" on public.change_log for insert to authenticat
 
 -- Realtime --------------------------------------------------------------
 alter publication supabase_realtime add table public.activities;
+alter publication supabase_realtime add table public.activity_steps;
 alter publication supabase_realtime add table public.expenses;
 alter publication supabase_realtime add table public.reservations;
 alter publication supabase_realtime add table public.packing_items;

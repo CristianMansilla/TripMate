@@ -4,6 +4,7 @@ import { Compass } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import { useRouter } from 'next/navigation'
 import { userFacingError } from '@/lib/ui-text'
+import Snackbar from '@/components/Snackbar'
 
 export default function UpdatePassword(){
   const [password,setPassword]=useState('')
@@ -21,7 +22,7 @@ export default function UpdatePassword(){
   return <main className="auth-shell"><form className="auth-card" onSubmit={submit}>
     <div className="brand-mark"><Compass size={19}/></div>
     <h1>Nueva contraseña</h1><p>Elegí una contraseña nueva para tu cuenta.</p>
-    {message&&<div className="notice">{message}</div>}
+    <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
     <div className="field"><label>Contraseña nueva</label><input type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} required/></div>
     <button className="btn btn-primary" style={{width:'100%',marginTop:18}}>Guardar contraseña</button>
   </form></main>

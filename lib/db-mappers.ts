@@ -1,4 +1,4 @@
-import { Activity, Expense, PackingItem, Place, Reservation, Trip } from './types'
+import { Activity, ActivityStep, Expense, PackingItem, Place, Reservation, Trip } from './types'
 
 export function mapTrip(row: any, memberNames: string[] = [], role?: Trip['role']): Trip {
   return {
@@ -20,6 +20,7 @@ export function mapActivity(row: any): Activity {
   return {
     id: row.id,
     tripId: row.trip_id,
+    expenseId: row.expense_id || null,
     date: row.date,
     startTime: row.start_time?.slice(0, 5) || undefined,
     endTime: row.end_time?.slice(0, 5) || undefined,
@@ -38,9 +39,24 @@ export function mapActivity(row: any): Activity {
   }
 }
 
+export function mapActivityStep(row: any):ActivityStep {
+  return {
+    id: row.id,
+    title: row.title,
+    amount: Number(row.amount || 0),
+    startTime: row.start_time?.slice(0,5) || undefined,
+    endTime: row.end_time?.slice(0,5) || undefined,
+    place: row.place || undefined,
+    notes: row.notes || undefined,
+    optional: Boolean(row.optional),
+    position: Number(row.position || 0),
+  }
+}
+
 export function activityToRow(activity: Activity) {
   return {
     trip_id: activity.tripId,
+    expense_id: activity.expenseId || null,
     date: activity.date,
     start_time: activity.startTime || null,
     end_time: activity.endTime || null,
@@ -68,6 +84,7 @@ export function mapExpense(row: any): Expense {
     category: row.category,
     amount: Number(row.amount || 0),
     amountBasis: row.amount_basis || 'per_person',
+    occurrencePricing: row.occurrence_pricing || 'total',
     currency: row.currency || 'ARS',
     status: row.status || 'estimated',
     scope: row.scope || 'shared',

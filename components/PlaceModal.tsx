@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import type { Place } from '@/lib/types'
 import { userFacingError } from '@/lib/ui-text'
+import Snackbar from './Snackbar'
 import CategoryPicker from './CategoryPicker'
 import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
@@ -45,9 +46,9 @@ export default function PlaceModal({place,categoryOptions,onClose,onSave,onDelet
   }
 
   return <div className="modal-backdrop" onMouseDown={event=>{if(event.currentTarget===event.target)onClose()}}>
-    <form ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="place-modal-title" tabIndex={-1} onSubmit={submit} noValidate>
+    <form ref={dialogRef} className="modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="place-modal-title" tabIndex={-1} onSubmit={submit} noValidate>
       <h2 id="place-modal-title">Editar lugar</h2>
-      {message&&<div className="notice error" role="alert">{message}</div>}
+      <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
       <div className="form-grid">
         <div className="field full"><label htmlFor="place-name">Nombre</label><input id="place-name" value={draft.name} onChange={event=>patch('name',event.target.value)} required/></div>
         <CategoryPicker value={draft.category} options={categoryOptions} onChange={value=>patch('category',value)} required/>

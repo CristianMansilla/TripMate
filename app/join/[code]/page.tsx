@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Compass } from 'lucide-react'
 import { userFacingError } from '@/lib/ui-text'
+import Snackbar from '@/components/Snackbar'
 
 export default function JoinPage(){
   const params=useParams<{code:string}>()
@@ -49,6 +50,6 @@ export default function JoinPage(){
     {state==='login'&&<><p>Para aceptar la invitación primero necesitás iniciar sesión o crear una cuenta.</p>
       <Link className="btn btn-primary" style={{width:'100%'}} href={`/login?next=${encodeURIComponent(next)}`}>Ingresar</Link>
       <Link className="btn btn-secondary" style={{width:'100%',marginTop:9}} href={`/signup?next=${encodeURIComponent(next)}`}>Crear cuenta</Link></>}
-    {state==='error'&&<><div className="notice error">{message}</div><Link className="btn btn-secondary" href="/dashboard">Volver al inicio</Link></>}
+    {state==='error'&&<><Snackbar message={message} tone="error" onClose={()=>setMessage('')} duration={0}/><Link className="btn btn-secondary" href="/dashboard">Volver al inicio</Link></>}
   </section></main>
 }

@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
+import Snackbar from './Snackbar'
 
 export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
   const [name,setName]=useState('')
@@ -68,6 +69,7 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
     setName(cleanName)
     setUsername(cleanUsername)
     setSaving(false)
+    setProfileMessage('Perfil actualizado.')
     setProfileOpen(false)
     })
   }
@@ -77,7 +79,6 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
       <div ref={profileDialogRef} className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" tabIndex={-1}>
         <h2 id="profile-title">Perfil</h2>
         <p className="muted">Estos datos se muestran a las personas que comparten viajes con vos.</p>
-        {profileMessage&&<div className="notice error">{profileMessage}</div>}
         <div className="field"><label>Nombre visible</label><input value={name} onChange={e=>setName(e.target.value)} required autoComplete="name"/></div>
         <div className="field" style={{marginTop:12}}><label>Nombre de usuario</label><input value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} required minLength={3} maxLength={24} pattern="[a-z0-9_]{3,24}" autoComplete="username"/></div>
         <div className="field" style={{marginTop:12}}><label>Email</label><input value={email} disabled/></div>
@@ -105,5 +106,6 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
     </div>
   </header>
   {profileModal}
+  <Snackbar message={profileMessage} tone={profileMessage==='Perfil actualizado.'?'success':'error'} onClose={()=>setProfileMessage('')}/>
   </>
 }

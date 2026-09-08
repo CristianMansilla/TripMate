@@ -34,7 +34,7 @@ Para actualizar de `v0.3` a `v0.4`, ejecutar después:
 `supabase/v0.4.sql`
 
 La migración v0.4 no elimina gastos ni actividades existentes. Copia al gasto los datos de agenda que ya tenga su actividad vinculada antes de activar el nuevo guardado.
-Durante el desarrollo de v0.4 el archivo puede volver a ejecutarse para actualizar sus funciones RPC; no duplica ni elimina gastos o actividades. La versión actual agrega la cantidad de viajeros independiente de los integrantes y conserva inicialmente el número que ya mostraba cada viaje.
+Durante el desarrollo de v0.4 el archivo puede volver a ejecutarse para actualizar sus funciones RPC; no duplica ni elimina gastos o actividades. La versión actual agrega la cantidad de viajeros independiente de los integrantes y convierte cada actividad ya vinculada en la primera aparición de su gasto. Después permite agregar más días sin duplicar el gasto.
 
 ## 3. Variables locales
 

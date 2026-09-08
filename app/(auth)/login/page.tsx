@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase-client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { safeInternalPath } from '@/lib/safe-redirect'
+import Snackbar from '@/components/Snackbar'
 
 function LoginForm(){
   const [identifier,setIdentifier]=useState('')
@@ -42,7 +43,7 @@ function LoginForm(){
       <div className="brand-mark"><Compass size={19}/></div>
       <h1>Entrá a TripMate</h1>
       <p>Planificá viajes con tu pareja, amigos o familia y mantengan todo sincronizado.</p>
-      {message&&<div className="notice">{message}</div>}
+      <Snackbar message={message} tone={message.startsWith('Modo demo')?'info':'error'} onClose={()=>setMessage('')}/>
       <div className="field"><label>Email o usuario</label><input value={identifier} onChange={e=>setIdentifier(e.target.value)} required autoComplete="username"/></div>
       <div className="field" style={{marginTop:12}}>
         <label>Contraseña</label>

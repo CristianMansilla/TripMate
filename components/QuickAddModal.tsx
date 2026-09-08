@@ -4,6 +4,10 @@ import CategoryPicker from './CategoryPicker'
 import { useModalBehavior } from './useModalBehavior'
 import { userFacingError } from '@/lib/ui-text'
 import { useSubmissionGuard } from './useSubmissionGuard'
+import ExpenseOccurrencesEditor from './ExpenseOccurrencesEditor'
+import { ExpenseOccurrence } from '@/lib/types'
+import Snackbar from './Snackbar'
+import { CalendarDays, WalletCards } from 'lucide-react'
 
 type Kind='expense'|'reservation'|'packing'|'place'
 
@@ -18,9 +22,8 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
   const [amount,setAmount]=useState('')
   const [amountBasis,setAmountBasis]=useState<'per_person'|'group'>('per_person')
   const [category,setCategory]=useState(categoryOptions[0] || (kind==='packing'?'General':kind==='expense'?'Otros':''))
-  const [date,setDate]=useState('')
-  const [startTime,setStartTime]=useState('')
-  const [endTime,setEndTime]=useState('')
+  const [occurrences,setOccurrences]=useState<ExpenseOccurrence[]>([])
+  const [occurrencePricing,setOccurrencePricing]=useState<'total'|'per_occurrence'>('total')
   const [place,setPlace]=useState('')
   const [optional,setOptional]=useState(false)
   const [priority,setPriority]=useState('medium')
@@ -30,45 +33,67 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
   const [notes,setNotes]=useState('')
   const [loading,setLoading]=useState(false)
   const [message,setMessage]=useState('')
+  const [activeExpenseTab,setActiveExpenseTab]=useState<'main'|'itinerary'>('main')
   const runOnce=useSubmissionGuard()
   const labels={expense:'Nuevo gasto',reservation:'Nueva reserva',packing:'Agregar a valija',place:'Nuevo lugar'} as const
+  const steps=occurrences.flatMap(item=>item.steps || [])
+  const hasSteps=steps.length>0
+  const stepsTotal=steps.reduce((sum,step)=>sum+(Number.isFinite(step.amount)?step.amount:0),0)
   async function submit(e:FormEvent){
     e.preventDefault();setMessage('')
-    if(kind==='expense' && (!amount.trim() || !Number.isFinite(Number(amount)) || Number(amount)<0)){setMessage('El importe debe ser cero o mayor.');return}
+    if(kind==='expense' && !title.trim()){setActiveExpenseTab('main');setMessage('El nombre no puede estar vacío.');return}
+    if(kind==='expense' && !hasSteps && (!amount.trim() || !Number.isFinite(Number(amount)) || Number(amount)<0)){setActiveExpenseTab('main');setMessage('El importe debe ser cero o mayor.');return}
     if(kind==='reservation' && amount.trim() && (!Number.isFinite(Number(amount)) || Number(amount)<0)){setMessage('El importe debe ser cero o mayor.');return}
     if(kind==='place' && !validExternalUrl(url.trim())){setMessage('El enlace debe comenzar con http:// o https://.');return}
-    if(kind==='expense' && date && ((minDate && date<minDate) || (maxDate && date>maxDate))){setMessage('El día del itinerario debe estar dentro de las fechas del viaje.');return}
+    if(kind==='expense' && occurrences.some(item=>!item.date)){setActiveExpenseTab('itinerary');setMessage('Completá o quitá los días vacíos del itinerario.');return}
+    if(kind==='expense' && occurrences.some(item=>(minDate && item.date<minDate) || (maxDate && item.date>maxDate))){setActiveExpenseTab('itinerary');setMessage('Los días del itinerario deben estar dentro de las fechas del viaje.');return}
+    if(kind==='expense' && occurrences.some(item=>(item.steps || []).some(step=>!step.title.trim()))){setActiveExpenseTab('itinerary');setMessage('Completá o quitá las subactividades que no tienen nombre.');return}
+    if(kind==='expense' && steps.some(step=>!Number.isFinite(step.amount) || step.amount<0)){setActiveExpenseTab('itinerary');setMessage('Los importes de las subactividades deben ser cero o mayores.');return}
     await runOnce(async()=>{
       setLoading(true)
       try{
-        await onSave({title:title.trim(),amount:amount.trim()===''?undefined:Number(amount),amountBasis,category:category.trim(),priority,dueDate,address,url,notes,date,startTime,endTime,place,optional})
+        await onSave({title:title.trim(),amount:hasSteps?stepsTotal:amount.trim()===''?undefined:Number(amount),amountBasis,category:category.trim(),priority,dueDate,address,url,notes,occurrences,occurrencePricing:hasSteps?'total':occurrencePricing,place,optional})
         onClose()
       }catch(error){setMessage(userFacingError(error,'No pudimos guardar. Intentá nuevamente.'))}
       finally{setLoading(false)}
     })
   }
   return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
-    <form ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-title" tabIndex={-1} onSubmit={submit} noValidate>
+    <form ref={dialogRef} className={`modal sticky-actions-modal ${kind==='expense'?'expense-modal':''}`} role="dialog" aria-modal="true" aria-labelledby="quick-add-title" tabIndex={-1} onSubmit={submit} noValidate>
       <h2 id="quick-add-title">{labels[kind]}</h2>
-      {message&&<div className="notice error">{message}</div>}
+      <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
       <div className="form-grid">
-        <div className="field full"><label htmlFor="quick-title">{kind==='packing'?'Ítem':'Nombre'}</label><input id="quick-title" value={title} onChange={e=>setTitle(e.target.value)} required/></div>
+        {kind!=='expense'&&<div className="field full"><label htmlFor="quick-title">{kind==='packing'?'Ítem':'Nombre'}</label><input id="quick-title" value={title} onChange={e=>setTitle(e.target.value)} required/></div>}
         {kind==='expense'&&<>
-          <CategoryPicker value={category} options={categoryOptions} onChange={setCategory} required/>
-          <div className="field"><label htmlFor="quick-amount">{amountBasis==='group'?'Importe total del servicio':'Importe por persona'}</label><input id="quick-amount" type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} required/></div>
-          <div className="field"><label htmlFor="quick-basis">El importe corresponde a</label><select id="quick-basis" value={amountBasis} onChange={e=>setAmountBasis(e.target.value as 'per_person'|'group')}><option value="per_person">Cada persona</option><option value="group">Todo el grupo o servicio</option></select></div>
-          <div className="field"><label htmlFor="quick-date">Día en itinerario</label><input id="quick-date" type="date" min={minDate} max={maxDate} value={date} onChange={e=>setDate(e.target.value)}/></div>
-          <div className="field"><label htmlFor="quick-place">Lugar</label><input id="quick-place" value={place} onChange={e=>setPlace(e.target.value)} placeholder="Terminal, hotel, restaurante..."/></div>
-          <div className="field"><label htmlFor="quick-start">Desde</label><input id="quick-start" type="time" value={startTime} onChange={e=>setStartTime(e.target.value)}/></div>
-          <div className="field"><label htmlFor="quick-end">Hasta</label><input id="quick-end" type="time" value={endTime} onChange={e=>setEndTime(e.target.value)}/></div>
-          <label className="toggle-field full">
-            <input type="checkbox" checked={optional} onChange={e=>setOptional(e.target.checked)}/>
-            <span>
-              <b>Actividad opcional</b>
-              <small>Se muestra como plan tentativo o alternativa para ese horario.</small>
-            </span>
-          </label>
-          <div className="field full"><label htmlFor="quick-notes">Notas</label><textarea id="quick-notes" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Detalle para el itinerario"/></div>
+          <div className="expense-form-tabs full" role="tablist" aria-label="Secciones del gasto">
+            <button type="button" role="tab" aria-selected={activeExpenseTab==='main'} className={activeExpenseTab==='main'?'active':''} onClick={()=>setActiveExpenseTab('main')}><WalletCards size={17}/> Datos y presupuesto</button>
+            <button type="button" role="tab" aria-selected={activeExpenseTab==='itinerary'} className={activeExpenseTab==='itinerary'?'active':''} onClick={()=>setActiveExpenseTab('itinerary')}><CalendarDays size={17}/> Itinerario{occurrences.length?` (${occurrences.length})`:''}</button>
+          </div>
+          <section className="expense-form-section full" role="tabpanel" hidden={activeExpenseTab!=='main'} aria-labelledby="quick-main-section">
+            <div className="expense-section-head"><div><h3 id="quick-main-section">Actividad principal</h3><small>Datos comunes a todo el bloque</small></div>{hasSteps&&<div className="expense-derived-total"><span>{amountBasis==='group'?'Total del grupo':'Total por persona'}</span><strong>{stepsTotal.toLocaleString('es-AR',{maximumFractionDigits:2})}</strong></div>}</div>
+            <div className="expense-section-grid">
+              <div className="field full"><label htmlFor="quick-title">Nombre de la actividad principal</label><input id="quick-title" value={title} onChange={e=>setTitle(e.target.value)} required/></div>
+              <CategoryPicker label="Categoría principal" value={category} options={categoryOptions} onChange={setCategory} required/>
+              {!hasSteps&&<div className="field"><label htmlFor="quick-amount">{amountBasis==='group'?'Importe total del servicio':'Importe por persona'}</label><input id="quick-amount" type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} required/></div>}
+              <div className="field"><label htmlFor="quick-basis">Los importes corresponden a</label><select id="quick-basis" value={amountBasis} onChange={e=>setAmountBasis(e.target.value as 'per_person'|'group')}><option value="per_person">Cada persona</option><option value="group">Todo el grupo o servicio</option></select></div>
+              <div className="field"><label htmlFor="quick-place">Lugar principal</label><input id="quick-place" value={place} onChange={e=>setPlace(e.target.value)} placeholder="Zona o punto de encuentro general"/></div>
+            </div>
+          </section>
+          <section className="expense-form-section full" role="tabpanel" hidden={activeExpenseTab!=='itinerary'} aria-labelledby="quick-agenda-section">
+            <div className="expense-section-head"><div><h3 id="quick-agenda-section">Itinerario y subactividades</h3><small>Horario general y detalle de cada subactividad</small></div></div>
+            <ExpenseOccurrencesEditor idPrefix="quick-expense" value={occurrences} onChange={setOccurrences} minDate={minDate} maxDate={maxDate}/>
+          </section>
+          <section className="expense-form-section full" hidden={activeExpenseTab!=='main'} aria-labelledby="quick-details-section">
+            <div className="expense-section-head"><h3 id="quick-details-section">Presupuesto y detalles</h3></div>
+            <div className="expense-section-grid">
+              {occurrences.length>1&&!hasSteps&&<div className="field full"><label htmlFor="quick-occurrence-pricing">Cómo se calcula en días repetidos</label><select id="quick-occurrence-pricing" value={occurrencePricing} onChange={e=>setOccurrencePricing(e.target.value as 'total'|'per_occurrence')}><option value="total">El importe es el total de todos los días</option><option value="per_occurrence">El importe se cobra por cada día</option></select></div>}
+              <label className="toggle-field full">
+                <input type="checkbox" checked={optional} onChange={e=>setOptional(e.target.checked)}/>
+                <span><b>Actividad opcional</b><small>Se muestra como plan tentativo en el itinerario.</small></span>
+              </label>
+              <div className="field full"><label htmlFor="quick-notes">Notas generales</label><textarea id="quick-notes" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Información común a toda la actividad"/></div>
+            </div>
+          </section>
         </>}
         {kind==='reservation'&&<>
           <div className="field"><label htmlFor="quick-priority">Prioridad</label><select id="quick-priority" value={priority} onChange={e=>setPriority(e.target.value)}><option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option></select></div>
