@@ -5,9 +5,10 @@ import { useModalBehavior } from './useModalBehavior'
 import { userFacingError } from '@/lib/ui-text'
 import Snackbar from './Snackbar'
 import { useSubmissionGuard } from './useSubmissionGuard'
+import DiscardChangesDialog from './DiscardChangesDialog'
+import { useDiscardConfirmation } from './useDiscardConfirmation'
 
 export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCreate:(input:Omit<Trip,'id'|'status'|'memberNames'>)=>Promise<void>}){
-  const dialogRef=useModalBehavior<HTMLFormElement>(onClose)
   const [name,setName]=useState('')
   const [destination,setDestination]=useState('')
   const [country,setCountry]=useState('')
@@ -18,6 +19,9 @@ export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCrea
   const [loading,setLoading]=useState(false)
   const [error,setError]=useState('')
   const runOnce=useSubmissionGuard()
+  const isDirty=Boolean(name || destination || country || startDate || endDate || currency!=='ARS' || travelerCount!==1)
+  const discard=useDiscardConfirmation(isDirty,onClose)
+  const dialogRef=useModalBehavior<HTMLFormElement>(discard.requestClose)
 
   async function submit(e:FormEvent){
     e.preventDefault()
@@ -34,7 +38,7 @@ export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCrea
     })
   }
 
-  return <div className="modal-backdrop" onMouseDown={e=>{if(e.currentTarget===e.target)onClose()}}>
+  return <><div className="modal-backdrop" onMouseDown={e=>{if(e.currentTarget===e.target)discard.requestClose()}}>
     <form ref={dialogRef} className="modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="new-trip-title" tabIndex={-1} onSubmit={submit}>
       <h2 id="new-trip-title">Nuevo viaje</h2>
       <p className="muted" style={{marginTop:-8}}>Podés invitar gente después y editar todo en conjunto.</p>
@@ -48,7 +52,7 @@ export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCrea
         <div className="field"><label htmlFor="trip-start">Salida</label><input id="trip-start" type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} required/></div>
         <div className="field"><label htmlFor="trip-end">Vuelta</label><input id="trip-end" type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} required/></div>
       </div>
-      <div className="modal-actions"><button className="btn btn-secondary" type="button" onClick={onClose}>Cancelar</button><button className="btn btn-primary" disabled={loading}>{loading?'Creando…':'Crear viaje'}</button></div>
+      <div className="modal-actions"><button className="btn btn-secondary" type="button" onClick={discard.requestClose}>Cancelar</button><button className="btn btn-primary" disabled={loading}>{loading?'Creando…':'Crear viaje'}</button></div>
     </form>
-  </div>
+  </div>{discard.discardOpen&&<DiscardChangesDialog onClose={discard.cancelDiscard} onConfirm={discard.confirmDiscard}/>}</>
 }

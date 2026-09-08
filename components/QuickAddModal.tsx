@@ -8,6 +8,8 @@ import ExpenseOccurrencesEditor from './ExpenseOccurrencesEditor'
 import { ExpenseOccurrence } from '@/lib/types'
 import Snackbar from './Snackbar'
 import { CalendarDays, WalletCards } from 'lucide-react'
+import DiscardChangesDialog from './DiscardChangesDialog'
+import { useDiscardConfirmation } from './useDiscardConfirmation'
 
 type Kind='expense'|'reservation'|'packing'|'place'
 
@@ -17,11 +19,11 @@ function validExternalUrl(value:string){
 }
 
 export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],minDate,maxDate}:{kind:Kind,onClose:()=>void,onSave:(payload:any)=>Promise<void>|void,categoryOptions?:string[],minDate?:string,maxDate?:string}){
-  const dialogRef=useModalBehavior<HTMLFormElement>(onClose)
+  const initialCategory=categoryOptions[0] || (kind==='packing'?'General':kind==='expense'?'Otros':'')
   const [title,setTitle]=useState('')
   const [amount,setAmount]=useState('')
   const [amountBasis,setAmountBasis]=useState<'per_person'|'group'>('per_person')
-  const [category,setCategory]=useState(categoryOptions[0] || (kind==='packing'?'General':kind==='expense'?'Otros':''))
+  const [category,setCategory]=useState(initialCategory)
   const [occurrences,setOccurrences]=useState<ExpenseOccurrence[]>([])
   const [occurrencePricing,setOccurrencePricing]=useState<'total'|'per_occurrence'>('total')
   const [place,setPlace]=useState('')
@@ -35,6 +37,9 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
   const [message,setMessage]=useState('')
   const [activeExpenseTab,setActiveExpenseTab]=useState<'main'|'itinerary'>('main')
   const runOnce=useSubmissionGuard()
+  const isDirty=Boolean(title || amount || amountBasis!=='per_person' || category!==initialCategory || occurrences.length || occurrencePricing!=='total' || place || optional || priority!=='medium' || dueDate || address || url || notes)
+  const discard=useDiscardConfirmation(isDirty,onClose)
+  const dialogRef=useModalBehavior<HTMLFormElement>(discard.requestClose)
   const labels={expense:'Nuevo gasto',reservation:'Nueva reserva',packing:'Agregar a valija',place:'Nuevo lugar'} as const
   const steps=occurrences.flatMap(item=>item.steps || [])
   const hasSteps=steps.length>0
@@ -58,7 +63,7 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
       finally{setLoading(false)}
     })
   }
-  return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
+  return <><div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)discard.requestClose()}}>
     <form ref={dialogRef} className={`modal sticky-actions-modal ${kind==='expense'?'expense-modal':''}`} role="dialog" aria-modal="true" aria-labelledby="quick-add-title" tabIndex={-1} onSubmit={submit} noValidate>
       <h2 id="quick-add-title">{labels[kind]}</h2>
       <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
@@ -109,7 +114,7 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
           <div className="field full"><label htmlFor="quick-place-notes">Notas</label><textarea id="quick-place-notes" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Horarios, referencias, recomendaciones..."/></div>
         </>}
       </div>
-      <div className="modal-actions"><button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button><button className="btn btn-primary" disabled={loading}>{loading?'Guardando…':'Guardar'}</button></div>
+      <div className="modal-actions"><button type="button" className="btn btn-secondary" onClick={discard.requestClose}>Cancelar</button><button className="btn btn-primary" disabled={loading}>{loading?'Guardando…':'Guardar'}</button></div>
     </form>
-  </div>
+  </div>{discard.discardOpen&&<DiscardChangesDialog onClose={discard.cancelDiscard} onConfirm={discard.confirmDiscard}/>}</>
 }

@@ -8,12 +8,13 @@ import Snackbar from './Snackbar'
 import { useModalBehavior } from './useModalBehavior'
 import { userFacingError } from '@/lib/ui-text'
 import { useSubmissionGuard } from './useSubmissionGuard'
+import DiscardChangesDialog from './DiscardChangesDialog'
+import { useDiscardConfirmation } from './useDiscardConfirmation'
 
 type ExpenseDraft = Expense & {
 }
 
 export default function ExpenseModal({expense,activities,onClose,onSave,onDelete,categoryOptions=[],minDate,maxDate}:{expense:Expense,activities:Activity[],onClose:()=>void,onSave:(expense:ExpenseDraft)=>Promise<void>|void,onDelete?:(expense:Expense)=>void,categoryOptions?:string[],minDate?:string,maxDate?:string}){
-  const dialogRef=useModalBehavior<HTMLFormElement>(onClose)
   const linkedActivities=activities.filter(activity=>activity.expenseId===expense.id || activity.id===expense.activityId)
   const linkedActivity=linkedActivities[0]
   const withSchedule=(value:Expense):ExpenseDraft=>({...value,occurrences:value.occurrences?.length?value.occurrences:linkedActivities.length?linkedActivities.map(activity=>({id:activity.id,date:activity.date,startTime:activity.startTime,endTime:activity.endTime,steps:activity.steps || []})):value.date?[{id:value.activityId || undefined,date:value.date,startTime:value.startTime,endTime:value.endTime,steps:linkedActivity?.steps || []}]:[],place:value.place || linkedActivity?.place || '',notes:value.notes || linkedActivity?.notes || '',optional:value.optional ?? Boolean(linkedActivity?.optional),amountBasis:value.amountBasis || 'per_person',occurrencePricing:value.occurrencePricing || 'total'})
@@ -22,6 +23,8 @@ export default function ExpenseModal({expense,activities,onClose,onSave,onDelete
   const [message,setMessage]=useState('')
   const [activeTab,setActiveTab]=useState<'main'|'itinerary'>('main')
   const runOnce=useSubmissionGuard()
+  const discard=useDiscardConfirmation(JSON.stringify(draft)!==JSON.stringify(withSchedule(expense)),onClose)
+  const dialogRef=useModalBehavior<HTMLFormElement>(discard.requestClose)
   useEffect(()=>setDraft(withSchedule(expense)),[expense,activities])
   const patch=(key:keyof ExpenseDraft,value:any)=>setDraft(current=>({...current,[key]:value}))
   const steps=(draft.occurrences || []).flatMap(item=>item.steps || [])
@@ -45,7 +48,7 @@ export default function ExpenseModal({expense,activities,onClose,onSave,onDelete
     })
   }
 
-  return <div className="modal-backdrop" onMouseDown={e=>{if(e.currentTarget===e.target)onClose()}}>
+  return <><div className="modal-backdrop" onMouseDown={e=>{if(e.currentTarget===e.target)discard.requestClose()}}>
     <form ref={dialogRef} className="modal expense-modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="expense-modal-title" tabIndex={-1} onSubmit={submit} noValidate>
       <h2 id="expense-modal-title">Editar gasto</h2>
       <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
@@ -92,9 +95,9 @@ export default function ExpenseModal({expense,activities,onClose,onSave,onDelete
       <div className="modal-actions split">
         {onDelete&&<button type="button" className="btn btn-danger" onClick={()=>onDelete(draft)}><Trash2 size={16}/> Eliminar</button>}
         <span/>
-        <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+        <button type="button" className="btn btn-secondary" onClick={discard.requestClose}>Cancelar</button>
         <button className="btn btn-primary" disabled={loading}>{loading?'Guardando…':'Guardar cambios'}</button>
       </div>
     </form>
-  </div>
+  </div>{discard.discardOpen&&<DiscardChangesDialog onClose={discard.cancelDiscard} onConfirm={discard.confirmDiscard}/>}</>
 }

@@ -7,6 +7,8 @@ import { userFacingError } from '@/lib/ui-text'
 import Snackbar from './Snackbar'
 import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
+import DiscardChangesDialog from './DiscardChangesDialog'
+import { useDiscardConfirmation } from './useDiscardConfirmation'
 
 export default function ReservationModal({reservation,onClose,onSave,onDelete}:{
   reservation:Reservation
@@ -14,11 +16,12 @@ export default function ReservationModal({reservation,onClose,onSave,onDelete}:{
   onSave:(reservation:Reservation)=>Promise<void>|void
   onDelete:(reservation:Reservation)=>void
 }){
-  const dialogRef=useModalBehavior<HTMLFormElement>(onClose)
   const [draft,setDraft]=useState(reservation)
   const [loading,setLoading]=useState(false)
   const [message,setMessage]=useState('')
   const runOnce=useSubmissionGuard()
+  const discard=useDiscardConfirmation(JSON.stringify(draft)!==JSON.stringify(reservation),onClose)
+  const dialogRef=useModalBehavior<HTMLFormElement>(discard.requestClose)
   const patch=<K extends keyof Reservation>(key:K,value:Reservation[K])=>setDraft(current=>({...current,[key]:value}))
 
   async function submit(event:FormEvent){
@@ -35,7 +38,7 @@ export default function ReservationModal({reservation,onClose,onSave,onDelete}:{
     })
   }
 
-  return <div className="modal-backdrop" onMouseDown={event=>{if(event.currentTarget===event.target)onClose()}}>
+  return <><div className="modal-backdrop" onMouseDown={event=>{if(event.currentTarget===event.target)discard.requestClose()}}>
     <form ref={dialogRef} className="modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="reservation-modal-title" tabIndex={-1} onSubmit={submit}>
       <h2 id="reservation-modal-title">Editar reserva</h2>
       <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
@@ -50,9 +53,9 @@ export default function ReservationModal({reservation,onClose,onSave,onDelete}:{
       <div className="modal-actions split">
         <button type="button" className="btn btn-danger" onClick={()=>onDelete(draft)}><Trash2 size={16}/> Eliminar</button>
         <span/>
-        <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+        <button type="button" className="btn btn-secondary" onClick={discard.requestClose}>Cancelar</button>
         <button className="btn btn-primary" disabled={loading}>{loading?'Guardando…':'Guardar cambios'}</button>
       </div>
     </form>
-  </div>
+  </div>{discard.discardOpen&&<DiscardChangesDialog onClose={discard.cancelDiscard} onConfirm={discard.confirmDiscard}/>}</>
 }
