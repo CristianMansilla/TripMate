@@ -5,11 +5,12 @@ import { useModalBehavior } from './useModalBehavior'
 import { userFacingError } from '@/lib/ui-text'
 import { useSubmissionGuard } from './useSubmissionGuard'
 import ExpenseOccurrencesEditor from './ExpenseOccurrencesEditor'
-import { ExpenseOccurrence } from '@/lib/types'
+import { Expense, ExpenseOccurrence, ReservationCostChoice } from '@/lib/types'
 import Snackbar from './Snackbar'
 import { CalendarDays, WalletCards } from 'lucide-react'
 import DiscardChangesDialog from './DiscardChangesDialog'
 import { useDiscardConfirmation } from './useDiscardConfirmation'
+import ReservationCostFields, { ReservationCostMode } from './ReservationCostFields'
 
 type Kind='expense'|'reservation'|'packing'|'place'
 
@@ -18,11 +19,13 @@ function validExternalUrl(value:string){
   try{return ['http:','https:'].includes(new URL(value).protocol)}catch{return false}
 }
 
-export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],minDate,maxDate}:{kind:Kind,onClose:()=>void,onSave:(payload:any)=>Promise<void>|void,categoryOptions?:string[],minDate?:string,maxDate?:string}){
+export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],expenses=[],currency='ARS',minDate,maxDate}:{kind:Kind,onClose:()=>void,onSave:(payload:any)=>Promise<void>|void,categoryOptions?:string[],expenses?:Expense[],currency?:string,minDate?:string,maxDate?:string}){
   const initialCategory=categoryOptions[0] || (kind==='packing'?'General':kind==='expense'?'Otros':'')
   const [title,setTitle]=useState('')
   const [amount,setAmount]=useState('')
   const [amountBasis,setAmountBasis]=useState<'per_person'|'group'>('per_person')
+  const [reservationCostMode,setReservationCostMode]=useState<ReservationCostMode>('none')
+  const [reservationExpenseId,setReservationExpenseId]=useState('')
   const [category,setCategory]=useState(initialCategory)
   const [occurrences,setOccurrences]=useState<ExpenseOccurrence[]>([])
   const [occurrencePricing,setOccurrencePricing]=useState<'total'|'per_occurrence'>('total')
@@ -38,7 +41,7 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
   const [message,setMessage]=useState('')
   const [activeExpenseTab,setActiveExpenseTab]=useState<'main'|'itinerary'>('main')
   const runOnce=useSubmissionGuard()
-  const isDirty=Boolean(title || amount || amountBasis!=='per_person' || category!==initialCategory || occurrences.length || occurrencePricing!=='total' || place || optional || !included || priority!=='medium' || dueDate || address || url || notes)
+  const isDirty=Boolean(title || amount || amountBasis!=='per_person' || reservationCostMode!=='none' || reservationExpenseId || category!==initialCategory || occurrences.length || occurrencePricing!=='total' || place || optional || !included || priority!=='medium' || dueDate || address || url || notes)
   const discard=useDiscardConfirmation(isDirty,onClose,loading)
   const dialogRef=useModalBehavior<HTMLFormElement>(discard.requestClose)
   const labels={expense:'Nuevo gasto',reservation:'Nueva reserva',packing:'Agregar a valija',place:'Nuevo lugar'} as const
@@ -48,7 +51,8 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
     e.preventDefault();setMessage('')
     if(!title.trim()){if(kind==='expense')setActiveExpenseTab('main');setMessage(kind==='packing'?'El ítem no puede estar vacío.':'El nombre no puede estar vacío.');return}
     if(kind==='expense' && (!amount.trim() || !Number.isFinite(Number(amount)) || Number(amount)<0)){setActiveExpenseTab('main');setMessage('El importe debe ser cero o mayor.');return}
-    if(kind==='reservation' && amount.trim() && (!Number.isFinite(Number(amount)) || Number(amount)<0)){setMessage('El importe debe ser cero o mayor.');return}
+    if(kind==='reservation' && reservationCostMode==='existing' && !reservationExpenseId){setMessage('Elegí el gasto que corresponde a esta reserva.');return}
+    if(kind==='reservation' && reservationCostMode==='new' && (!amount.trim() || !Number.isFinite(Number(amount)) || Number(amount)<0)){setMessage('El costo debe ser cero o mayor.');return}
     if(kind==='place' && !validExternalUrl(url.trim())){setMessage('El enlace debe comenzar con http:// o https://.');return}
     if(kind==='expense' && occurrences.some(item=>!item.date)){setActiveExpenseTab('itinerary');setMessage('Completá o quitá los días vacíos del itinerario.');return}
     if(kind==='expense' && occurrences.some(item=>(minDate && item.date<minDate) || (maxDate && item.date>maxDate))){setActiveExpenseTab('itinerary');setMessage('Los días del itinerario deben estar dentro de las fechas del viaje.');return}
@@ -57,7 +61,12 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
     await runOnce(async()=>{
       setLoading(true)
       try{
-        await onSave({title:title.trim(),amount:amount.trim()===''?undefined:Number(amount),amountBasis,category:category.trim(),priority,dueDate,address,url,notes,occurrences,occurrencePricing,place,optional,included})
+        const reservationCost:ReservationCostChoice=reservationCostMode==='existing'
+          ? {mode:'existing',expenseId:reservationExpenseId}
+          : reservationCostMode==='new'
+            ? {mode:'new',amount:Number(amount),amountBasis}
+            : {mode:'none'}
+        await onSave({title:title.trim(),amount:amount.trim()===''?undefined:Number(amount),amountBasis,category:category.trim(),priority,dueDate,address,url,notes,occurrences,occurrencePricing,place,optional,included,reservationCost})
         onClose()
       }catch(error){setMessage(userFacingError(error,'No pudimos guardar. Intentá nuevamente.'))}
       finally{setLoading(false)}
@@ -107,7 +116,7 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
         {kind==='reservation'&&<>
           <div className="field"><label htmlFor="quick-priority">Prioridad</label><select id="quick-priority" value={priority} onChange={e=>setPriority(e.target.value)}><option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option></select></div>
           <div className="field"><label htmlFor="quick-reservation-due">Fecha límite</label><input id="quick-reservation-due" type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}/></div>
-          <div className="field"><label htmlFor="quick-reservation-amount">Importe (opcional)</label><input id="quick-reservation-amount" type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)}/></div>
+          <ReservationCostFields mode={reservationCostMode} expenseId={reservationExpenseId} amount={amount} amountBasis={amountBasis} expenses={expenses} currency={currency} onModeChange={setReservationCostMode} onExpenseChange={setReservationExpenseId} onAmountChange={setAmount} onAmountBasisChange={setAmountBasis}/>
           <div className="field full"><label htmlFor="quick-reservation-notes">Notas</label><textarea id="quick-reservation-notes" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Condiciones, contacto o recordatorios"/></div>
         </>}
         {kind==='packing'&&<CategoryPicker className="full" value={category} options={categoryOptions} onChange={setCategory}/>}

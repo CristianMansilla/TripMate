@@ -5,7 +5,7 @@ Fecha: 2026-09-08. Base revisada: `5f22796`, commit #20.
 Estado: diagnóstico y ruta propuesta sobre el commit auditado; la primera tanda de correcciones ya comenzó.
 Complementa y sustituye las prioridades de la [auditoría anterior](AUDITORIA-v0.4.md).
 
-> Estado al cierre de esta tanda: se corrigieron los fallos reproducidos de borradores, guardado estrecho de importe, precio de paradas, agenda, modales y altas vacías; también el cierre preventivo de permisos de H07, el snackbar/contraste de H10 y las etiquetas de autenticación de H11. El control de concurrencia del guardado completo y las pruebas de RLS con dos cuentas reales siguen pendientes. La integración Reserva-Presupuesto permanece deliberadamente pendiente hasta estabilizar esa prueba conectada.
+> Estado actual: se corrigieron los fallos reproducidos de borradores, guardado estrecho de importe, precio de paradas, agenda, modales y altas vacías; también el cierre preventivo de permisos de H07, el snackbar/contraste de H10 y las etiquetas de autenticación de H11. `v0.4.2` incorpora control de concurrencia optimista para gastos. `v0.4.3` implementa el vínculo Reserva-Presupuesto con un gasto canónico, creación transaccional y borrado sin cascada entre ambos. Falta ejecutar las migraciones y validar estos contratos contra Supabase con dos cuentas reales.
 La dirección resumida queda en [PRODUCT.md](../PRODUCT.md).
 
 ## 1. Hallazgos prioritarios
@@ -74,6 +74,7 @@ Evidencia: **R** = reproducido en navegador con datos ficticios; **C** = confirm
 - `Reservation` no tiene `expenseId` (`lib/types.ts:63`). La base tiene un `activity_id` de reserva, pero el flujo de UI no lo utiliza para integrar costos. `amount` es otro valor independiente.
 - **C.** El chip recorre estados de forma circular, incluso Pagado -> Esperando (`TripWorkspace.tsx:529`). Confirmar una reserva y pagar no son el mismo proceso.
 - Decisión: integrar por referencia a un gasto canónico, no sumando ambas tablas ni sincronizando dos importes editables. Detalle en la sección 3.
+- **Implementado, pendiente de validación conectada.** `v0.4.3` agrega `reservations.expense_id`, valida que ambos registros pertenezcan al mismo viaje y evita compartir un gasto entre dos reservas. La UI permite usar un gasto existente, crear uno nuevo o no asociar costo; los importes históricos no se migran automáticamente. El selector directo también elimina la transición circular de estados.
 
 ### H09. P2: complejidad y densidad no ajustadas al uso móvil
 
@@ -264,13 +265,13 @@ No rehacer login como landing, no agregar un panel de bienvenida obligatorio y n
 
 ## 6. Ruta revisada
 
-El orden importa más que el número de versión. Estas tandas son incrementales; no implican seis reescrituras. No comenzar integración de Reservas hasta cerrar las reglas de precio y de borrado.
+El orden importa más que el número de versión. Estas tandas son incrementales; no implican seis reescrituras. La primera integración de Reservas se adelantó a `v0.4.3` después de estabilizar el precio fijo y las reglas de borrado; no debe ampliarse hasta superar la validación conectada.
 
 | Tanda | Objetivo y alcance | Dependencia | Criterio de cierre |
 | --- | --- | --- | --- |
 | 1. Confiabilidad, corrección v0.4.x | H01/H02/H03/H05/H06/H07: borradores, conflictos, precio explícito, modales, validaciones y errores; suite mínima | Ninguna | Realtime no pisa edición, descarte no miente, fallo conserva formulario, guardado de importe no elimina paradas, agregar parada no cambia precio fijo |
 | 2. Flujo simple, primera v0.5 | Actividad/gasto independientes, alta desde agenda, plan vs propuesta, formularios progresivos, vocabulario único y repeticiones claras | Tanda 1 | Paseo gratis, gasto general, paquete y repetición se resuelven sin doble carga ni segundo paso de inclusión |
-| 3. Reservas vinculadas, v0.5 | Gasto existente/nuevo/ninguno; precio canónico, estados separados, enlaces cruzados, borrado seguro y revisión de históricos | Contratos de tanda 2 | Hotel visible desde ambas vistas, un solo costo; cancelar/borrar seguimiento no borra gasto/agenda; creación atómica y permisos probados |
+| 3. Reservas vinculadas, iniciada en v0.4.3 | Gasto existente/nuevo/ninguno; precio canónico, estados separados, enlaces cruzados, borrado seguro y revisión de históricos | Reglas estables de precio y borrado | Hotel visible desde ambas vistas, un solo costo; cancelar/borrar seguimiento no borra gasto/agenda; creación atómica y permisos probados |
 | 4. Uso diario, v0.5.x | Cabecera compacta, errores/labels/contraste, URL de pestaña/día, resumen útil, editar/archivar viaje, base explícita, valija y gestión de invitaciones | Tandas anteriores; accesibilidad básica empieza en 1 | Tareas habituales en móvil/teclado sin callejones, texto largo sin desbordamiento, permisos/invitaciones actualizados |
 | 5. Validación de entrega | Dos cuentas y roles, red lenta/fallida, base nueva y migrada, navegador móvil real, pruebas con viajeros | 1-4 | Sin P1 abiertos; resultados y limitaciones documentados; usuarios completan tareas sin explicación del modelo |
 | 6. Evolución optativa | Señas/saldos si se necesitan, plantilla genérica opcional, copia de valija, exportar/imprimir; después consulta offline | Entrega estable y necesidad observada | Cada función reduce una tarea comprobada; no obligatoria y sin publicar datos personales |
@@ -331,5 +332,5 @@ Metas propuestas, no resultados ya obtenidos: ninguna pérdida/duplicación de d
 - Repetición posterior a las correcciones: un gasto de 100 conservó ese importe al agregar una parada de 0; excluirlo mantuvo una actividad en agenda; las tres altas vacías conservaron el formulario sin crear filas; cancelar borrado conservó el borrador; descartar restauró el scroll; un segundo éxito reinició la duración del snackbar.
 - Verificaciones positivas: Escape durante un guardado no ofreció descartar y la persistencia terminó una vez; un guardado fallido preservó texto y el doble envío produjo una sola llamada; el foco quedó dentro del modal; login expuso una etiqueta asociada por input; no hubo desborde horizontal a 1440, 390 ni 320 px, incluso con una palabra larga.
 - Artefactos de trabajo locales: `.cache/audit-current-ux.cjs` y `.cache/audit-current-results/`. Están ignorados por Git; este documento registra escenarios y resultados sin depender de publicar esas capturas. No son una suite de CI.
-- Pendiente: credenciales/sesiones de prueba autorizadas para integración real, datos históricos de producción, envío de emails, RLS efectiva de la base desplegada, dos usuarios simultáneos, dispositivos reales y entrevistas. No se asegura que el SQL seleccionado en el IDE sea el que está aplicado en Supabase.
-- Se modificó código funcional y se agregó `supabase/v0.4.1.sql`, pero no se ejecutaron migraciones, no se borraron/importaron viajes y no se creó ningún commit. Los servidores temporales de auditoría se cerraron al terminar.
+- Pendiente: ejecutar `supabase/v0.4.2.sql` y `supabase/v0.4.3.sql`, y validar conflictos, vínculo, desvinculación y permisos con dos sesiones autorizadas; también faltan datos históricos de producción, envío de emails, RLS efectiva, dispositivos reales y entrevistas. No se asegura que el SQL seleccionado en el IDE sea el que está aplicado en Supabase.
+- Las correcciones previas fueron versionadas en los commits #21 y #22. En esta tanda se agregaron `supabase/v0.4.2.sql` y `supabase/v0.4.3.sql`; no se ejecutaron migraciones ni se borraron/importaron viajes.

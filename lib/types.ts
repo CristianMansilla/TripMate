@@ -63,6 +63,8 @@ export type ExpenseOccurrence = {
 export type Reservation = {
   id: string
   tripId: string
+  updatedAt?: string
+  expenseId?: string | null
   title: string
   status: 'pending' | 'watching' | 'reserved' | 'paid'
   priority: 'high' | 'medium' | 'low'
@@ -72,9 +74,21 @@ export type Reservation = {
   position?: number
 }
 
+export type ReservationCostChoice =
+  | { mode: 'none' }
+  | { mode: 'legacy'; amount: number }
+  | { mode: 'existing'; expenseId: string }
+  | { mode: 'new'; amount: number; amountBasis: 'per_person' | 'group' }
+
+export type ReservationSaveInput = {
+  reservation: Reservation
+  cost: ReservationCostChoice
+}
+
 export type Expense = {
   id: string
   tripId: string
+  updatedAt?: string
   activityId?: string | null
   title: string
   category: string

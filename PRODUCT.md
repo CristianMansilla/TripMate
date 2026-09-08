@@ -4,7 +4,7 @@
 Una sola fuente de verdad para un viaje compartido. Reduce chats dispersos, capturas, notas, planillas y links sueltos.
 
 ## Estado de esta dirección
-Revisada el 8 de septiembre de 2026 sobre el commit #20. Es la ruta propuesta, no una lista de funciones ya implementadas. Ver [auditoría completa y evidencias](docs/AUDITORIA-UX-2026-09-08.md).
+Revisada el 8 de septiembre de 2026. Los parches locales `v0.4.2` y `v0.4.3` ya implementan control de concurrencia para gastos y la primera integración Reserva-Presupuesto; siguen pendientes de ejecución y validación conectada. Ver [auditoría completa y evidencias](docs/AUDITORIA-UX-2026-09-08.md).
 
 ## Principios UX
 - **Confiabilidad primero:** no perder borradores, duplicar compras ni cambiar importes como efecto lateral de editar una agenda.
@@ -44,6 +44,8 @@ Cierre: resolver paseo gratis, seguro, paquete y gasto repetido sin doble carga 
 
 ### 3. Conectar Reservas en v0.5
 Vincular gasto existente, crear uno o mantener reserva sin gasto. Precio canónico, estado de reserva separado del pago, edición contextual, creación transaccional y revisión manual de relaciones históricas.
+
+Estado local: primera versión implementada en `v0.4.3`; falta validarla con dos cuentas y datos migrados antes de cerrarla o ampliarla con señas.
 
 Cierre: el hotel aparece en ambas vistas y suma una vez; borrar seguimiento no elimina gasto ni agenda. No fusionar por nombre ni copiar precios en ambos sentidos. Pagado significa pago total; las señas requieren soporte explícito posterior.
 

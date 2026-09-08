@@ -79,6 +79,7 @@ export function mapExpense(row: any): Expense {
   return {
     id: row.id,
     tripId: row.trip_id,
+    updatedAt: row.updated_at || undefined,
     activityId: row.activity_id || null,
     title: row.title,
     category: row.category,
@@ -102,6 +103,8 @@ export function mapReservation(row: any): Reservation {
   return {
     id: row.id,
     tripId: row.trip_id,
+    updatedAt: row.updated_at || undefined,
+    expenseId: row.expense_id || null,
     title: row.title,
     status: row.status || 'pending',
     priority: row.priority || 'medium',

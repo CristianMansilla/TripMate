@@ -45,6 +45,6 @@ export function userFacingError(error:unknown,fallback='No pudimos completar la 
   ]
   const translated=translations.find(([pattern])=>normalized.includes(pattern))
   if(translated)return translated[1]
-  if(/^(no |el |la |los |las |tu |se |configurá|supabase )/i.test(message))return message
+  if(/^(no |el |la |los |las |ese |esa |tu |se |configurá|supabase )/i.test(message))return message
   return fallback
 }

@@ -1,4 +1,4 @@
--- TripMate v0.4.1 reliability patch
+-- TripMate v0.4.1: parche de confiabilidad
 -- Ejecutar una vez después de v0.4. No borra ni reinterpreta datos existentes.
 
 alter table public.reservations
