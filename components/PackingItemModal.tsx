@@ -28,12 +28,13 @@ export default function PackingItemModal({
   const [loading,setLoading]=useState(false)
   const [message,setMessage]=useState('')
   const runOnce=useSubmissionGuard()
-  const discard=useDiscardConfirmation(label!==item.label || category!==item.category,onClose)
+  const discard=useDiscardConfirmation(label!==item.label || category!==item.category,onClose,loading)
   const dialogRef=useModalBehavior<HTMLFormElement>(discard.requestClose)
 
   async function submit(e:FormEvent){
     e.preventDefault()
     setMessage('')
+    if(!label.trim()){setMessage('El ítem no puede estar vacío.');return}
     await runOnce(async()=>{
       setLoading(true)
       try{await onSave({...item,label:label.trim(),category:category.trim() || 'General'})}
@@ -51,7 +52,7 @@ export default function PackingItemModal({
         <CategoryPicker className="full" value={category} options={categoryOptions} onChange={setCategory}/>
       </div>
       <div className="modal-actions split">
-        <button type="button" className="btn btn-danger" onClick={()=>onDelete(item)}><Trash2 size={16}/> Eliminar</button>
+        <button type="button" className="btn btn-danger" disabled={loading} onClick={()=>onDelete(item)}><Trash2 size={16}/> Eliminar</button>
         <span/>
         <button type="button" className="btn btn-secondary" onClick={discard.requestClose}>Cancelar</button>
         <button className="btn btn-primary" disabled={loading}>{loading?'Guardando...':'Guardar cambios'}</button>

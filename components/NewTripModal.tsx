@@ -20,7 +20,7 @@ export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCrea
   const [error,setError]=useState('')
   const runOnce=useSubmissionGuard()
   const isDirty=Boolean(name || destination || country || startDate || endDate || currency!=='ARS' || travelerCount!==1)
-  const discard=useDiscardConfirmation(isDirty,onClose)
+  const discard=useDiscardConfirmation(isDirty,onClose,loading)
   const dialogRef=useModalBehavior<HTMLFormElement>(discard.requestClose)
 
   async function submit(e:FormEvent){

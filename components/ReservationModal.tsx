@@ -20,7 +20,7 @@ export default function ReservationModal({reservation,onClose,onSave,onDelete}:{
   const [loading,setLoading]=useState(false)
   const [message,setMessage]=useState('')
   const runOnce=useSubmissionGuard()
-  const discard=useDiscardConfirmation(JSON.stringify(draft)!==JSON.stringify(reservation),onClose)
+  const discard=useDiscardConfirmation(JSON.stringify(draft)!==JSON.stringify(reservation),onClose,loading)
   const dialogRef=useModalBehavior<HTMLFormElement>(discard.requestClose)
   const patch=<K extends keyof Reservation>(key:K,value:Reservation[K])=>setDraft(current=>({...current,[key]:value}))
 
@@ -51,7 +51,7 @@ export default function ReservationModal({reservation,onClose,onSave,onDelete}:{
         <div className="field full"><label htmlFor="reservation-notes">Notas</label><textarea id="reservation-notes" value={draft.notes || ''} onChange={event=>patch('notes',event.target.value)} placeholder="Condiciones, contacto o recordatorios"/></div>
       </div>
       <div className="modal-actions split">
-        <button type="button" className="btn btn-danger" onClick={()=>onDelete(draft)}><Trash2 size={16}/> Eliminar</button>
+        <button type="button" className="btn btn-danger" disabled={loading} onClick={()=>onDelete(draft)}><Trash2 size={16}/> Eliminar</button>
         <span/>
         <button type="button" className="btn btn-secondary" onClick={discard.requestClose}>Cancelar</button>
         <button className="btn btn-primary" disabled={loading}>{loading?'Guardando…':'Guardar cambios'}</button>

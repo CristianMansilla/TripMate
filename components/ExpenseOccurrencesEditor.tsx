@@ -49,19 +49,19 @@ export default function ExpenseOccurrencesEditor({value,onChange,minDate,maxDate
           <div className="field"><label htmlFor={`${idPrefix}-end-${index}`}>Fin del bloque</label><input id={`${idPrefix}-end-${index}`} type="time" value={occurrence.endTime || ''} onChange={event=>patch(index,{endTime:event.target.value})}/></div>
         </div>
         <div className="steps-editor">
-          <div className="steps-editor-head"><div><b>Subactividades del bloque</b><small>{(occurrence.steps || []).length?`${(occurrence.steps || []).length} cargada${(occurrence.steps || []).length===1?'':'s'}`:'Sin subactividades'}</small></div><button type="button" className="btn btn-secondary step-add" onClick={()=>patch(index,{steps:[...(occurrence.steps || []),newStep()]})}><Plus size={15}/> Agregar subactividad</button></div>
+          <div className="steps-editor-head"><div><b>Paradas de la actividad</b><small>{(occurrence.steps || []).length?`${(occurrence.steps || []).length} cargada${(occurrence.steps || []).length===1?'':'s'}`:'Sin paradas'}</small></div><button type="button" className="btn btn-secondary step-add" onClick={()=>patch(index,{steps:[...(occurrence.steps || []),newStep()]})}><Plus size={15}/> Agregar parada</button></div>
           {(occurrence.steps || []).map((step,stepIndex)=><fieldset className="step-editor-row" key={step.id || `new-${index}-${stepIndex}`}>
             <legend>Subactividad {stepIndex+1}</legend>
-            <button type="button" className="icon-btn step-remove" onClick={()=>setPendingRemoval({kind:'step',occurrenceIndex:index,stepIndex})} title="Quitar subactividad" aria-label={`Quitar subactividad ${stepIndex+1}`}><Trash2 size={16}/></button>
-            <div className="field step-title"><label htmlFor={`${idPrefix}-step-title-${index}-${stepIndex}`}>Nombre de la subactividad</label><input id={`${idPrefix}-step-title-${index}-${stepIndex}`} value={step.title} onChange={event=>patchStep(index,stepIndex,{title:event.target.value})} placeholder="Museo, plaza, visita..." required/></div>
+            <button type="button" className="icon-btn step-remove" onClick={()=>setPendingRemoval({kind:'step',occurrenceIndex:index,stepIndex})} title="Quitar parada" aria-label={`Quitar parada ${stepIndex+1}`}><Trash2 size={16}/></button>
+            <div className="field step-title"><label htmlFor={`${idPrefix}-step-title-${index}-${stepIndex}`}>Nombre de la parada</label><input id={`${idPrefix}-step-title-${index}-${stepIndex}`} value={step.title} onChange={event=>patchStep(index,stepIndex,{title:event.target.value})} placeholder="Museo, plaza, visita..." required/></div>
             <div className="field"><label htmlFor={`${idPrefix}-step-start-${index}-${stepIndex}`}>Desde</label><input id={`${idPrefix}-step-start-${index}-${stepIndex}`} type="time" value={step.startTime || ''} onChange={event=>patchStep(index,stepIndex,{startTime:event.target.value})}/></div>
             <div className="field"><label htmlFor={`${idPrefix}-step-end-${index}-${stepIndex}`}>Hasta</label><input id={`${idPrefix}-step-end-${index}-${stepIndex}`} type="time" value={step.endTime || ''} onChange={event=>patchStep(index,stepIndex,{endTime:event.target.value})}/></div>
-            <div className="field step-amount"><label htmlFor={`${idPrefix}-step-amount-${index}-${stepIndex}`}>Importe de esta subactividad</label><input id={`${idPrefix}-step-amount-${index}-${stepIndex}`} type="number" min="0" step="0.01" value={Number.isNaN(step.amount)?'':step.amount} onChange={event=>patchStep(index,stepIndex,{amount:event.target.value===''?Number.NaN:Number(event.target.value)})}/></div>
-            <div className="field step-place"><label htmlFor={`${idPrefix}-step-place-${index}-${stepIndex}`}>Lugar de esta subactividad</label><input id={`${idPrefix}-step-place-${index}-${stepIndex}`} value={step.place || ''} onChange={event=>patchStep(index,stepIndex,{place:event.target.value})} placeholder="Dirección o punto de encuentro"/></div>
+            <div className="field step-amount"><label htmlFor={`${idPrefix}-step-amount-${index}-${stepIndex}`}>Importe de esta parada</label><input id={`${idPrefix}-step-amount-${index}-${stepIndex}`} type="number" min="0" step="0.01" value={Number.isNaN(step.amount)?'':step.amount} onChange={event=>patchStep(index,stepIndex,{amount:event.target.value===''?Number.NaN:Number(event.target.value)})}/></div>
+            <div className="field step-place"><label htmlFor={`${idPrefix}-step-place-${index}-${stepIndex}`}>Lugar de esta parada</label><input id={`${idPrefix}-step-place-${index}-${stepIndex}`} value={step.place || ''} onChange={event=>patchStep(index,stepIndex,{place:event.target.value})} placeholder="Dirección o punto de encuentro"/></div>
             <div className="field step-notes"><label htmlFor={`${idPrefix}-step-notes-${index}-${stepIndex}`}>Detalle</label><input id={`${idPrefix}-step-notes-${index}-${stepIndex}`} value={step.notes || ''} onChange={event=>patchStep(index,stepIndex,{notes:event.target.value})} placeholder="Entrada, indicaciones, recordatorio..."/></div>
             <label className="step-optional"><input type="checkbox" checked={Boolean(step.optional)} onChange={event=>patchStep(index,stepIndex,{optional:event.target.checked})}/> Opcional</label>
           </fieldset>)}
-          {(occurrence.steps || []).length>0&&<div className="occurrence-steps-total"><span>Subtotal de subactividades</span><strong>{(occurrence.steps || []).reduce((sum,step)=>sum+(Number.isFinite(step.amount)?step.amount:0),0).toLocaleString('es-AR',{maximumFractionDigits:2})}</strong></div>}
+          {(occurrence.steps || []).length>0&&<div className="occurrence-steps-total"><span>Subtotal informativo de paradas</span><strong>{(occurrence.steps || []).reduce((sum,step)=>sum+(Number.isFinite(step.amount)?step.amount:0),0).toLocaleString('es-AR',{maximumFractionDigits:2})}</strong></div>}
         </div>
       </div>)}
     </div>
@@ -69,15 +69,15 @@ export default function ExpenseOccurrencesEditor({value,onChange,minDate,maxDate
     {!value.length&&<small className="field-help">Sin bloques en la agenda</small>}
   </fieldset>
   {pendingRemoval&&<ConfirmDialog
-    title={pendingRemoval.kind==='occurrence'?'Quitar bloque':'Quitar subactividad'}
+    title={pendingRemoval.kind==='occurrence'?'Quitar bloque':'Quitar parada'}
     confirmLabel="Quitar"
     confirmIcon={<Trash2 size={16}/>}
     onClose={()=>setPendingRemoval(null)}
     onConfirm={confirmRemoval}
   >
     {pendingRemoval.kind==='occurrence'
-      ?<>Se quitará este bloque de la agenda y todas sus subactividades. El cambio se aplicará al guardar el formulario.</>
-      :<>Se quitará esta subactividad del bloque. El cambio se aplicará al guardar el formulario.</>}
+      ?<>Se quitará este bloque de la agenda y todas sus paradas. El cambio se aplicará al guardar el formulario.</>
+      :<>Se quitará esta parada de la actividad. El cambio se aplicará al guardar el formulario.</>}
   </ConfirmDialog>}
   </>
 }

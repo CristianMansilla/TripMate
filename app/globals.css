@@ -129,7 +129,9 @@ button { cursor: pointer; }
 .filter-notice button { border:0; background:white; color:var(--brand); border-radius:999px; padding:6px 9px; font-weight:800; }
 .list { display:flex; flex-direction:column; gap:10px; }
 .list-row { border:1px solid var(--line); border-radius:16px; padding:13px 14px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
+.list-row > * { min-width:0; }
 .list-row strong { display:block; font-size:14px; }
+.list-row strong,.list-row small,.activity-title,.activity-sub { overflow-wrap:anywhere; }
 .list-row small { color:var(--muted); }
 .status-dot { width:9px; height:9px; border-radius:50%; background:var(--amber); margin-right:8px; display:inline-block; }
 .status-dot.done { background:var(--green); }
@@ -386,7 +388,8 @@ button { cursor: pointer; }
   .traveler-setting { align-items:flex-start; }
 }
 
-.budget-line.excluded { opacity:.56; background:#fafbfc; }
+.budget-line.excluded { background:#f3f4f7; }
+.budget-line.excluded .budget-title-row strong { color:#4d5870; }
 .budget-check { width:26px; height:26px; flex:0 0 auto; border-radius:8px; border:2px solid #cbd2de; background:white; color:white; font-weight:900; display:grid; place-items:center; }
 .budget-check.on { background:var(--brand); border-color:var(--brand); }
 .budget-check:disabled { cursor:default; }

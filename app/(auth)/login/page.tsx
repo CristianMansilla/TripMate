@@ -26,16 +26,21 @@ function LoginForm(){
       return
     }
     setLoading(true)
-    const response=await fetch('/api/auth/login',{
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify({identifier,password}),
-    })
-    const result=await response.json().catch(()=>({message:'No pudimos iniciar sesión. Intentá nuevamente.'}))
-    setLoading(false)
-    if(!response.ok){setMessage(result.message);return}
-    router.replace(next)
-    router.refresh()
+    try{
+      const response=await fetch('/api/auth/login',{
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({identifier,password}),
+      })
+      const result=await response.json().catch(()=>({message:'No pudimos iniciar sesión. Intentá nuevamente.'}))
+      if(!response.ok){setMessage(result.message);return}
+      router.replace(next)
+      router.refresh()
+    }catch{
+      setMessage('No pudimos conectar con el servidor. Revisá tu conexión e intentá nuevamente.')
+    }finally{
+      setLoading(false)
+    }
   }
 
   return <main className="auth-shell">
@@ -44,11 +49,11 @@ function LoginForm(){
       <h1>Entrá a TripMate</h1>
       <p>Planificá viajes con tu pareja, amigos o familia y mantengan todo sincronizado.</p>
       <Snackbar message={message} tone={message.startsWith('Modo demo')?'info':'error'} onClose={()=>setMessage('')}/>
-      <div className="field"><label>Email o usuario</label><input value={identifier} onChange={e=>setIdentifier(e.target.value)} required autoComplete="username"/></div>
+      <div className="field"><label htmlFor="login-identifier">Email o usuario</label><input id="login-identifier" value={identifier} onChange={e=>setIdentifier(e.target.value)} required autoComplete="username"/></div>
       <div className="field" style={{marginTop:12}}>
-        <label>Contraseña</label>
+        <label htmlFor="login-password">Contraseña</label>
         <div className="password-wrap">
-          <input type={showPassword?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="current-password"/>
+          <input id="login-password" type={showPassword?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="current-password"/>
           <button type="button" className="icon-btn" aria-label="Mostrar u ocultar contraseña" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={17}/>:<Eye size={17}/>}</button>
         </div>
       </div>

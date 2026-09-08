@@ -13,9 +13,10 @@ export default function ConfirmDialog({title,children,confirmLabel,confirmIcon,o
   onClose:()=>void
   onConfirm:()=>Promise<void>|void
 }){
-  const dialogRef=useModalBehavior<HTMLDivElement>(onClose)
   const runOnce=useSubmissionGuard()
   const [loading,setLoading]=useState(false)
+  const requestClose=()=>{if(!loading)onClose()}
+  const dialogRef=useModalBehavior<HTMLDivElement>(requestClose)
   const titleId=`confirm-${title.toLowerCase().replace(/[^a-z0-9]+/g,'-')}`
   async function confirm(){
     await runOnce(async()=>{
@@ -23,7 +24,7 @@ export default function ConfirmDialog({title,children,confirmLabel,confirmIcon,o
       try{await onConfirm()}finally{setLoading(false)}
     })
   }
-  return <div className="modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)onClose()}}>
+  return <div className="modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)requestClose()}}>
     <div ref={dialogRef} className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
       <h2 id={titleId}>{title}</h2>
       <div className="muted">{children}</div>

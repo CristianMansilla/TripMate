@@ -62,7 +62,7 @@ Si tu proyecto todavía muestra la clave legacy `anon`, también se admite `NEXT
 Si venís desde una base `v0.1`, ejecutar `supabase/v0.2.sql` una sola vez antes de usar nombres de usuario.
 Si ya estabas en `v0.2`, ejecutar `supabase/v0.3.sql` para habilitar lugares con base, orden manual de reservas y valija personal por usuario.
 Después de `v0.3`, ejecutar `supabase/v0.4.sql` para activar el guardado transaccional de gastos, apariciones y paradas del itinerario, los importes por persona/grupo y los permisos corregidos.
-Si ya ejecutaste una versión anterior de `v0.4.sql`, volvé a ejecutar el archivo actualizado. La versión actual agrega varios días por gasto y permite elegir entre un importe total o un importe por cada aparición.
+Si `v0.4.sql` ya fue ejecutado, aplicar después `supabase/v0.4.1.sql`. Ese parche conserva el importe principal al agregar paradas, evita que una edición rápida reenvíe una agenda desactualizada y bloquea nombres vacíos en Reservas, Lugares y Valija.
 
 `SUPABASE_SERVICE_ROLE_KEY` sólo se usa en el servidor para resolver el login por nombre de usuario. Debe configurarse también en Vercel y nunca llevar el prefijo `NEXT_PUBLIC_`.
 
@@ -102,17 +102,12 @@ Ver `SETUP.md` para GitHub + Supabase + Vercel.
 
 ## Próximas mejoras
 
-- Notificaciones por viaje con resumen agrupado para evitar avisos repetidos cuando alguien carga muchos cambios seguidos.
-- Gastos repetibles con múltiples apariciones en itinerario, por ejemplo viandas o comidas que se repiten varios días.
-- Paradas o subactividades ordenadas dentro de una actividad principal, con horario, lugar, detalle, importe y estado opcional propios. El total del hito se calcula sumando sus paradas.
-- Auditoría de datos para detectar gastos incluidos sin día, actividades viejas sin gasto asociado, categorías duplicadas y montos sospechosos, sin borrar nada automáticamente.
-- Adjuntos privados en Supabase Storage.
-- Notas compartidas por viaje.
-- Votación de lugares/actividades.
-- Mejoras gratuitas de rutas con enlaces externos; evitar mapas embebidos o servicios pagos hasta que realmente sumen.
-- Conversión multi-moneda.
-- PWA/offline avanzado.
-- Exportación PDF/JSON.
-- Chat por viaje para coordinar decisiones sin salir de TripMate.
-- Mejor historial con nombre/avatar del editor.
-- Fotos de portada y galería del viaje.
+La ruta vigente está en [PRODUCT.md](PRODUCT.md), respaldada por la [auditoría de UX y flujos del 8 de septiembre de 2026](docs/AUDITORIA-UX-2026-09-08.md).
+
+1. Corregir pérdida de borradores, cancelaciones, validaciones, concurrencia y cambios involuntarios de precio.
+2. Simplificar Presupuesto e Itinerario, con altas en contexto y separación entre programación y costo.
+3. Vincular Reservas a un gasto único, sin duplicar importes ni confundir reserva con pago.
+4. Completar navegación, accesibilidad y gestión cotidiana; validar con dos cuentas y usuarios reales.
+5. Incorporar plantillas genéricas opcionales, copia de valija y exportación después de estabilizar el núcleo. Empezar de cero siempre sigue disponible.
+
+Estas son propuestas pendientes, no funciones ya implementadas. No se debe reimportar ni publicar el viaje personal de Córdoba como plantilla.

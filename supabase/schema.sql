@@ -121,7 +121,7 @@ create table public.reservations (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references public.trips(id) on delete cascade,
   activity_id uuid references public.activities(id) on delete set null,
-  title text not null,
+  title text not null check(length(trim(title)) > 0),
   status public.reservation_status not null default 'pending',
   priority text not null default 'medium' check(priority in ('high','medium','low')),
   due_date date,
@@ -138,7 +138,7 @@ create table public.reservations (
 create table public.places (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references public.trips(id) on delete cascade,
-  name text not null,
+  name text not null check(length(trim(name)) > 0),
   category text not null default 'other',
   address text,
   latitude numeric(10,7),
@@ -159,7 +159,7 @@ create unique index places_one_base_per_trip
 create table public.packing_items (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references public.trips(id) on delete cascade,
-  label text not null,
+  label text not null check(length(trim(label)) > 0),
   category text not null default 'General',
   assigned_to uuid references auth.users(id) on delete set null,
   assigned_label text,
@@ -426,8 +426,6 @@ declare
   v_step_id uuid;
   v_kept_step_ids uuid[];
   v_step_position integer;
-  v_steps_total numeric(14,2);
-  v_activity_steps_total numeric(14,2);
   v_date date;
   v_start_time time;
   v_end_time time;
@@ -547,35 +545,12 @@ begin
     where activity_id=v_activity_id
       and (cardinality(v_kept_step_ids)=0 or not (id=any(v_kept_step_ids)));
 
-    if cardinality(v_kept_step_ids)>0 then
-      select coalesce(sum(amount),0) into v_activity_steps_total
-      from public.activity_steps where activity_id=v_activity_id;
-      update public.activities
-      set estimated_cost=v_activity_steps_total,
-          actual_cost=case when p_status='paid' then v_activity_steps_total else null end
-      where id=v_activity_id;
-    end if;
-
     if v_activity_id=any(v_kept_ids) then raise exception 'Hay una aparición repetida en el formulario.'; end if;
     v_kept_ids := array_append(v_kept_ids,v_activity_id);
   end loop;
 
   delete from public.activities
   where expense_id=v_expense_id and (cardinality(v_kept_ids)=0 or not (id=any(v_kept_ids)));
-
-  if exists(
-    select 1 from public.activity_steps step
-    join public.activities activity on activity.id=step.activity_id
-    where activity.expense_id=v_expense_id
-  ) then
-    select coalesce(sum(step.amount),0) into v_steps_total
-    from public.activity_steps step
-    join public.activities activity on activity.id=step.activity_id
-    where activity.expense_id=v_expense_id;
-    update public.expenses
-    set amount=v_steps_total,occurrence_pricing='total'
-    where id=v_expense_id;
-  end if;
 
   select id into v_first_activity_id from public.activities
   where expense_id=v_expense_id order by date,start_time nulls last,id limit 1;
@@ -594,6 +569,32 @@ begin
 end;
 $$;
 
+create or replace function public.save_expense_plan_v3(
+  p_expense_id uuid, p_trip_id uuid, p_title text, p_category text, p_amount numeric,
+  p_status text, p_included boolean, p_amount_basis text, p_occurrence_pricing text,
+  p_occurrences jsonb, p_place text, p_notes text, p_optional boolean
+) returns uuid
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare v_expense_id uuid;
+begin
+  v_expense_id := public.save_expense_plan_v2(
+    p_expense_id,p_trip_id,p_title,p_category,p_amount,p_status,p_included,
+    p_amount_basis,p_occurrence_pricing,p_occurrences,p_place,p_notes,p_optional
+  );
+  update public.expenses
+  set amount=p_amount,occurrence_pricing=p_occurrence_pricing
+  where id=v_expense_id and trip_id=p_trip_id;
+  update public.activities
+  set estimated_cost=p_amount,
+      actual_cost=case when p_status='paid' then p_amount else null end
+  where expense_id=v_expense_id and trip_id=p_trip_id;
+  return v_expense_id;
+end;
+$$;
+
 create or replace function public.delete_expense_plan(p_expense_id uuid, p_trip_id uuid)
 returns void language plpgsql security invoker set search_path=public as $$
 declare v_activity_id uuid;
@@ -604,6 +605,28 @@ begin
   if v_activity_id is not null and not exists(select 1 from public.expenses where activity_id=v_activity_id) then
     delete from public.activities where id=v_activity_id and trip_id=p_trip_id;
   end if;
+end;
+$$;
+
+create or replace function public.update_expense_amount(
+  p_expense_id uuid,
+  p_trip_id uuid,
+  p_amount numeric
+) returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  if not public.can_edit_trip(p_trip_id) then raise exception 'No tenés permiso para editar este viaje.'; end if;
+  if p_amount is null or p_amount < 0 then raise exception 'El importe debe ser cero o mayor.'; end if;
+  update public.expenses set amount=p_amount
+  where id=p_expense_id and trip_id=p_trip_id;
+  if not found then raise exception 'No se encontró el gasto.'; end if;
+  update public.activities
+  set estimated_cost=p_amount,
+      actual_cost=case when status='paid' then p_amount else actual_cost end
+  where expense_id=p_expense_id and trip_id=p_trip_id;
 end;
 $$;
 
@@ -655,12 +678,16 @@ revoke all on function public.resolve_login_identifier(text) from public, anon, 
 grant execute on function public.resolve_login_identifier(text) to service_role;
 revoke all on function public.save_expense_plan(uuid,uuid,text,text,numeric,text,boolean,text,date,time,time,text,text,boolean) from public, anon;
 revoke all on function public.save_expense_plan_v2(uuid,uuid,text,text,numeric,text,boolean,text,text,jsonb,text,text,boolean) from public, anon;
+revoke all on function public.save_expense_plan_v3(uuid,uuid,text,text,numeric,text,boolean,text,text,jsonb,text,text,boolean) from public, anon;
 revoke all on function public.delete_expense_plan(uuid,uuid) from public, anon;
+revoke all on function public.update_expense_amount(uuid,uuid,numeric) from public, anon;
 revoke all on function public.move_reservation(uuid,uuid,integer) from public, anon;
 revoke all on function public.set_trip_base_place(uuid,uuid) from public, anon;
 grant execute on function public.save_expense_plan(uuid,uuid,text,text,numeric,text,boolean,text,date,time,time,text,text,boolean) to authenticated;
 grant execute on function public.save_expense_plan_v2(uuid,uuid,text,text,numeric,text,boolean,text,text,jsonb,text,text,boolean) to authenticated;
+grant execute on function public.save_expense_plan_v3(uuid,uuid,text,text,numeric,text,boolean,text,text,jsonb,text,text,boolean) to authenticated;
 grant execute on function public.delete_expense_plan(uuid,uuid) to authenticated;
+grant execute on function public.update_expense_amount(uuid,uuid,numeric) to authenticated;
 grant execute on function public.move_reservation(uuid,uuid,integer) to authenticated;
 grant execute on function public.set_trip_base_place(uuid,uuid) to authenticated;
 

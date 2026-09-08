@@ -12,6 +12,8 @@ import Snackbar from './Snackbar'
 export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
   const [name,setName]=useState('')
   const [username,setUsername]=useState('')
+  const [draftName,setDraftName]=useState('')
+  const [draftUsername,setDraftUsername]=useState('')
   const [email,setEmail]=useState('')
   const [profileLoaded,setProfileLoaded]=useState(false)
   const [profileOpen,setProfileOpen]=useState(false)
@@ -20,7 +22,17 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
   const [connected,setConnected]=useState(false)
   const [mounted,setMounted]=useState(false)
   const router=useRouter()
-  const closeProfile=useCallback(()=>setProfileOpen(false),[])
+  const closeProfile=useCallback(()=>{
+    if(saving)return
+    setDraftName(name)
+    setDraftUsername(username)
+    setProfileOpen(false)
+  },[name,saving,username])
+  const openProfile=()=>{
+    setDraftName(name)
+    setDraftUsername(username)
+    setProfileOpen(true)
+  }
   const profileDialogRef=useModalBehavior<HTMLDivElement>(closeProfile,profileOpen)
   const runOnce=useSubmissionGuard()
 
@@ -35,8 +47,12 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
       setEmail(user.email || '')
       const fallback=user.user_metadata?.name || user.email?.split('@')[0] || 'Usuario'
       const {data:profile}=await supabase.from('profiles').select('display_name,username').eq('id',user.id).single()
-      setName(profile?.display_name || fallback)
-      setUsername(profile?.username || '')
+      const loadedName=profile?.display_name || fallback
+      const loadedUsername=profile?.username || ''
+      setName(loadedName)
+      setUsername(loadedUsername)
+      setDraftName(loadedName)
+      setDraftUsername(loadedUsername)
       setProfileLoaded(true)
     })
   },[])
@@ -51,8 +67,8 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
   async function saveProfile(){
     await runOnce(async()=>{
     setProfileMessage('')
-    const cleanName=name.trim()
-    const cleanUsername=username.trim().toLowerCase()
+    const cleanName=draftName.trim()
+    const cleanUsername=draftUsername.trim().toLowerCase()
     if(!cleanName){setProfileMessage('El nombre no puede estar vacío.');return}
     if(!/^[a-z0-9_]{3,24}$/.test(cleanUsername)){
       setProfileMessage('El usuario debe tener entre 3 y 24 caracteres: letras, números o guion bajo.')
@@ -68,6 +84,8 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
     await supabase.auth.updateUser({data:{name:cleanName,username:cleanUsername}})
     setName(cleanName)
     setUsername(cleanUsername)
+    setDraftName(cleanName)
+    setDraftUsername(cleanUsername)
     setSaving(false)
     setProfileMessage('Perfil actualizado.')
     setProfileOpen(false)
@@ -75,15 +93,15 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
   }
 
   const profileModal=profileOpen&&mounted?createPortal(
-    <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setProfileOpen(false)}}>
+    <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeProfile()}}>
       <div ref={profileDialogRef} className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" tabIndex={-1}>
         <h2 id="profile-title">Perfil</h2>
         <p className="muted">Estos datos se muestran a las personas que comparten viajes con vos.</p>
-        <div className="field"><label>Nombre visible</label><input value={name} onChange={e=>setName(e.target.value)} required autoComplete="name"/></div>
-        <div className="field" style={{marginTop:12}}><label>Nombre de usuario</label><input value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} required minLength={3} maxLength={24} pattern="[a-z0-9_]{3,24}" autoComplete="username"/></div>
-        <div className="field" style={{marginTop:12}}><label>Email</label><input value={email} disabled/></div>
+        <div className="field"><label htmlFor="profile-name">Nombre visible</label><input id="profile-name" value={draftName} onChange={e=>setDraftName(e.target.value)} required autoComplete="name"/></div>
+        <div className="field" style={{marginTop:12}}><label htmlFor="profile-username">Nombre de usuario</label><input id="profile-username" value={draftUsername} onChange={e=>setDraftUsername(e.target.value.toLowerCase())} required minLength={3} maxLength={24} pattern="[a-z0-9_]{3,24}" autoComplete="username"/></div>
+        <div className="field" style={{marginTop:12}}><label htmlFor="profile-email">Email</label><input id="profile-email" value={email} disabled/></div>
         <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={()=>setProfileOpen(false)}>Cancelar</button>
+          <button className="btn btn-secondary" onClick={closeProfile} disabled={saving}>Cancelar</button>
           <button className="btn btn-primary" onClick={saveProfile} disabled={saving}><Save size={16}/>{saving?'Guardando…':'Guardar'}</button>
         </div>
       </div>
@@ -98,8 +116,8 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
       <div style={{display:'flex',alignItems:'center',gap:10}}>
         {onNewTrip&&<button className="btn btn-secondary" style={{padding:'9px 12px'}} onClick={onNewTrip}><Plus size={16}/><span className="desktop-label">Viaje</span></button>}
         <div className="user-menu">
-          <button className="avatar avatar-button" title="Editar perfil" onClick={()=>profileLoaded&&setProfileOpen(true)} disabled={!profileLoaded}>{name[0]?.toUpperCase() || <UserRound size={16}/>}</button>
-          {profileLoaded&&name&&<button className="desktop-label user-name user-name-button" onClick={()=>setProfileOpen(true)}>{name}</button>}
+          <button className="avatar avatar-button" title="Editar perfil" aria-label="Editar perfil" onClick={()=>profileLoaded&&openProfile()} disabled={!profileLoaded}>{name[0]?.toUpperCase() || <UserRound size={16}/>}</button>
+          {profileLoaded&&name&&<button className="desktop-label user-name user-name-button" onClick={openProfile}>{name}</button>}
           {connected&&<button className="icon-btn" title="Cerrar sesión" onClick={logout}><LogOut size={16}/></button>}
         </div>
       </div>

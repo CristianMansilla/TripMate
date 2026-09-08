@@ -26,7 +26,7 @@ export default function ForgotPassword(){
     <h1>Recuperar contraseña</h1>
     <p>Ingresá tu email y te enviamos un enlace seguro.</p>
     <Snackbar message={message} tone={sent?'success':'error'} onClose={()=>setMessage('')} duration={sent?0:6000}/>
-    <div className="field"><label>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></div>
+    <div className="field"><label htmlFor="recovery-email">Email</label><input id="recovery-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email"/></div>
     <button className="btn btn-primary" style={{width:'100%',marginTop:18}} disabled={loading}>{loading?'Enviando…':'Enviar enlace'}</button>
     <div className="auth-links"><Link href="/login">Volver a ingresar</Link></div>
   </form></main>

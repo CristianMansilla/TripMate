@@ -28,6 +28,7 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
   const [occurrencePricing,setOccurrencePricing]=useState<'total'|'per_occurrence'>('total')
   const [place,setPlace]=useState('')
   const [optional,setOptional]=useState(false)
+  const [included,setIncluded]=useState(true)
   const [priority,setPriority]=useState('medium')
   const [dueDate,setDueDate]=useState('')
   const [address,setAddress]=useState('')
@@ -37,27 +38,26 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
   const [message,setMessage]=useState('')
   const [activeExpenseTab,setActiveExpenseTab]=useState<'main'|'itinerary'>('main')
   const runOnce=useSubmissionGuard()
-  const isDirty=Boolean(title || amount || amountBasis!=='per_person' || category!==initialCategory || occurrences.length || occurrencePricing!=='total' || place || optional || priority!=='medium' || dueDate || address || url || notes)
-  const discard=useDiscardConfirmation(isDirty,onClose)
+  const isDirty=Boolean(title || amount || amountBasis!=='per_person' || category!==initialCategory || occurrences.length || occurrencePricing!=='total' || place || optional || !included || priority!=='medium' || dueDate || address || url || notes)
+  const discard=useDiscardConfirmation(isDirty,onClose,loading)
   const dialogRef=useModalBehavior<HTMLFormElement>(discard.requestClose)
   const labels={expense:'Nuevo gasto',reservation:'Nueva reserva',packing:'Agregar a valija',place:'Nuevo lugar'} as const
   const steps=occurrences.flatMap(item=>item.steps || [])
-  const hasSteps=steps.length>0
   const stepsTotal=steps.reduce((sum,step)=>sum+(Number.isFinite(step.amount)?step.amount:0),0)
   async function submit(e:FormEvent){
     e.preventDefault();setMessage('')
-    if(kind==='expense' && !title.trim()){setActiveExpenseTab('main');setMessage('El nombre no puede estar vacío.');return}
-    if(kind==='expense' && !hasSteps && (!amount.trim() || !Number.isFinite(Number(amount)) || Number(amount)<0)){setActiveExpenseTab('main');setMessage('El importe debe ser cero o mayor.');return}
+    if(!title.trim()){if(kind==='expense')setActiveExpenseTab('main');setMessage(kind==='packing'?'El ítem no puede estar vacío.':'El nombre no puede estar vacío.');return}
+    if(kind==='expense' && (!amount.trim() || !Number.isFinite(Number(amount)) || Number(amount)<0)){setActiveExpenseTab('main');setMessage('El importe debe ser cero o mayor.');return}
     if(kind==='reservation' && amount.trim() && (!Number.isFinite(Number(amount)) || Number(amount)<0)){setMessage('El importe debe ser cero o mayor.');return}
     if(kind==='place' && !validExternalUrl(url.trim())){setMessage('El enlace debe comenzar con http:// o https://.');return}
     if(kind==='expense' && occurrences.some(item=>!item.date)){setActiveExpenseTab('itinerary');setMessage('Completá o quitá los días vacíos del itinerario.');return}
     if(kind==='expense' && occurrences.some(item=>(minDate && item.date<minDate) || (maxDate && item.date>maxDate))){setActiveExpenseTab('itinerary');setMessage('Los días del itinerario deben estar dentro de las fechas del viaje.');return}
-    if(kind==='expense' && occurrences.some(item=>(item.steps || []).some(step=>!step.title.trim()))){setActiveExpenseTab('itinerary');setMessage('Completá o quitá las subactividades que no tienen nombre.');return}
-    if(kind==='expense' && steps.some(step=>!Number.isFinite(step.amount) || step.amount<0)){setActiveExpenseTab('itinerary');setMessage('Los importes de las subactividades deben ser cero o mayores.');return}
+    if(kind==='expense' && occurrences.some(item=>(item.steps || []).some(step=>!step.title.trim()))){setActiveExpenseTab('itinerary');setMessage('Completá o quitá las paradas que no tienen nombre.');return}
+    if(kind==='expense' && steps.some(step=>!Number.isFinite(step.amount) || step.amount<0)){setActiveExpenseTab('itinerary');setMessage('Los importes de las paradas deben ser cero o mayores.');return}
     await runOnce(async()=>{
       setLoading(true)
       try{
-        await onSave({title:title.trim(),amount:hasSteps?stepsTotal:amount.trim()===''?undefined:Number(amount),amountBasis,category:category.trim(),priority,dueDate,address,url,notes,occurrences,occurrencePricing:hasSteps?'total':occurrencePricing,place,optional})
+        await onSave({title:title.trim(),amount:amount.trim()===''?undefined:Number(amount),amountBasis,category:category.trim(),priority,dueDate,address,url,notes,occurrences,occurrencePricing,place,optional,included})
         onClose()
       }catch(error){setMessage(userFacingError(error,'No pudimos guardar. Intentá nuevamente.'))}
       finally{setLoading(false)}
@@ -75,23 +75,27 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
             <button type="button" role="tab" aria-selected={activeExpenseTab==='itinerary'} className={activeExpenseTab==='itinerary'?'active':''} onClick={()=>setActiveExpenseTab('itinerary')}><CalendarDays size={17}/> Itinerario{occurrences.length?` (${occurrences.length})`:''}</button>
           </div>
           <section className="expense-form-section full" role="tabpanel" hidden={activeExpenseTab!=='main'} aria-labelledby="quick-main-section">
-            <div className="expense-section-head"><div><h3 id="quick-main-section">Actividad principal</h3><small>Datos comunes a todo el bloque</small></div>{hasSteps&&<div className="expense-derived-total"><span>{amountBasis==='group'?'Total del grupo':'Total por persona'}</span><strong>{stepsTotal.toLocaleString('es-AR',{maximumFractionDigits:2})}</strong></div>}</div>
+            <div className="expense-section-head"><div><h3 id="quick-main-section">Actividad principal</h3><small>Datos comunes a todo el bloque</small></div>{steps.length>0&&<div className="expense-derived-total"><span>Subtotal informativo de paradas</span><strong>{stepsTotal.toLocaleString('es-AR',{maximumFractionDigits:2})}</strong></div>}</div>
             <div className="expense-section-grid">
               <div className="field full"><label htmlFor="quick-title">Nombre de la actividad principal</label><input id="quick-title" value={title} onChange={e=>setTitle(e.target.value)} required/></div>
               <CategoryPicker label="Categoría principal" value={category} options={categoryOptions} onChange={setCategory} required/>
-              {!hasSteps&&<div className="field"><label htmlFor="quick-amount">{amountBasis==='group'?'Importe total del servicio':'Importe por persona'}</label><input id="quick-amount" type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} required/></div>}
+              <div className="field"><label htmlFor="quick-amount">{amountBasis==='group'?'Importe total del servicio':'Importe por persona'}</label><input id="quick-amount" type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} required/></div>
               <div className="field"><label htmlFor="quick-basis">Los importes corresponden a</label><select id="quick-basis" value={amountBasis} onChange={e=>setAmountBasis(e.target.value as 'per_person'|'group')}><option value="per_person">Cada persona</option><option value="group">Todo el grupo o servicio</option></select></div>
               <div className="field"><label htmlFor="quick-place">Lugar principal</label><input id="quick-place" value={place} onChange={e=>setPlace(e.target.value)} placeholder="Zona o punto de encuentro general"/></div>
             </div>
           </section>
           <section className="expense-form-section full" role="tabpanel" hidden={activeExpenseTab!=='itinerary'} aria-labelledby="quick-agenda-section">
-            <div className="expense-section-head"><div><h3 id="quick-agenda-section">Itinerario y subactividades</h3><small>Horario general y detalle de cada subactividad</small></div></div>
+            <div className="expense-section-head"><div><h3 id="quick-agenda-section">Itinerario y paradas</h3><small>Horario general y paradas opcionales de la actividad</small></div></div>
             <ExpenseOccurrencesEditor idPrefix="quick-expense" value={occurrences} onChange={setOccurrences} minDate={minDate} maxDate={maxDate}/>
           </section>
           <section className="expense-form-section full" hidden={activeExpenseTab!=='main'} aria-labelledby="quick-details-section">
             <div className="expense-section-head"><h3 id="quick-details-section">Presupuesto y detalles</h3></div>
             <div className="expense-section-grid">
-              {occurrences.length>1&&!hasSteps&&<div className="field full"><label htmlFor="quick-occurrence-pricing">Cómo se calcula en días repetidos</label><select id="quick-occurrence-pricing" value={occurrencePricing} onChange={e=>setOccurrencePricing(e.target.value as 'total'|'per_occurrence')}><option value="total">El importe es el total de todos los días</option><option value="per_occurrence">El importe se cobra por cada día</option></select></div>}
+              {occurrences.length>1&&<div className="field full"><label htmlFor="quick-occurrence-pricing">Cómo se calcula en días repetidos</label><select id="quick-occurrence-pricing" value={occurrencePricing} onChange={e=>setOccurrencePricing(e.target.value as 'total'|'per_occurrence')}><option value="total">El importe es el total de todos los días</option><option value="per_occurrence">El importe se cobra por cada día</option></select></div>}
+              <label className="toggle-field full">
+                <input type="checkbox" checked={included} onChange={e=>setIncluded(e.target.checked)}/>
+                <span><b>Incluir en el presupuesto</b><small>Podés excluir el costo sin quitar la actividad de la agenda.</small></span>
+              </label>
               <label className="toggle-field full">
                 <input type="checkbox" checked={optional} onChange={e=>setOptional(e.target.checked)}/>
                 <span><b>Actividad opcional</b><small>Se muestra como plan tentativo en el itinerario.</small></span>

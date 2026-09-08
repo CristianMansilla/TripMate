@@ -58,20 +58,20 @@ function SignupForm(){
     <h1>Creá tu cuenta</h1>
     <p>Después vas a poder crear viajes e invitar a otras personas.</p>
     <Snackbar message={message} tone={created?'success':'error'} onClose={()=>setMessage('')} duration={created?0:6000}/>
-    <div className="field"><label>Nombre</label><input value={name} onChange={e=>setName(e.target.value)} required autoComplete="name"/></div>
-    <div className="field" style={{marginTop:12}}><label>Nombre de usuario</label><input value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} required minLength={3} maxLength={24} pattern="[a-z0-9_]{3,24}" autoComplete="username"/></div>
-    <div className="field" style={{marginTop:12}}><label>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email"/></div>
+    <div className="field"><label htmlFor="signup-name">Nombre</label><input id="signup-name" value={name} onChange={e=>setName(e.target.value)} required autoComplete="name"/></div>
+    <div className="field" style={{marginTop:12}}><label htmlFor="signup-username">Nombre de usuario</label><input id="signup-username" value={username} onChange={e=>setUsername(e.target.value.toLowerCase())} required minLength={3} maxLength={24} pattern="[a-z0-9_]{3,24}" autoComplete="username"/></div>
+    <div className="field" style={{marginTop:12}}><label htmlFor="signup-email">Email</label><input id="signup-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email"/></div>
     <div className="field" style={{marginTop:12}}>
-      <label>Contraseña</label>
+      <label htmlFor="signup-password">Contraseña</label>
       <div className="password-wrap">
-        <input type={showPassword?'text':'password'} minLength={8} value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="new-password"/>
+        <input id="signup-password" type={showPassword?'text':'password'} minLength={8} value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="new-password"/>
         <button type="button" className="icon-btn" aria-label="Mostrar u ocultar contraseña" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={17}/>:<Eye size={17}/>}</button>
       </div>
     </div>
     <div className="field" style={{marginTop:12}}>
-      <label>Confirmar contraseña</label>
+      <label htmlFor="signup-password-confirmation">Confirmar contraseña</label>
       <div className="password-wrap">
-        <input type={showConfirmPassword?'text':'password'} minLength={8} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} required autoComplete="new-password"/>
+        <input id="signup-password-confirmation" type={showConfirmPassword?'text':'password'} minLength={8} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} required autoComplete="new-password"/>
         <button type="button" className="icon-btn" aria-label="Mostrar u ocultar confirmación de contraseña" onClick={()=>setShowConfirmPassword(v=>!v)}>{showConfirmPassword?<EyeOff size={17}/>:<Eye size={17}/>}</button>
       </div>
     </div>

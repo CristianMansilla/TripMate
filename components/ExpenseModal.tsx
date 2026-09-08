@@ -23,26 +23,25 @@ export default function ExpenseModal({expense,activities,onClose,onSave,onDelete
   const [message,setMessage]=useState('')
   const [activeTab,setActiveTab]=useState<'main'|'itinerary'>('main')
   const runOnce=useSubmissionGuard()
-  const discard=useDiscardConfirmation(JSON.stringify(draft)!==JSON.stringify(withSchedule(expense)),onClose)
+  const discard=useDiscardConfirmation(JSON.stringify(draft)!==JSON.stringify(withSchedule(expense)),onClose,loading)
   const dialogRef=useModalBehavior<HTMLFormElement>(discard.requestClose)
-  useEffect(()=>setDraft(withSchedule(expense)),[expense,activities])
+  useEffect(()=>setDraft(withSchedule(expense)),[expense.id])
   const patch=(key:keyof ExpenseDraft,value:any)=>setDraft(current=>({...current,[key]:value}))
   const steps=(draft.occurrences || []).flatMap(item=>item.steps || [])
-  const hasSteps=steps.length>0
   const stepsTotal=steps.reduce((sum,step)=>sum+(Number.isFinite(step.amount)?step.amount:0),0)
 
   async function submit(event:React.FormEvent){
     event.preventDefault()
     setMessage('')
     if(!draft.title.trim()){setActiveTab('main');setMessage('El nombre no puede estar vacío.');return}
-    if(!Number.isFinite(hasSteps?stepsTotal:draft.amount) || (hasSteps?stepsTotal:draft.amount)<0){setActiveTab('main');setMessage('El importe debe ser cero o mayor.');return}
+    if(!Number.isFinite(draft.amount) || draft.amount<0){setActiveTab('main');setMessage('El importe debe ser cero o mayor.');return}
     if((draft.occurrences || []).some(item=>!item.date)){setActiveTab('itinerary');setMessage('Completá o quitá los días vacíos del itinerario.');return}
     if((draft.occurrences || []).some(item=>(minDate && item.date<minDate) || (maxDate && item.date>maxDate))){setActiveTab('itinerary');setMessage('Los días del itinerario deben estar dentro de las fechas del viaje.');return}
-    if((draft.occurrences || []).some(item=>(item.steps || []).some(step=>!step.title.trim()))){setActiveTab('itinerary');setMessage('Completá o quitá las subactividades que no tienen nombre.');return}
-    if(steps.some(step=>!Number.isFinite(step.amount) || step.amount<0)){setActiveTab('itinerary');setMessage('Los importes de las subactividades deben ser cero o mayores.');return}
+    if((draft.occurrences || []).some(item=>(item.steps || []).some(step=>!step.title.trim()))){setActiveTab('itinerary');setMessage('Completá o quitá las paradas que no tienen nombre.');return}
+    if(steps.some(step=>!Number.isFinite(step.amount) || step.amount<0)){setActiveTab('itinerary');setMessage('Los importes de las paradas deben ser cero o mayores.');return}
     await runOnce(async()=>{
       setLoading(true)
-      try{await onSave({...draft,title:draft.title.trim(),category:draft.category.trim(),amount:hasSteps?stepsTotal:draft.amount,occurrencePricing:hasSteps?'total':draft.occurrencePricing})}
+      try{await onSave({...draft,title:draft.title.trim(),category:draft.category.trim()})}
       catch(error){setMessage(userFacingError(error,'No pudimos guardar el gasto. Intentá nuevamente.'))}
       finally{setLoading(false)}
     })
@@ -58,23 +57,23 @@ export default function ExpenseModal({expense,activities,onClose,onSave,onDelete
       </div>
       <div className="form-grid">
         <section className="expense-form-section full" role="tabpanel" hidden={activeTab!=='main'} aria-labelledby="expense-main-section">
-          <div className="expense-section-head"><div><h3 id="expense-main-section">Actividad principal</h3><small>Datos comunes a todo el bloque</small></div>{hasSteps&&<div className="expense-derived-total"><span>{draft.amountBasis==='group'?'Total del grupo':'Total por persona'}</span><strong>{stepsTotal.toLocaleString('es-AR',{maximumFractionDigits:2})}</strong></div>}</div>
+          <div className="expense-section-head"><div><h3 id="expense-main-section">Actividad principal</h3><small>Datos comunes a todo el bloque</small></div>{steps.length>0&&<div className="expense-derived-total"><span>Subtotal informativo de paradas</span><strong>{stepsTotal.toLocaleString('es-AR',{maximumFractionDigits:2})}</strong></div>}</div>
           <div className="expense-section-grid">
             <div className="field full"><label htmlFor="expense-title">Nombre de la actividad principal</label><input id="expense-title" value={draft.title} onChange={e=>patch('title',e.target.value)} required/></div>
             <CategoryPicker label="Categoría principal" value={draft.category} options={categoryOptions} onChange={value=>patch('category',value)} required/>
-            {!hasSteps&&<div className="field"><label htmlFor="expense-amount">{draft.amountBasis==='group'?'Importe total del servicio':'Importe por persona'}</label><input id="expense-amount" type="number" min="0" step="0.01" value={Number.isNaN(draft.amount)?'':draft.amount} onChange={e=>patch('amount',e.target.value===''?Number.NaN:Number(e.target.value))} required/></div>}
+            <div className="field"><label htmlFor="expense-amount">{draft.amountBasis==='group'?'Importe total del servicio':'Importe por persona'}</label><input id="expense-amount" type="number" min="0" step="0.01" value={Number.isNaN(draft.amount)?'':draft.amount} onChange={e=>patch('amount',e.target.value===''?Number.NaN:Number(e.target.value))} required/></div>
             <div className="field"><label htmlFor="expense-basis">Los importes corresponden a</label><select id="expense-basis" value={draft.amountBasis || 'per_person'} onChange={e=>patch('amountBasis',e.target.value)}><option value="per_person">Cada persona</option><option value="group">Todo el grupo o servicio</option></select></div>
             <div className="field"><label htmlFor="expense-place">Lugar principal</label><input id="expense-place" value={draft.place || ''} onChange={e=>patch('place',e.target.value)} placeholder="Zona o punto de encuentro general"/></div>
           </div>
         </section>
         <section className="expense-form-section full" role="tabpanel" hidden={activeTab!=='itinerary'} aria-labelledby="expense-agenda-section">
-          <div className="expense-section-head"><div><h3 id="expense-agenda-section">Itinerario y subactividades</h3><small>Horario general y detalle de cada subactividad</small></div></div>
+          <div className="expense-section-head"><div><h3 id="expense-agenda-section">Itinerario y paradas</h3><small>Horario general y paradas opcionales de la actividad</small></div></div>
           <ExpenseOccurrencesEditor idPrefix="expense" value={draft.occurrences || []} onChange={value=>patch('occurrences',value)} minDate={minDate} maxDate={maxDate}/>
         </section>
         <section className="expense-form-section full" hidden={activeTab!=='main'} aria-labelledby="expense-details-section">
           <div className="expense-section-head"><h3 id="expense-details-section">Presupuesto y detalles</h3></div>
           <div className="expense-section-grid">
-            {(draft.occurrences?.length || 0)>1&&!hasSteps&&<div className="field full"><label htmlFor="expense-occurrence-pricing">Cómo se calcula en días repetidos</label><select id="expense-occurrence-pricing" value={draft.occurrencePricing || 'total'} onChange={e=>patch('occurrencePricing',e.target.value)}><option value="total">El importe es el total de todos los días</option><option value="per_occurrence">El importe se cobra por cada día</option></select></div>}
+            {(draft.occurrences?.length || 0)>1&&<div className="field full"><label htmlFor="expense-occurrence-pricing">Cómo se calcula en días repetidos</label><select id="expense-occurrence-pricing" value={draft.occurrencePricing || 'total'} onChange={e=>patch('occurrencePricing',e.target.value)}><option value="total">El importe es el total de todos los días</option><option value="per_occurrence">El importe se cobra por cada día</option></select></div>}
             <div className="field"><label htmlFor="expense-status">Estado</label><select id="expense-status" value={draft.status} onChange={e=>patch('status',e.target.value)}>
               <option value="estimated">Estimado</option>
               <option value="confirmed">Confirmado</option>
@@ -93,7 +92,7 @@ export default function ExpenseModal({expense,activities,onClose,onSave,onDelete
         </section>
       </div>
       <div className="modal-actions split">
-        {onDelete&&<button type="button" className="btn btn-danger" onClick={()=>onDelete(draft)}><Trash2 size={16}/> Eliminar</button>}
+        {onDelete&&<button type="button" className="btn btn-danger" disabled={loading} onClick={()=>onDelete(draft)}><Trash2 size={16}/> Eliminar</button>}
         <span/>
         <button type="button" className="btn btn-secondary" onClick={discard.requestClose}>Cancelar</button>
         <button className="btn btn-primary" disabled={loading}>{loading?'Guardando…':'Guardar cambios'}</button>

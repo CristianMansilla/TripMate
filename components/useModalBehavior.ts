@@ -3,19 +3,22 @@
 import { useEffect, useRef } from 'react'
 
 const focusableSelector='button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+let openModalCount=0
+let bodyOverflowBeforeModals=''
 
 export function useModalBehavior<T extends HTMLElement=HTMLDivElement>(onClose:()=>void,active=true){
   const dialogRef=useRef<T>(null)
+  const onCloseRef=useRef(onClose)
+  onCloseRef.current=onClose
   useEffect(()=>{
     if(!active)return
-    const previousOverflow=document.body.style.overflow
     const previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null
     const dialog=dialogRef.current
-    const focusable=()=>Array.from(dialog?.querySelectorAll<HTMLElement>(focusableSelector) || [])
+    const focusable=()=>Array.from(dialog?.querySelectorAll<HTMLElement>(focusableSelector) || []).filter(element=>element.getClientRects().length>0 && !element.closest('[hidden]'))
     const handleKeyDown=(event:KeyboardEvent)=>{
       const openDialogs=Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]'))
       if(openDialogs.at(-1)!==dialog)return
-      if(event.key==='Escape')onClose()
+      if(event.key==='Escape')onCloseRef.current()
       if(event.key!=='Tab')return
       const elements=focusable()
       if(!elements.length){event.preventDefault();dialog?.focus();return}
@@ -23,17 +26,22 @@ export function useModalBehavior<T extends HTMLElement=HTMLDivElement>(onClose:(
       if(event.shiftKey && document.activeElement===first){event.preventDefault();last.focus()}
       else if(!event.shiftKey && document.activeElement===last){event.preventDefault();first.focus()}
     }
-    document.body.style.overflow='hidden'
+    if(openModalCount===0){
+      bodyOverflowBeforeModals=document.body.style.overflow
+      document.body.style.overflow='hidden'
+    }
+    openModalCount+=1
     document.addEventListener('keydown',handleKeyDown)
     requestAnimationFrame(()=>{
       const preferred=dialog?.querySelector<HTMLElement>('[autofocus]')
       ;(preferred || focusable()[0] || dialog)?.focus()
     })
     return()=>{
-      document.body.style.overflow=previousOverflow
+      openModalCount=Math.max(0,openModalCount-1)
+      if(openModalCount===0)document.body.style.overflow=bodyOverflowBeforeModals
       document.removeEventListener('keydown',handleKeyDown)
       if(previousFocus?.isConnected)previousFocus.focus()
     }
-  },[active,onClose])
+  },[active])
   return dialogRef
 }

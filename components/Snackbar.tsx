@@ -6,13 +6,14 @@ import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react'
 
 type SnackbarTone='error'|'success'|'info'
 
-export default function Snackbar({message,tone='info',onClose,actionLabel,onAction,duration=6000}:{
+export default function Snackbar({message,tone='info',onClose,actionLabel,onAction,duration=6000,notificationId}:{
   message:string
   tone?:SnackbarTone
   onClose:()=>void
   actionLabel?:string
   onAction?:()=>void
   duration?:number
+  notificationId?:number
 }){
   const [host,setHost]=useState<HTMLElement|null>(null)
   const onCloseRef=useRef(onClose)
@@ -32,7 +33,7 @@ export default function Snackbar({message,tone='info',onClose,actionLabel,onActi
     if(!message || duration<=0)return
     const timer=window.setTimeout(()=>onCloseRef.current(),duration)
     return()=>window.clearTimeout(timer)
-  },[message,duration])
+  },[message,duration,notificationId])
   if(!host || !message)return null
   const Icon=tone==='error'?AlertCircle:tone==='success'?CheckCircle2:Info
   return createPortal(

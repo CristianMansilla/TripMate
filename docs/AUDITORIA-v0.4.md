@@ -2,6 +2,8 @@
 
 Fecha: 6 de septiembre de 2026. Base revisada: v0.3.0.
 
+> Documento histórico. Para el estado del commit #20, los hallazgos vigentes y el nuevo orden de trabajo, consultar la [auditoría de UX del 8 de septiembre de 2026](AUDITORIA-UX-2026-09-08.md) y [PRODUCT.md](../PRODUCT.md). Las reglas y pruebas de esta versión anterior no certifican el comportamiento actual.
+
 ## Dictamen
 
 La idea de cargar los datos una sola vez y reflejarlos en Presupuesto e Itinerario es adecuada. La implementación todavía mantiene dos copias de parte de esos datos y las actualiza por separado; por eso puede mostrar inconsistencias. Conviene estabilizar este núcleo antes de agregar más módulos.
