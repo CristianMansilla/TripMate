@@ -28,8 +28,8 @@ export default function ConfirmDialog({title,children,confirmLabel,confirmIcon,o
       <h2 id={titleId}>{title}</h2>
       <div className="muted">{children}</div>
       <div className="modal-actions">
-        <button className="btn btn-secondary" onClick={onClose} disabled={loading}>Cancelar</button>
-        <button className="btn btn-danger" onClick={confirm} disabled={loading}>{confirmIcon}{loading?'Procesando…':confirmLabel}</button>
+        <button type="button" className="btn btn-secondary" onClick={onClose} disabled={loading}>Cancelar</button>
+        <button type="button" className="btn btn-danger" onClick={confirm} disabled={loading}>{confirmIcon}{loading?'Procesando…':confirmLabel}</button>
       </div>
     </div>
   </div>

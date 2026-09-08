@@ -1,7 +1,13 @@
 'use client'
 
+import { useState } from 'react'
 import { ActivityStep, ExpenseOccurrence } from '@/lib/types'
 import { Plus, Trash2 } from 'lucide-react'
+import ConfirmDialog from './ConfirmDialog'
+
+type PendingRemoval=
+  | {kind:'occurrence'; occurrenceIndex:number}
+  | {kind:'step'; occurrenceIndex:number; stepIndex:number}
 
 function newOccurrence():ExpenseOccurrence{
   return {date:'',startTime:'',endTime:'',steps:[]}
@@ -12,18 +18,30 @@ function newStep():ActivityStep{
 }
 
 export default function ExpenseOccurrencesEditor({value,onChange,minDate,maxDate,idPrefix}:{value:ExpenseOccurrence[],onChange:(value:ExpenseOccurrence[])=>void,minDate?:string,maxDate?:string,idPrefix:string}){
+  const [pendingRemoval,setPendingRemoval]=useState<PendingRemoval|null>(null)
   const patch=(index:number,next:Partial<ExpenseOccurrence>)=>onChange(value.map((item,itemIndex)=>itemIndex===index?{...item,...next}:item))
   const patchStep=(occurrenceIndex:number,stepIndex:number,next:Partial<ActivityStep>)=>{
     const occurrence=value[occurrenceIndex]
     patch(occurrenceIndex,{steps:(occurrence.steps || []).map((step,index)=>index===stepIndex?{...step,...next}:step)})
   }
-  return <fieldset className="occurrences-fieldset">
+  function confirmRemoval(){
+    if(!pendingRemoval)return
+    if(pendingRemoval.kind==='occurrence'){
+      onChange(value.filter((_,index)=>index!==pendingRemoval.occurrenceIndex))
+    }else{
+      const occurrence=value[pendingRemoval.occurrenceIndex]
+      patch(pendingRemoval.occurrenceIndex,{steps:(occurrence.steps || []).filter((_,index)=>index!==pendingRemoval.stepIndex)})
+    }
+    setPendingRemoval(null)
+  }
+  return <>
+  <fieldset className="occurrences-fieldset">
     <legend>Agenda</legend>
     <div className="occurrences-list">
       {value.map((occurrence,index)=><div className="occurrence-card" key={occurrence.id || `new-${index}`}>
         <div className="occurrence-card-head">
           <div><b>Bloque principal</b><span>Día {index+1}</span></div>
-          <button type="button" className="icon-btn" onClick={()=>onChange(value.filter((_,itemIndex)=>itemIndex!==index))} title="Quitar día" aria-label={`Quitar día ${index+1}`}><Trash2 size={16}/></button>
+          <button type="button" className="icon-btn" onClick={()=>setPendingRemoval({kind:'occurrence',occurrenceIndex:index})} title="Quitar día" aria-label={`Quitar día ${index+1}`}><Trash2 size={16}/></button>
         </div>
         <div className="occurrence-row">
           <div className="field occurrence-date"><label htmlFor={`${idPrefix}-date-${index}`}>Fecha del bloque</label><input id={`${idPrefix}-date-${index}`} type="date" min={minDate} max={maxDate} value={occurrence.date} onChange={event=>patch(index,{date:event.target.value})}/></div>
@@ -34,7 +52,7 @@ export default function ExpenseOccurrencesEditor({value,onChange,minDate,maxDate
           <div className="steps-editor-head"><div><b>Subactividades del bloque</b><small>{(occurrence.steps || []).length?`${(occurrence.steps || []).length} cargada${(occurrence.steps || []).length===1?'':'s'}`:'Sin subactividades'}</small></div><button type="button" className="btn btn-secondary step-add" onClick={()=>patch(index,{steps:[...(occurrence.steps || []),newStep()]})}><Plus size={15}/> Agregar subactividad</button></div>
           {(occurrence.steps || []).map((step,stepIndex)=><fieldset className="step-editor-row" key={step.id || `new-${index}-${stepIndex}`}>
             <legend>Subactividad {stepIndex+1}</legend>
-            <button type="button" className="icon-btn step-remove" onClick={()=>patch(index,{steps:(occurrence.steps || []).filter((_,itemIndex)=>itemIndex!==stepIndex)})} title="Quitar subactividad" aria-label={`Quitar subactividad ${stepIndex+1}`}><Trash2 size={16}/></button>
+            <button type="button" className="icon-btn step-remove" onClick={()=>setPendingRemoval({kind:'step',occurrenceIndex:index,stepIndex})} title="Quitar subactividad" aria-label={`Quitar subactividad ${stepIndex+1}`}><Trash2 size={16}/></button>
             <div className="field step-title"><label htmlFor={`${idPrefix}-step-title-${index}-${stepIndex}`}>Nombre de la subactividad</label><input id={`${idPrefix}-step-title-${index}-${stepIndex}`} value={step.title} onChange={event=>patchStep(index,stepIndex,{title:event.target.value})} placeholder="Museo, plaza, visita..." required/></div>
             <div className="field"><label htmlFor={`${idPrefix}-step-start-${index}-${stepIndex}`}>Desde</label><input id={`${idPrefix}-step-start-${index}-${stepIndex}`} type="time" value={step.startTime || ''} onChange={event=>patchStep(index,stepIndex,{startTime:event.target.value})}/></div>
             <div className="field"><label htmlFor={`${idPrefix}-step-end-${index}-${stepIndex}`}>Hasta</label><input id={`${idPrefix}-step-end-${index}-${stepIndex}`} type="time" value={step.endTime || ''} onChange={event=>patchStep(index,stepIndex,{endTime:event.target.value})}/></div>
@@ -50,4 +68,16 @@ export default function ExpenseOccurrencesEditor({value,onChange,minDate,maxDate
     <button type="button" className="btn btn-secondary occurrence-add" onClick={()=>onChange([...value,newOccurrence()])}><Plus size={16}/> Agregar bloque a la agenda</button>
     {!value.length&&<small className="field-help">Sin bloques en la agenda</small>}
   </fieldset>
+  {pendingRemoval&&<ConfirmDialog
+    title={pendingRemoval.kind==='occurrence'?'Quitar bloque':'Quitar subactividad'}
+    confirmLabel="Quitar"
+    confirmIcon={<Trash2 size={16}/>}
+    onClose={()=>setPendingRemoval(null)}
+    onConfirm={confirmRemoval}
+  >
+    {pendingRemoval.kind==='occurrence'
+      ?<>Se quitará este bloque de la agenda y todas sus subactividades. El cambio se aplicará al guardar el formulario.</>
+      :<>Se quitará esta subactividad del bloque. El cambio se aplicará al guardar el formulario.</>}
+  </ConfirmDialog>}
+  </>
 }

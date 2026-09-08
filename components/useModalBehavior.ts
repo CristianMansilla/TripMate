@@ -13,6 +13,8 @@ export function useModalBehavior<T extends HTMLElement=HTMLDivElement>(onClose:(
     const dialog=dialogRef.current
     const focusable=()=>Array.from(dialog?.querySelectorAll<HTMLElement>(focusableSelector) || [])
     const handleKeyDown=(event:KeyboardEvent)=>{
+      const openDialogs=Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]'))
+      if(openDialogs.at(-1)!==dialog)return
       if(event.key==='Escape')onClose()
       if(event.key!=='Tab')return
       const elements=focusable()

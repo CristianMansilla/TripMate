@@ -22,9 +22,17 @@ export default function DashboardClient(){
   const [loading,setLoading]=useState(hasSupabaseEnv())
   const [connected,setConnected]=useState(false)
   const [error,setError]=useState('')
+  const [success,setSuccess]=useState('')
   const [reloadKey,setReloadKey]=useState(0)
   const [showNew,setShowNew]=useState(false)
   const router=useRouter()
+
+  useEffect(()=>{
+    const message=sessionStorage.getItem('tripmate-success')
+    if(!message)return
+    sessionStorage.removeItem('tripmate-success')
+    setSuccess(message)
+  },[])
 
   useEffect(()=>{
     let alive=true
@@ -80,6 +88,7 @@ export default function DashboardClient(){
       const trip:Trip={...input,id,status:'planning',memberNames:['Demo'],role:'owner'}
       setTrips(c=>[trip,...c])
       localStorage.setItem(`tripmate-demo:${id}`,JSON.stringify({trip,acts:[],exp:[],res:[],pack:[]}))
+      sessionStorage.setItem('tripmate-success','Viaje creado.')
       router.push(`/trip/${id}`)
       return
     }
@@ -93,6 +102,7 @@ export default function DashboardClient(){
       p_traveler_count:input.travelerCount,
     })
     if(error)throw error
+    sessionStorage.setItem('tripmate-success','Viaje creado.')
     router.push(`/trip/${data}`)
   }
 
@@ -109,6 +119,7 @@ export default function DashboardClient(){
       </div>
 
       <Snackbar message={error} tone="error" onClose={()=>setError('')} actionLabel="Reintentar" onAction={()=>{setError('');setLoading(true);setReloadKey(key=>key+1)}} duration={0}/>
+      <Snackbar message={success} tone="success" onClose={()=>setSuccess('')}/>
       {loading?<div className="grid-trips skeleton-grid" aria-busy="true" aria-label="Cargando tus viajes">{[0,1,2].map(item=><div className="trip-card skeleton-card" key={item}><div className="skeleton-block skeleton-cover"/><div className="trip-body"><div className="skeleton-line wide"/><div className="skeleton-line"/></div></div>)}</div>:trips.length===0?<div className="empty"><h3>Todavía no tenés viajes</h3><p>Creá el primero o abrí un enlace de invitación para sumarte a uno compartido.</p><div className="empty-actions"><button className="btn btn-primary" onClick={()=>setShowNew(true)}>Crear mi primer viaje</button></div></div>:
       <div className="grid-trips">
         {trips.map((trip)=><Link className="trip-card" href={`/trip/${trip.id}`} key={trip.id}>

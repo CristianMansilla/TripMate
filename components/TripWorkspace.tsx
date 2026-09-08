@@ -190,8 +190,21 @@ export default function TripWorkspace({tripId}:{tripId:string}){
   const [savingTravelerCount,setSavingTravelerCount]=useState(false)
   const [loading,setLoading]=useState(true)
   const [error,setError]=useState('')
+  const [success,setSuccess]=useState('')
+
+  function showSuccess(message:string){
+    setError('')
+    setSuccess(message)
+  }
 
   const storageKey=`tripmate-demo:${tripId}`
+
+  useEffect(()=>{
+    const message=sessionStorage.getItem('tripmate-success')
+    if(!message)return
+    sessionStorage.removeItem('tripmate-success')
+    setSuccess(message)
+  },[])
 
   async function loadConnectedData(silent=false){
     const supabase=createClient()
@@ -410,6 +423,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     if(error){setError(userFacingError(error));await loadConnectedData(true);return}
     await loadConnectedData(true)
     await logChange(trip.id,'expense',id,'updated',`Se actualizó “${next.title}” a ${money(next.amount,trip.currency)}.`)
+    showSuccess('Importe guardado.')
   }
   async function commitExpenseAmount(expense:Expense){
     const raw=expenseAmountDrafts[expense.id]
@@ -434,6 +448,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       setActs(current=>[...current.filter(activity=>activity.expenseId!==next.id && activity.id!==next.activityId),...occurrenceActivities])
       setExp(current=>current.map(item=>item.id===next.id?{...next,activityId:occurrenceActivities[0]?.id || null,occurrences:occurrenceActivities.map(activity=>({id:activity.id,date:activity.date,startTime:activity.startTime,endTime:activity.endTime,steps:activity.steps || []}))}:item))
       setEditingExpense(null)
+      showSuccess('Gasto guardado.')
       return
     }
     const {error}=await supabase.rpc('save_expense_plan_v2',expenseRpcPayload(next))
@@ -441,6 +456,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     await loadConnectedData(true)
     setEditingExpense(null)
     await logChange(trip.id,'expense',next.id,'updated',`Se actualizó el gasto “${next.title}”.`)
+    showSuccess('Gasto guardado.')
   }
 
   async function confirmDeleteExpense(){
@@ -451,6 +467,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       setExpenseToDelete(null)
       setExp(current=>current.filter(e=>e.id!==expense.id))
       setActs(current=>current.filter(activity=>activity.expenseId!==expense.id && activity.id!==expense.activityId))
+      showSuccess('Gasto eliminado.')
       return
     }
     const {error}=await supabase.rpc('delete_expense_plan',{p_expense_id:expense.id,p_trip_id:trip.id})
@@ -458,6 +475,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setExpenseToDelete(null)
     await loadConnectedData(true)
     await logChange(trip.id,'expense',expense.id,'deleted',`Se eliminó el gasto “${expense.title}”.`)
+    showSuccess('Gasto eliminado.')
   }
 
   async function toggleExpenseIncluded(id:string){
@@ -486,23 +504,26 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     if(!supabase){
       setPack(current=>current.map(p=>p.id===next.id?next:p))
       setEditingPacking(null)
+      showSuccess('Ítem guardado.')
       return
     }
     const {error}=await supabase.from('packing_items').update({label:next.label,category:next.category}).eq('id',next.id)
     if(error)throw new Error(userFacingError(error,'No pudimos guardar el ítem. Intentá nuevamente.'))
     setPack(current=>current.map(p=>p.id===next.id?next:p))
     setEditingPacking(null)
+    showSuccess('Ítem guardado.')
   }
 
   async function confirmDeletePacking(){
     const item=packingToDelete
     if(!item || !canManagePacking)return
     const supabase=createClient()
-    if(!supabase){setPack(current=>current.filter(p=>p.id!==item.id));setPackingToDelete(null);return}
+    if(!supabase){setPack(current=>current.filter(p=>p.id!==item.id));setPackingToDelete(null);showSuccess('Ítem eliminado.');return}
     const {error}=await supabase.from('packing_items').delete().eq('id',item.id)
     if(error){setError(userFacingError(error));await loadConnectedData(true);return}
     setPackingToDelete(null)
     setPack(current=>current.filter(p=>p.id!==item.id))
+    showSuccess('Ítem eliminado.')
   }
 
   async function cycleReservation(id:string){
@@ -548,6 +569,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     if(!supabase){
       setRes(current=>current.map(item=>item.id===next.id?next:item))
       setEditingReservation(null)
+      showSuccess('Reserva guardada.')
       return
     }
     const {error}=await supabase.from('reservations').update({
@@ -558,6 +580,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setEditingReservation(null)
     await loadConnectedData(true)
     await logChange(trip.id,'reservation',next.id,'updated',`Se actualizó la reserva “${next.title}”.`)
+    showSuccess('Reserva guardada.')
   }
 
   async function confirmDeleteReservation(){
@@ -567,6 +590,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     if(!supabase){
       setRes(current=>current.filter(item=>item.id!==reservation.id))
       setReservationToDelete(null)
+      showSuccess('Reserva eliminada.')
       return
     }
     const {error}=await supabase.from('reservations').delete().eq('id',reservation.id).eq('trip_id',trip.id)
@@ -574,6 +598,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setReservationToDelete(null)
     await loadConnectedData(true)
     await logChange(trip.id,'reservation',reservation.id,'deleted',`Se eliminó la reserva “${reservation.title}”.`)
+    showSuccess('Reserva eliminada.')
   }
 
   async function savePlace(place:Place){
@@ -586,6 +611,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     if(!supabase){
       setPlaces(current=>current.map(item=>item.id===next.id?next:item))
       setEditingPlace(null)
+      showSuccess('Lugar guardado.')
       return
     }
     const {error}=await supabase.from('places').update({
@@ -596,6 +622,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setEditingPlace(null)
     await loadConnectedData(true)
     await logChange(trip.id,'place',next.id,'updated',`Se actualizó el lugar “${next.name}”.`)
+    showSuccess('Lugar guardado.')
   }
 
   async function confirmDeletePlace(){
@@ -605,6 +632,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     if(!supabase){
       setPlaces(current=>current.filter(item=>item.id!==place.id))
       setPlaceToDelete(null)
+      showSuccess('Lugar eliminado.')
       return
     }
     const {error}=await supabase.from('places').delete().eq('id',place.id).eq('trip_id',trip.id)
@@ -612,6 +640,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setPlaceToDelete(null)
     await loadConnectedData(true)
     await logChange(trip.id,'place',place.id,'deleted',`Se eliminó el lugar “${place.name}”.`)
+    showSuccess('Lugar eliminado.')
   }
 
   async function addQuick(payload:any){
@@ -623,7 +652,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
         item.activityId=occurrenceActivities[0]?.id || null
         item.occurrences=occurrenceActivities.map(activity=>({id:activity.id,date:activity.date,startTime:activity.startTime,endTime:activity.endTime,steps:activity.steps || []}))
         setActs(c=>[...c,...occurrenceActivities])
-        setExp(c=>[...c,item]);return
+        setExp(c=>[...c,item]);showSuccess('Gasto guardado.');return
       }
       const {data,error}=await supabase.rpc('save_expense_plan_v2',expenseRpcPayload(item))
       if(error)throw error
@@ -633,7 +662,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     if(addKind==='reservation'){
       const nextPosition=res.length?Math.max(...res.map(item=>item.position ?? 0))+1:0
       const item:Reservation={id:`r-${Date.now()}`,tripId:trip.id,title:payload.title,status:'pending',priority:payload.priority,dueDate:payload.dueDate||undefined,notes:payload.notes?.trim()||undefined,amount:payload.amount,position:nextPosition}
-      if(!supabase){setRes(c=>[...c,item]);return}
+      if(!supabase){setRes(c=>[...c,item]);showSuccess('Reserva guardada.');return}
       const {data,error}=await supabase.from('reservations').insert({trip_id:trip.id,title:item.title,status:'pending',priority:item.priority,due_date:item.dueDate||null,notes:item.notes||null,amount:item.amount??null,position:nextPosition}).select('*').single()
       if(error)throw error
       setRes(c=>[...c,mapReservation(data)])
@@ -641,7 +670,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     }
     if(addKind==='packing'){
       const item:PackingItem={id:`p-${Date.now()}`,tripId:trip.id,assignedToId:currentUserId,label:payload.title,assignedTo:'Personal',packed:false,category:payload.category||'General'}
-      if(!supabase){setPack(c=>[...c,item]);return}
+      if(!supabase){setPack(c=>[...c,item]);showSuccess('Ítem guardado.');return}
       const {data:{user}}=await supabase.auth.getUser()
       const {data,error}=await supabase.from('packing_items').insert({trip_id:trip.id,label:item.label,assigned_to:user?.id||null,assigned_label:null,packed:false,category:item.category,created_by:user?.id||null}).select('*').single()
       if(error)throw error
@@ -649,29 +678,31 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     }
     if(addKind==='place'){
       const item:Place={id:`pl-${Date.now()}`,tripId:trip.id,name:payload.title,category:payload.category||'General',address:payload.address||undefined,url:payload.url||undefined,notes:payload.notes||undefined,status:'saved',isBase:false}
-      if(!supabase){setPlaces(c=>[...c,item]);return}
+      if(!supabase){setPlaces(c=>[...c,item]);showSuccess('Lugar guardado.');return}
       const {data,error}=await supabase.from('places').insert({trip_id:trip.id,name:item.name,category:item.category,address:item.address||null,url:item.url||null,notes:item.notes||null,status:'saved',is_base:false}).select('*').single()
       if(error)throw error
       setPlaces(c=>[...c,mapPlace(data)])
       await logChange(trip.id,'place',data.id,'created',`Se agregó el lugar “${item.name}”.`)
     }
+    showSuccess(({expense:'Gasto guardado.',reservation:'Reserva guardada.',packing:'Ítem guardado.',place:'Lugar guardado.'} as const)[addKind!])
   }
 
   async function setBasePlace(place:Place){
     if(!canEdit)return
     const supabase=createClient()
-    if(!supabase){setPlaces(current=>current.map(p=>({...p,isBase:p.id===place.id})));return}
+    if(!supabase){setPlaces(current=>current.map(p=>({...p,isBase:p.id===place.id})));showSuccess('Base del viaje guardada.');return}
     const {error}=await supabase.rpc('set_trip_base_place',{p_place_id:place.id,p_trip_id:trip.id})
     if(error){setError(userFacingError(error));await loadConnectedData(true);return}
     await loadConnectedData(true)
     await logChange(trip.id,'place',place.id,'updated',`Se marcó “${place.name}” como base del viaje.`)
+    showSuccess('Base del viaje guardada.')
   }
 
   async function confirmRemoveMember(){
     const member=memberToRemove
     if(!member || trip.role!=='owner' || member.role==='owner')return
     const supabase=createClient()
-    if(!supabase){setMemberToRemove(null);return}
+    if(!supabase){setMemberToRemove(null);showSuccess('Integrante eliminado.');return}
     const {error}=await supabase
       .from('trip_members')
       .delete()
@@ -681,6 +712,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setMemberToRemove(null)
     await logChange(trip.id,'member',null,'removed',`Se expulsó a ${member.name} del viaje.`)
     await loadConnectedData(true)
+    showSuccess('Integrante eliminado.')
   }
 
   async function updateMemberRole(member:TripMember, role:TripMember['role']){
@@ -695,6 +727,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       .eq('user_id',member.id)
     if(error){setError(userFacingError(error));await loadConnectedData(true);return}
     await logChange(trip.id,'member',null,'updated',`${member.name} ahora tiene rol ${tripRoleLabel(role)}.`)
+    showSuccess('Rol guardado.')
   }
 
   async function updateTravelerCount(nextCount:number){
@@ -718,6 +751,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setSyncStatus('synced')
     setSavingTravelerCount(false)
     await logChange(trip.id,'trip',trip.id,'updated',`Se actualizó la cantidad de viajeros a ${next}.`)
+    showSuccess('Cantidad de viajeros guardada.')
   }
 
   if(loading)return <div className="shell"><AppBar/><main className="container workspace-skeleton" aria-busy="true" aria-label="Cargando viaje"><div className="skeleton-block skeleton-hero"/><div className="skeleton-block skeleton-tabs"/><div className="two-col"><div className="panel">{[0,1,2,3].map(item=><div className="skeleton-row" key={item}><div className="skeleton-line wide"/><div className="skeleton-line"/></div>)}</div><div className="panel"><div className="skeleton-line wide"/><div className="skeleton-block skeleton-summary"/></div></div></main></div>
@@ -726,6 +760,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     <AppBar/>
     <main className="container">
       <Snackbar message={error} tone="error" onClose={()=>setError('')}/>
+      <Snackbar message={success} tone="success" onClose={()=>setSuccess('')}/>
       <section className="hero">
         <div className="hero-head">
           <div>

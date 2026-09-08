@@ -208,15 +208,13 @@ Corregir: permitir a cualquier integrante gestionar sólo su valija, incluyendo 
 
 Evidencia: [UI de valija](../components/TripWorkspace.tsx#L822), [políticas](../supabase/schema.sql#L292).
 
-### 18. P2: demo e importación no siguen completamente el flujo actual
+### 18. P2: modo demo y plantillas
 
-Las semillas no incluyen `activityId`. La inferencia sólo se hace al cargar Supabase, de modo que el demo puede mostrar itinerario vacío y total cero. Crear o editar gastos en demo no crea/actualiza la actividad. En navegador, cambiar un gasto de $30.000 a -$10 mantuvo $30.000 en Itinerario.
+El contenido específico de Córdoba y su importador fueron retirados del código compartido después de asociar ese viaje a su usuario real. El modo demo ahora comienza vacío y permite crear viajes propios sin publicar información personal como ejemplo o plantilla.
 
-El dashboard no reconstruye los nuevos viajes demo desde almacenamiento al volver a entrar. La importación de Córdoba conserva importes y listas del modelo anterior, no guarda las asociaciones y puede quedar parcial si una tabla falla.
+Una futura importación de plantillas deberá reutilizar la lógica transaccional del flujo conectado, copiar vínculos explícitos y mantener cada copia aislada de su origen.
 
-Corregir: usar la misma lógica de dominio en demo y conectado, fixtures coherentes y una importación con vínculos explícitos. Esto no autoriza a volver a dividir los valores ya corregidos en tu base.
-
-Evidencia: [semillas](../lib/demo-data.ts#L54), [salida temprana en demo](../components/TripWorkspace.tsx#L383), [alta demo](../components/TripWorkspace.tsx#L532), [importación](../lib/import-cordoba.ts#L21).
+Evidencia: [datos demo vacíos](../lib/demo-data.ts), [alta demo](../components/TripWorkspace.tsx).
 
 ### 19. P2/P3: hay datos y controles que aparentan más de lo que hacen
 
@@ -325,6 +323,7 @@ Los mensajes de éxito deben ser breves y no bloquear. Los errores importantes d
 7. **Viaje editable:** cambiar nombre, destino y fechas; archivar viajes terminados. Avisar si un cambio de fechas deja actividades fuera del rango.
 8. **Navegación persistente:** reflejar la pestaña en la URL y conservar día/filtro al volver. Actualmente recargar devuelve a Resumen.
 9. **Interfaz más compacta:** reducir la cabecera y las sombras/bordes repetidos de pantallas de trabajo; mantener el contraste de días y la brújula. Probar nombres largos, muchos integrantes y zoom antes de ajustar tamaños globales.
+10. **Viajes desde plantillas opcionales:** al crear un viaje, ofrecer claramente `Empezar de cero` o elegir una plantilla genérica publicada para ese fin. La plantilla puede incluir valija, categorías de presupuesto, reservas sugeridas y actividades base. Al importar se deben copiar los registros al nuevo viaje, sin mantener vínculos vivos con la plantilla, para que cada integrante pueda adaptar o eliminar contenido sin afectar a otros viajes. Un viaje personal nunca debe aparecer como plantilla ni quedar disponible para otros usuarios salvo una publicación explícita y separada.
 
 ## Orden propuesto de versiones
 
@@ -334,7 +333,7 @@ Los mensajes de éxito deben ser breves y no bloquear. Los errores importantes d
 | v0.4, primera etapa | Guardados transaccionales, relaciones por ID, fechas, importes válidos, gastos generales y base del precio | Un guardado completo o ninguno; mismos datos tras recargar; total verificable con casos de servicio e individuales |
 | v0.4, segunda etapa | Edición/eliminación de reservas y lugares, orden estable, categorías, valija para lectores, errores y estados de guardado | Los flujos completos pueden corregirse desde la app; no hay pérdidas silenciosas ni doble envío |
 | v0.4, tercera etapa | Navegación móvil, diálogos accesibles, skeletons, revisión de precios y repeticiones básicas | 320/390 px y teclado móvil utilizables; cuatro fechas de viandas sin cobro duplicado |
-| v0.5 | Grupos de alternativas elegibles, exportación JSON/CSV e impresión, consulta offline de agenda, copiar valija, notas compartidas, reservas vinculadas | Utilidad probada durante el viaje; exportación/restauración ensayada y caché privado por usuario |
+| v0.5 | Grupos de alternativas elegibles, plantillas base opcionales, exportación JSON/CSV e impresión, consulta offline de agenda, copiar valija, notas compartidas y reservas vinculadas | El usuario puede empezar vacío o importar una copia editable; ningún viaje personal se publica automáticamente; utilidad probada durante el viaje; exportación/restauración ensayada y caché privado por usuario |
 | v0.6 o posterior | Adjuntos privados, avisos agrupados con preferencias, votaciones para grupos, reparto de gastos si existe necesidad | Demanda real y costos/límites evaluados antes de implementarlos |
 
 Las etapas son un orden de trabajo, no tres reescrituras. Para una v0.4 manejable, completar privacidad e integridad primero. Si las repeticiones hacen crecer demasiado el alcance, entregarlas en v0.4.1 después de estabilizar la relación canónica; no reemplazar pruebas y recuperación de errores por nuevas funciones.

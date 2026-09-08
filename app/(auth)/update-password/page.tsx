@@ -16,6 +16,7 @@ export default function UpdatePassword(){
     if(!supabase){setMessage('Supabase no está configurado.');return}
     const {error}=await supabase.auth.updateUser({password})
     if(error){setMessage(userFacingError(error,'No pudimos actualizar la contraseña. Intentá nuevamente.'));return}
+    sessionStorage.setItem('tripmate-success','Contraseña guardada.')
     router.replace('/dashboard')
     router.refresh()
   }
