@@ -79,14 +79,14 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
             <div className="expense-section-grid">
               <div className="field full"><label htmlFor="quick-title">Nombre de la actividad principal</label><input id="quick-title" value={title} onChange={e=>setTitle(e.target.value)} required/></div>
               <CategoryPicker label="Categoría principal" value={category} options={categoryOptions} onChange={setCategory} required/>
-              <div className="field"><label htmlFor="quick-amount">{amountBasis==='group'?'Importe total del servicio':'Importe por persona'}</label><input id="quick-amount" type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} required/></div>
-              <div className="field"><label htmlFor="quick-basis">Los importes corresponden a</label><select id="quick-basis" value={amountBasis} onChange={e=>setAmountBasis(e.target.value as 'per_person'|'group')}><option value="per_person">Cada persona</option><option value="group">Todo el grupo o servicio</option></select></div>
+              <div className="field"><label htmlFor="quick-amount">{amountBasis==='group'?'Costo principal del grupo':'Costo principal'}</label><input id="quick-amount" type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} required/></div>
+              <label className="toggle-field"><input type="checkbox" checked={amountBasis==='group'} onChange={e=>setAmountBasis(e.target.checked?'group':'per_person')}/><span><b>Precio para todo el grupo</b><small>Usalo sólo cuando el servicio tenga un único precio total.</small></span></label>
               <div className="field"><label htmlFor="quick-place">Lugar principal</label><input id="quick-place" value={place} onChange={e=>setPlace(e.target.value)} placeholder="Zona o punto de encuentro general"/></div>
             </div>
           </section>
           <section className="expense-form-section full" role="tabpanel" hidden={activeExpenseTab!=='itinerary'} aria-labelledby="quick-agenda-section">
             <div className="expense-section-head"><div><h3 id="quick-agenda-section">Itinerario y paradas</h3><small>Horario general y paradas opcionales de la actividad</small></div></div>
-            <ExpenseOccurrencesEditor idPrefix="quick-expense" value={occurrences} onChange={setOccurrences} minDate={minDate} maxDate={maxDate}/>
+            <ExpenseOccurrencesEditor idPrefix="quick-expense" value={occurrences} onChange={setOccurrences} minDate={minDate} maxDate={maxDate} amountBasis={amountBasis}/>
           </section>
           <section className="expense-form-section full" hidden={activeExpenseTab!=='main'} aria-labelledby="quick-details-section">
             <div className="expense-section-head"><h3 id="quick-details-section">Presupuesto y detalles</h3></div>
@@ -107,7 +107,7 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],mi
         {kind==='reservation'&&<>
           <div className="field"><label htmlFor="quick-priority">Prioridad</label><select id="quick-priority" value={priority} onChange={e=>setPriority(e.target.value)}><option value="high">Alta</option><option value="medium">Media</option><option value="low">Baja</option></select></div>
           <div className="field"><label htmlFor="quick-reservation-due">Fecha límite</label><input id="quick-reservation-due" type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}/></div>
-          <div className="field"><label htmlFor="quick-reservation-amount">Importe por persona (opcional)</label><input id="quick-reservation-amount" type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)}/></div>
+          <div className="field"><label htmlFor="quick-reservation-amount">Importe (opcional)</label><input id="quick-reservation-amount" type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)}/></div>
           <div className="field full"><label htmlFor="quick-reservation-notes">Notas</label><textarea id="quick-reservation-notes" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Condiciones, contacto o recordatorios"/></div>
         </>}
         {kind==='packing'&&<CategoryPicker className="full" value={category} options={categoryOptions} onChange={setCategory}/>}

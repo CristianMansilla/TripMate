@@ -61,14 +61,14 @@ export default function ExpenseModal({expense,activities,onClose,onSave,onDelete
           <div className="expense-section-grid">
             <div className="field full"><label htmlFor="expense-title">Nombre de la actividad principal</label><input id="expense-title" value={draft.title} onChange={e=>patch('title',e.target.value)} required/></div>
             <CategoryPicker label="Categoría principal" value={draft.category} options={categoryOptions} onChange={value=>patch('category',value)} required/>
-            <div className="field"><label htmlFor="expense-amount">{draft.amountBasis==='group'?'Importe total del servicio':'Importe por persona'}</label><input id="expense-amount" type="number" min="0" step="0.01" value={Number.isNaN(draft.amount)?'':draft.amount} onChange={e=>patch('amount',e.target.value===''?Number.NaN:Number(e.target.value))} required/></div>
-            <div className="field"><label htmlFor="expense-basis">Los importes corresponden a</label><select id="expense-basis" value={draft.amountBasis || 'per_person'} onChange={e=>patch('amountBasis',e.target.value)}><option value="per_person">Cada persona</option><option value="group">Todo el grupo o servicio</option></select></div>
+            <div className="field"><label htmlFor="expense-amount">{draft.amountBasis==='group'?'Costo principal del grupo':'Costo principal'}</label><input id="expense-amount" type="number" min="0" step="0.01" value={Number.isNaN(draft.amount)?'':draft.amount} onChange={e=>patch('amount',e.target.value===''?Number.NaN:Number(e.target.value))} required/></div>
+            <label className="toggle-field"><input type="checkbox" checked={draft.amountBasis==='group'} onChange={e=>patch('amountBasis',e.target.checked?'group':'per_person')}/><span><b>Precio para todo el grupo</b><small>Usalo sólo cuando el servicio tenga un único precio total.</small></span></label>
             <div className="field"><label htmlFor="expense-place">Lugar principal</label><input id="expense-place" value={draft.place || ''} onChange={e=>patch('place',e.target.value)} placeholder="Zona o punto de encuentro general"/></div>
           </div>
         </section>
         <section className="expense-form-section full" role="tabpanel" hidden={activeTab!=='itinerary'} aria-labelledby="expense-agenda-section">
           <div className="expense-section-head"><div><h3 id="expense-agenda-section">Itinerario y paradas</h3><small>Horario general y paradas opcionales de la actividad</small></div></div>
-          <ExpenseOccurrencesEditor idPrefix="expense" value={draft.occurrences || []} onChange={value=>patch('occurrences',value)} minDate={minDate} maxDate={maxDate}/>
+          <ExpenseOccurrencesEditor idPrefix="expense" value={draft.occurrences || []} onChange={value=>patch('occurrences',value)} minDate={minDate} maxDate={maxDate} amountBasis={draft.amountBasis || 'per_person'}/>
         </section>
         <section className="expense-form-section full" hidden={activeTab!=='main'} aria-labelledby="expense-details-section">
           <div className="expense-section-head"><h3 id="expense-details-section">Presupuesto y detalles</h3></div>

@@ -17,7 +17,7 @@ function newStep():ActivityStep{
   return {title:'',amount:0,startTime:'',endTime:'',place:'',notes:'',optional:false}
 }
 
-export default function ExpenseOccurrencesEditor({value,onChange,minDate,maxDate,idPrefix}:{value:ExpenseOccurrence[],onChange:(value:ExpenseOccurrence[])=>void,minDate?:string,maxDate?:string,idPrefix:string}){
+export default function ExpenseOccurrencesEditor({value,onChange,minDate,maxDate,idPrefix,amountBasis}:{value:ExpenseOccurrence[],onChange:(value:ExpenseOccurrence[])=>void,minDate?:string,maxDate?:string,idPrefix:string,amountBasis:'per_person'|'group'}){
   const [pendingRemoval,setPendingRemoval]=useState<PendingRemoval|null>(null)
   const patch=(index:number,next:Partial<ExpenseOccurrence>)=>onChange(value.map((item,itemIndex)=>itemIndex===index?{...item,...next}:item))
   const patchStep=(occurrenceIndex:number,stepIndex:number,next:Partial<ActivityStep>)=>{
@@ -51,17 +51,17 @@ export default function ExpenseOccurrencesEditor({value,onChange,minDate,maxDate
         <div className="steps-editor">
           <div className="steps-editor-head"><div><b>Paradas de la actividad</b><small>{(occurrence.steps || []).length?`${(occurrence.steps || []).length} cargada${(occurrence.steps || []).length===1?'':'s'}`:'Sin paradas'}</small></div><button type="button" className="btn btn-secondary step-add" onClick={()=>patch(index,{steps:[...(occurrence.steps || []),newStep()]})}><Plus size={15}/> Agregar parada</button></div>
           {(occurrence.steps || []).map((step,stepIndex)=><fieldset className="step-editor-row" key={step.id || `new-${index}-${stepIndex}`}>
-            <legend>Subactividad {stepIndex+1}</legend>
+            <legend>Parada {stepIndex+1}</legend>
             <button type="button" className="icon-btn step-remove" onClick={()=>setPendingRemoval({kind:'step',occurrenceIndex:index,stepIndex})} title="Quitar parada" aria-label={`Quitar parada ${stepIndex+1}`}><Trash2 size={16}/></button>
             <div className="field step-title"><label htmlFor={`${idPrefix}-step-title-${index}-${stepIndex}`}>Nombre de la parada</label><input id={`${idPrefix}-step-title-${index}-${stepIndex}`} value={step.title} onChange={event=>patchStep(index,stepIndex,{title:event.target.value})} placeholder="Museo, plaza, visita..." required/></div>
             <div className="field"><label htmlFor={`${idPrefix}-step-start-${index}-${stepIndex}`}>Desde</label><input id={`${idPrefix}-step-start-${index}-${stepIndex}`} type="time" value={step.startTime || ''} onChange={event=>patchStep(index,stepIndex,{startTime:event.target.value})}/></div>
             <div className="field"><label htmlFor={`${idPrefix}-step-end-${index}-${stepIndex}`}>Hasta</label><input id={`${idPrefix}-step-end-${index}-${stepIndex}`} type="time" value={step.endTime || ''} onChange={event=>patchStep(index,stepIndex,{endTime:event.target.value})}/></div>
-            <div className="field step-amount"><label htmlFor={`${idPrefix}-step-amount-${index}-${stepIndex}`}>Importe de esta parada</label><input id={`${idPrefix}-step-amount-${index}-${stepIndex}`} type="number" min="0" step="0.01" value={Number.isNaN(step.amount)?'':step.amount} onChange={event=>patchStep(index,stepIndex,{amount:event.target.value===''?Number.NaN:Number(event.target.value)})}/></div>
+            <div className="field step-amount"><label htmlFor={`${idPrefix}-step-amount-${index}-${stepIndex}`}>{amountBasis==='group'?'Costo grupal de la parada':'Costo de la parada'}</label><input id={`${idPrefix}-step-amount-${index}-${stepIndex}`} type="number" min="0" step="0.01" value={Number.isNaN(step.amount)?'':step.amount} onChange={event=>patchStep(index,stepIndex,{amount:event.target.value===''?Number.NaN:Number(event.target.value)})}/></div>
             <div className="field step-place"><label htmlFor={`${idPrefix}-step-place-${index}-${stepIndex}`}>Lugar de esta parada</label><input id={`${idPrefix}-step-place-${index}-${stepIndex}`} value={step.place || ''} onChange={event=>patchStep(index,stepIndex,{place:event.target.value})} placeholder="Dirección o punto de encuentro"/></div>
             <div className="field step-notes"><label htmlFor={`${idPrefix}-step-notes-${index}-${stepIndex}`}>Detalle</label><input id={`${idPrefix}-step-notes-${index}-${stepIndex}`} value={step.notes || ''} onChange={event=>patchStep(index,stepIndex,{notes:event.target.value})} placeholder="Entrada, indicaciones, recordatorio..."/></div>
             <label className="step-optional"><input type="checkbox" checked={Boolean(step.optional)} onChange={event=>patchStep(index,stepIndex,{optional:event.target.checked})}/> Opcional</label>
           </fieldset>)}
-          {(occurrence.steps || []).length>0&&<div className="occurrence-steps-total"><span>Subtotal informativo de paradas</span><strong>{(occurrence.steps || []).reduce((sum,step)=>sum+(Number.isFinite(step.amount)?step.amount:0),0).toLocaleString('es-AR',{maximumFractionDigits:2})}</strong></div>}
+          {(occurrence.steps || []).length>0&&<div className="occurrence-steps-total"><span>{amountBasis==='group'?'Subtotal informativo del grupo':'Subtotal informativo'}</span><strong>{(occurrence.steps || []).reduce((sum,step)=>sum+(Number.isFinite(step.amount)?step.amount:0),0).toLocaleString('es-AR',{maximumFractionDigits:2})}</strong></div>}
         </div>
       </div>)}
     </div>

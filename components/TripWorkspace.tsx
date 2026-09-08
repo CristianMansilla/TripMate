@@ -785,7 +785,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
           </div>
         </div>
         <div className="stats">
-          <div className="stat"><span>Por persona estimado</span><b>{money(perPersonBudget,trip.currency)}</b></div>
+          <div className="stat"><span>Estimado</span><b>{money(perPersonBudget,trip.currency)}</b></div>
           <div className="stat"><span>Total grupo</span><b>{money(groupBudget,trip.currency)}</b></div>
           <div className="stat"><span>Reservas pendientes</span><b>{pendingReservations}</b></div>
           <div className="stat"><span>Valija lista</span><b>{pctPacked}%</b></div>
@@ -810,7 +810,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
         <aside style={{display:'grid',gap:18}}>
           <section className="panel">
             <div className="panel-head"><h3>Presupuesto</h3><ReceiptText size={18} className="muted"/></div>
-            <div className="summary-money">{money(perPersonBudget,trip.currency)}</div><div className="money-sub">por persona · {money(groupBudget,trip.currency)} total grupo</div>
+            <div className="summary-money">{money(perPersonBudget,trip.currency)}</div><div className="money-sub">{money(groupBudget,trip.currency)} total grupo</div>
             {groupedExpenses.slice(0,4).map(([cat,amount])=><div className="bar-row" key={cat}><div className="bar-label"><span>{cat}</span><b>{money(amount,trip.currency)}</b></div><div className="bar"><i style={{width:`${Math.max(8,(amount/maxExpense)*100)}%`}}/></div></div>)}
           </section>
           {isOwner&&<section className="panel">
@@ -836,14 +836,14 @@ export default function TripWorkspace({tripId}:{tripId:string}){
                   <div className="activity-step-content"><strong>{step.title}</strong>{step.optional&&<span className="chip optional">Opcional</span>}{(step.place||step.notes)&&<small>{[step.place,step.notes].filter(Boolean).join(' · ')}</small>}</div>
                   <div className="activity-step-price">{money(step.amount,trip.currency)}</div>
                 </div>)}
-                <div className="activity-steps-total"><span>Total de las paradas</span><strong>{money(a.steps!.reduce((sum,step)=>sum+step.amount,0),trip.currency)}</strong></div>
+                <div className="activity-steps-total"><span>{expenseByActivityId.get(a.id)?.amountBasis==='group'?'Subtotal informativo del grupo':'Subtotal informativo'}</span><strong>{money(a.steps!.reduce((sum,step)=>sum+step.amount,0),trip.currency)}</strong></div>
               </div>}
               {a.optional&&alternativesFor(a).length>0&&<div className="alternatives-box">
                 <span>Alternativas para este horario</span>
                 <div>{alternativesFor(a).slice(0,3).map(alt=><span className="alternative-pill" key={alt.id}>{alt.startTime||'Sin hora'} · {alt.title}</span>)}</div>
               </div>}
             </div>
-            <div className="activity-side">{!a.steps?.length&&<div className="price">{money(a.actualCost ?? a.estimatedCost,trip.currency)}{expenseByActivityId.get(a.id)?.occurrencePricing==='total'&&(expenseByActivityId.get(a.id)?.occurrences?.length || 0)>1&&<small> total del gasto</small>}</div>}{canEdit&&expenseByActivityId.get(a.id)&&<button className="icon-btn" title={`Editar ${a.title} en Presupuesto`} aria-label={`Editar ${a.title} en Presupuesto`} onClick={()=>setEditingExpense(expenseByActivityId.get(a.id)!)}><Edit3 size={16}/></button>}</div>
+            <div className="activity-side"><div className="price">{money(a.actualCost ?? a.estimatedCost,trip.currency)}{expenseByActivityId.get(a.id)&&<small>{[expenseByActivityId.get(a.id)?.occurrencePricing==='total'&&(expenseByActivityId.get(a.id)?.occurrences?.length || 0)>1?'total del gasto':'',expenseByActivityId.get(a.id)?.amountBasis==='group'?'grupo':''].filter(Boolean).join(' · ')}</small>}</div>{canEdit&&expenseByActivityId.get(a.id)&&<button className="icon-btn" title={`Editar ${a.title} en Presupuesto`} aria-label={`Editar ${a.title} en Presupuesto`} onClick={()=>setEditingExpense(expenseByActivityId.get(a.id)!)}><Edit3 size={16}/></button>}</div>
           </div>)}
         </div>)}
         {!dates.length&&<div className="empty"><h3>Itinerario vacío</h3><p>Agregá o editá un gasto en Presupuesto y asignale un día para que aparezca acá.</p>{canEdit&&<button className="btn btn-primary" onClick={()=>setTab('Presupuesto')}>Ir a Presupuesto</button>}</div>}
@@ -851,16 +851,16 @@ export default function TripWorkspace({tripId}:{tripId:string}){
 
       {tab==='Presupuesto' && <div className="two-col">
         <section className="panel">
-          <div className="panel-head"><div><h3>Presupuesto editable</h3><div className="muted subcopy">Cada gasto indica si el importe es por persona o por todo el grupo.</div></div>{canEdit&&<button className="btn btn-primary" onClick={()=>setAddKind('expense')}><Plus size={16}/> Gasto</button>}</div>
+          <div className="panel-head"><div><h3>Presupuesto editable</h3><div className="muted subcopy">Los precios grupales se identifican de forma explícita.</div></div>{canEdit&&<button className="btn btn-primary" onClick={()=>setAddKind('expense')}><Plus size={16}/> Gasto</button>}</div>
           {expenseCategoryFilter&&<div className="filter-notice">Mostrando gastos de <b>{expenseCategoryFilter}</b><button onClick={()=>setExpenseCategoryFilter(null)}>Ver todos</button></div>}
           <div className="budget-days">{expensesByDay.map(([date,items])=><div className="budget-day" key={date}>
             <div className="day-heading budget-day-heading"><strong>{date==='varios-dias'?'Varios días':date==='sin-fecha'?'Sin día en itinerario':dayLabel(date)}</strong><span>{items.length} {items.length===1?'gasto':'gastos'}</span></div>
-            <div className="list">{items.map(e=>{const status=expenseStatusLabel(e.status);const linked=isExpenseLinked(e);const included=isExpenseIncluded(e);const linkedActivities=activitiesForExpense(e).sort(sortOccurrenceActivities);const activity=linkedActivities[0];const stepCount=linkedActivities.reduce((total,item)=>total+(item.steps?.length??0),0);const hasSteps=stepCount>0;const occurrenceLabel=linkedActivities.length>1?`${linkedActivities.length} días · ${e.occurrencePricing==='per_occurrence'?'importe por día':'importe total'}`:'';const occurrenceDates=linkedActivities.length>1?linkedActivities.map(item=>occurrenceDateLabel(item.date)).join(', '):'';return <div className={`list-row budget-line ${!included?'excluded':''}`} key={e.id} style={{alignItems:'center'}}><div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className={`budget-check ${included?'on':''}`} disabled={!canEdit} onClick={()=>toggleExpenseIncluded(e.id)} aria-label={`${included?'Excluir':'Incluir'} ${e.title}`} aria-pressed={included}>{included?'✓':''}</button><div><div className="budget-title-row"><strong>{e.title}</strong>{hasSteps&&<span className="budget-structure-badge" title="Esta actividad incluye paradas"><ListTree size={13}/>{stepCount} {stepCount===1?'parada':'paradas'}</span>}</div><small>{[occurrenceDates,linkedActivities.length===1?activity?.startTime:'',e.place||activity?.place,e.category,e.amountBasis==='group'?'total grupo':'por persona',occurrenceLabel,status,!linked?'sin día en itinerario':!included?'fuera del total':''].filter(Boolean).join(' · ')}</small></div></div><div className="budget-actions"><div className="money-input"><span>{trip.currency}</span><input aria-label={`Costo ${e.title}`} disabled={!canEdit} min="0" step="0.01" type="number" value={expenseAmountDrafts[e.id] ?? String(e.amount)} onChange={ev=>setExpenseAmountDrafts(current=>({...current,[e.id]:ev.target.value}))} onBlur={()=>commitExpenseAmount(e)}/></div>{canEdit&&<><button className="icon-btn" title={`Editar ${e.title}`} aria-label={`Editar ${e.title}`} onClick={()=>setEditingExpense(e)}><Edit3 size={16}/></button><button className="icon-btn" title={`Eliminar ${e.title}`} aria-label={`Eliminar ${e.title}`} onClick={()=>setExpenseToDelete(e)}><Trash2 size={16}/></button></>}</div></div>})}</div>
+            <div className="list">{items.map(e=>{const status=expenseStatusLabel(e.status);const linked=isExpenseLinked(e);const included=isExpenseIncluded(e);const linkedActivities=activitiesForExpense(e).sort(sortOccurrenceActivities);const activity=linkedActivities[0];const stepCount=linkedActivities.reduce((total,item)=>total+(item.steps?.length??0),0);const hasSteps=stepCount>0;const occurrenceLabel=linkedActivities.length>1?`${linkedActivities.length} días · ${e.occurrencePricing==='per_occurrence'?'importe por día':'importe total'}`:'';const occurrenceDates=linkedActivities.length>1?linkedActivities.map(item=>occurrenceDateLabel(item.date)).join(', '):'';return <div className={`list-row budget-line ${!included?'excluded':''}`} key={e.id} style={{alignItems:'center'}}><div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className={`budget-check ${included?'on':''}`} disabled={!canEdit} onClick={()=>toggleExpenseIncluded(e.id)} aria-label={`${included?'Excluir':'Incluir'} ${e.title}`} aria-pressed={included}>{included?'✓':''}</button><div><div className="budget-title-row"><strong>{e.title}</strong>{hasSteps&&<span className="budget-structure-badge" title="Esta actividad incluye paradas"><ListTree size={13}/>{stepCount} {stepCount===1?'parada':'paradas'}</span>}</div><small>{[occurrenceDates,linkedActivities.length===1?activity?.startTime:'',e.place||activity?.place,e.category,e.amountBasis==='group'?'total grupo':'',occurrenceLabel,status,!linked?'sin día en itinerario':!included?'fuera del total':''].filter(Boolean).join(' · ')}</small></div></div><div className="budget-actions"><div className="money-input"><span>{trip.currency}</span><input aria-label={`Costo ${e.title}`} disabled={!canEdit} min="0" step="0.01" type="number" value={expenseAmountDrafts[e.id] ?? String(e.amount)} onChange={ev=>setExpenseAmountDrafts(current=>({...current,[e.id]:ev.target.value}))} onBlur={()=>commitExpenseAmount(e)}/></div>{canEdit&&<><button className="icon-btn" title={`Editar ${e.title}`} aria-label={`Editar ${e.title}`} onClick={()=>setEditingExpense(e)}><Edit3 size={16}/></button><button className="icon-btn" title={`Eliminar ${e.title}`} aria-label={`Eliminar ${e.title}`} onClick={()=>setExpenseToDelete(e)}><Trash2 size={16}/></button></>}</div></div>})}</div>
           </div>)}</div>
         </section>
         <aside className="panel">
-          <h3>Por persona</h3><div className="summary-money">{money(fixedBudget,trip.currency)}</div><div className="money-sub">{money(fixedBudget*travellers,trip.currency)} total grupo · {travellers} viajeros</div>
-          <div className="budget-buffer"><b>+15% recomendado:</b><br/>{money(fixedBudget*1.15,trip.currency)} por persona para absorber cambios e imprevistos.</div>
+          <h3>Estimado</h3><div className="summary-money">{money(fixedBudget,trip.currency)}</div><div className="money-sub">{money(fixedBudget*travellers,trip.currency)} total grupo · {travellers} viajeros</div>
+          <div className="budget-buffer"><b>+15% recomendado:</b><br/>{money(fixedBudget*1.15,trip.currency)} para absorber cambios e imprevistos.</div>
           {groupedExpenses.map(([cat,amount])=><button className={`bar-row bar-filter ${expenseCategoryFilter===cat?'active':''}`} key={cat} onClick={()=>setExpenseCategoryFilter(current=>current===cat?null:cat)}><div className="bar-label"><span>{cat}</span><b>{money(amount,trip.currency)}</b></div><div className="bar"><i style={{width:`${Math.max(8,(amount/maxExpense)*100)}%`}}/></div></button>)}
         </aside>
       </div>}
@@ -916,7 +916,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
           {isOwner&&<button className="btn btn-primary" onClick={()=>setInviteOpen(true)}><Share2 size={16}/> Invitar</button>}
         </div>
         <div className="traveler-setting">
-          <div><strong>Personas que viajan</strong><small>Se usa para calcular los importes por persona y el total del grupo.</small></div>
+          <div><strong>Personas que viajan</strong><small>Se usa para calcular automáticamente el total del grupo.</small></div>
           <div className="traveler-stepper" aria-label="Cantidad de personas que viajan">
             {isOwner&&<button className="icon-btn" disabled={savingTravelerCount||travellers<=1} onClick={()=>updateTravelerCount(travellers-1)} title="Quitar viajero" aria-label="Quitar una persona"><Minus size={17}/></button>}
             <output aria-live="polite">{travellers}</output>

@@ -115,6 +115,7 @@ button { cursor: pointer; }
 .chip.optional { background:var(--amber-soft); color:var(--amber); }
 .chip.category-chip { background:#eef1f6; color:#4d5870; }
 .price { font-weight:850; white-space:nowrap; }
+.price small { margin-left:4px; }
 .summary-money { font-size:34px; font-weight:900; letter-spacing:-.04em; margin:8px 0 4px; }
 .money-sub { color:var(--muted); font-size:13px; }
 .bar-row { margin-top:15px; }
