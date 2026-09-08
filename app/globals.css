@@ -114,6 +114,7 @@ button { cursor: pointer; }
 .chip.status-done { background:#e8f7f1; color:#0f7654; }
 .chip.optional { background:var(--amber-soft); color:var(--amber); }
 .chip.category-chip { background:#eef1f6; color:#4d5870; }
+.chip.recurrence-chip { display:inline-flex; align-items:center; gap:4px; background:var(--brand-soft); color:#5143c3; }
 .price { font-weight:850; white-space:nowrap; }
 .price small { margin-left:4px; }
 .summary-money { font-size:34px; font-weight:900; letter-spacing:-.04em; margin:8px 0 4px; }

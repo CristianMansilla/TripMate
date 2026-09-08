@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AppBar } from './AppBar'
 import ConfirmDialog from './ConfirmDialog'
+import ActivityModal, { ActivitySaveInput } from './ActivityModal'
 import ExpenseModal from './ExpenseModal'
 import Snackbar from './Snackbar'
 import InviteModal from './InviteModal'
@@ -15,7 +16,7 @@ import { money } from '@/lib/money'
 import { createClient } from '@/lib/supabase-client'
 import { mapActivity, mapActivityStep, mapExpense, mapPacking, mapPlace, mapReservation, mapTrip } from '@/lib/db-mappers'
 import { logChange } from '@/lib/change-log'
-import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Edit3, ExternalLink, History, Link2, ListTree, Luggage, Map as MapIcon, MapPin, Menu, Minus, Navigation, Plus, ReceiptText, Share2, Star, Trash2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Edit3, ExternalLink, History, Link2, ListTree, Luggage, Map as MapIcon, MapPin, Menu, Minus, Navigation, Plus, ReceiptText, Repeat2, Share2, Star, Trash2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { changeActionLabel, tripRoleLabel, userFacingError } from '@/lib/ui-text'
 
@@ -170,10 +171,13 @@ export default function TripWorkspace({tripId}:{tripId:string}){
   const [members,setMembers]=useState<TripMember[]>([])
   const [changes,setChanges]=useState<ChangeLogItem[]>([])
   const [editingExpense,setEditingExpense]=useState<Expense|null>(null)
+  const [editingActivity,setEditingActivity]=useState<Activity|null>(null)
+  const [creatingActivity,setCreatingActivity]=useState(false)
   const [editingPacking,setEditingPacking]=useState<PackingItem|null>(null)
   const [editingReservation,setEditingReservation]=useState<Reservation|null>(null)
   const [editingPlace,setEditingPlace]=useState<Place|null>(null)
   const [expenseToDelete,setExpenseToDelete]=useState<Expense|null>(null)
+  const [activityToDelete,setActivityToDelete]=useState<Activity|null>(null)
   const [packingToDelete,setPackingToDelete]=useState<PackingItem|null>(null)
   const [reservationToDelete,setReservationToDelete]=useState<Reservation|null>(null)
   const [placeToDelete,setPlaceToDelete]=useState<Place|null>(null)
@@ -370,6 +374,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     return result
   },[exp,acts])
   const expenseById=useMemo(()=>new Map(exp.map(expense=>[expense.id,expense])),[exp])
+  const recurrenceCountFor=(activity:Activity)=>expenseByActivityId.get(activity.id)?.occurrences?.length || 0
   const expensesAvailableForReservation=(current?:Reservation)=>{
     const linked=new Set(res.filter(reservation=>reservation.id!==current?.id && reservation.expenseId).map(reservation=>reservation.expenseId))
     return exp.filter(expense=>!linked.has(expense.id))
@@ -540,6 +545,78 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setEditingPacking(null)
     setPack(current=>current.filter(p=>p.id!==item.id))
     showSuccess('Ítem eliminado.')
+  }
+
+  function openNewActivity(){
+    const today=new Date().toISOString().slice(0,10)
+    const date=today>=trip.startDate && today<=trip.endDate?today:trip.startDate
+    setCreatingActivity(true)
+    setEditingActivity({
+      id:`activity-new-${Date.now()}`,tripId:trip.id,expenseId:null,date,title:'',category:'activity',
+      estimatedCost:0,actualCost:null,costScope:'per_person',status:'planned',optional:false,
+    })
+  }
+
+  async function saveActivity({activity,cost}:ActivitySaveInput){
+    if(!canEdit)return
+    const next={...activity,title:activity.title.trim(),place:activity.place?.trim() || undefined,notes:activity.notes?.trim() || undefined}
+    const isNew=creatingActivity
+    const supabase=createClient()
+    if(!supabase){
+      let saved={...next,id:isNew?`a-${Date.now()}`:next.id}
+      if(cost.mode==='new'){
+        const expenseId=`e-${Date.now()}`
+        saved={...saved,expenseId,estimatedCost:cost.amount,actualCost:saved.status==='paid'?cost.amount:null,costScope:cost.amountBasis==='group'?'shared':'per_person'}
+        const expense:Expense={
+          id:expenseId,tripId:trip.id,activityId:saved.id,title:saved.title,
+          category:activityCategoryLabel(saved.category),amount:cost.amount,amountBasis:cost.amountBasis,
+          occurrencePricing:'total',occurrences:[{id:saved.id,date:saved.date,startTime:saved.startTime,endTime:saved.endTime}],
+          currency:trip.currency,status:saved.status==='paid'?'paid':saved.status==='reserved'?'confirmed':'estimated',
+          scope:cost.amountBasis==='group'?'shared':'per_person',included:true,date:saved.date,
+          startTime:saved.startTime,endTime:saved.endTime,place:saved.place,notes:saved.notes,optional:saved.optional,
+        }
+        setExp(current=>[...current,expense])
+      }
+      setActs(current=>isNew?[...current,saved]:current.map(item=>item.id===saved.id?saved:item))
+      setEditingActivity(null)
+      setCreatingActivity(false)
+      showSuccess(isNew?'Actividad creada.':'Actividad guardada.')
+      return
+    }
+    const {data,error}=await supabase.rpc('save_activity_plan',{
+      p_activity_id:isNew?null:next.id,p_trip_id:trip.id,p_expected_updated_at:isNew?null:next.updatedAt || null,
+      p_title:next.title,p_date:next.date,p_start_time:next.startTime || null,p_end_time:next.endTime || null,
+      p_category:next.category,p_place:next.place || null,p_notes:next.notes || null,p_status:next.status,
+      p_optional:Boolean(next.optional),p_cost_mode:cost.mode,p_cost_amount:cost.mode==='new'?cost.amount:null,
+      p_cost_amount_basis:cost.mode==='new'?cost.amountBasis:null,
+    })
+    if(error){
+      if(String(error.message || '').toLowerCase().includes('la actividad cambió'))await loadConnectedData(true)
+      throw new Error(userFacingError(error,'No pudimos guardar la actividad. Intentá nuevamente.'))
+    }
+    setEditingActivity(null)
+    setCreatingActivity(false)
+    await loadConnectedData(true)
+    await logChange(trip.id,'activity',data,isNew?'created':'updated',`${isNew?'Se agregó':'Se actualizó'} la actividad “${next.title}”.`)
+    showSuccess(isNew?'Actividad creada.':'Actividad guardada.')
+  }
+
+  async function confirmDeleteActivity(){
+    const activity=activityToDelete
+    if(!activity || !canEdit || activity.expenseId)return
+    const supabase=createClient()
+    if(!supabase){
+      setActs(current=>current.filter(item=>item.id!==activity.id))
+      setActivityToDelete(null);setEditingActivity(null);setCreatingActivity(false)
+      showSuccess('Actividad eliminada.')
+      return
+    }
+    const {error}=await supabase.rpc('delete_activity_plan',{p_activity_id:activity.id,p_trip_id:trip.id})
+    if(error){setError(userFacingError(error,'No pudimos eliminar la actividad. Intentá nuevamente.'));return}
+    setActivityToDelete(null);setEditingActivity(null);setCreatingActivity(false)
+    await loadConnectedData(true)
+    await logChange(trip.id,'activity',activity.id,'deleted',`Se eliminó la actividad “${activity.title}”.`)
+    showSuccess('Actividad eliminada.')
   }
 
   async function setReservationStatus(id:string,status:Reservation['status']){
@@ -840,7 +917,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
               <div><strong>{a.title}</strong><small>{shortDate(a.date)} {a.startTime?`· ${a.startTime}`:''} {a.place?`· ${a.place}`:''}</small></div>
               <span className={`chip ${activityChip(a.status)}`}>{activityStateLabel(a.status)}</span>
             </div>)}
-            {!visibleActivities.length&&<div className="empty compact">Todavía no hay gastos incluidos con día de itinerario.</div>}
+            {!visibleActivities.length&&<div className="empty compact">Todavía no hay actividades en el itinerario.</div>}
           </div>
         </section>
         <aside style={{display:'grid',gap:18}}>
@@ -857,7 +934,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       </div>}
 
       {tab==='Itinerario' && <section className="panel">
-        <div className="panel-head"><div><h3>Itinerario</h3><div className="muted subcopy">Se arma con los gastos incluidos que tienen uno o más días cargados en Presupuesto.</div></div></div>
+        <div className="panel-head"><div><h3>Itinerario</h3><div className="muted subcopy">Organizá los días del viaje. El costo es opcional.</div></div>{canEdit&&<button className="btn btn-primary" onClick={openNewActivity}><Plus size={16}/> Actividad</button>}</div>
         {dates.map(date=><div className="timeline-day" key={date}>
           <div className="day-heading"><strong style={{textTransform:'capitalize'}}>{dayLabel(date)}</strong><span>{visibleActivities.filter(a=>a.date===date).length} actividades</span></div>
           {visibleActivities.filter(a=>a.date===date).sort(sortActivities).map((a,index,dayActs)=><div key={a.id} className="activity" style={{width:'100%',background:'transparent',borderLeft:0,borderRight:0,borderBottom:0,textAlign:'left',color:'inherit'}}>
@@ -865,7 +942,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
               <span className="time-start">{a.startTime||'—'}</span>
               {a.endTime&&<><span className="time-to">a</span><span className="time-end">{a.endTime}</span></>}
             </div>
-            <div><div className="activity-title">{a.title} {a.optional?<span className="chip optional">Opcional</span>:null}</div><div className="activity-sub">{a.place}{a.place&&a.notes?' · ':''}{a.notes}</div><div className="chips"><span className={`chip ${activityChip(a.status)}`}>{activityStateLabel(a.status)}</span><span className="chip category-chip">{activityCategoryLabel(a.category)}</span>{Boolean(a.steps?.length)&&<span className="chip category-chip">{a.steps!.length} {a.steps!.length===1?'parada':'paradas'}</span>}</div>
+            <div><div className="activity-title">{a.title} {a.optional?<span className="chip optional">Opcional</span>:null}</div><div className="activity-sub">{a.place}{a.place&&a.notes?' · ':''}{a.notes}</div><div className="chips"><span className={`chip ${activityChip(a.status)}`}>{activityStateLabel(a.status)}</span><span className="chip category-chip">{activityCategoryLabel(a.category)}</span>{recurrenceCountFor(a)>1&&<span className="chip recurrence-chip" title={`Esta actividad aparece en ${recurrenceCountFor(a)} días`}><Repeat2 size={12}/>{recurrenceCountFor(a)} días</span>}{Boolean(a.steps?.length)&&<span className="chip category-chip">{a.steps!.length} {a.steps!.length===1?'parada':'paradas'}</span>}</div>
               {Boolean(a.steps?.length)&&<div className="activity-steps" aria-label={`Paradas de ${a.title}`}>
                 {a.steps!.map((step,stepIndex)=><div className="activity-step" key={step.id || `${a.id}-step-${stepIndex}`}>
                   <div className="activity-step-time">{step.startTime || 'Sin hora'}{step.endTime?` a ${step.endTime}`:''}</div>
@@ -879,10 +956,10 @@ export default function TripWorkspace({tripId}:{tripId:string}){
                 <div>{alternativesFor(a).slice(0,3).map(alt=><span className="alternative-pill" key={alt.id}>{alt.startTime||'Sin hora'} · {alt.title}</span>)}</div>
               </div>}
             </div>
-            <div className="activity-side"><div className="price">{money(a.actualCost ?? a.estimatedCost,trip.currency)}{expenseByActivityId.get(a.id)&&<small>{[expenseByActivityId.get(a.id)?.occurrencePricing==='total'&&(expenseByActivityId.get(a.id)?.occurrences?.length || 0)>1?'total del gasto':'',expenseByActivityId.get(a.id)?.amountBasis==='group'?'grupo':''].filter(Boolean).join(' · ')}</small>}</div>{canEdit&&expenseByActivityId.get(a.id)&&<button className="icon-btn" title={`Editar ${a.title} en Presupuesto`} aria-label={`Editar ${a.title} en Presupuesto`} onClick={()=>setEditingExpense(expenseByActivityId.get(a.id)!)}><Edit3 size={16}/></button>}</div>
+            <div className="activity-side">{(Boolean(expenseByActivityId.get(a.id))||(a.actualCost ?? a.estimatedCost)>0)&&<div className="price">{money(a.actualCost ?? a.estimatedCost,trip.currency)}{expenseByActivityId.get(a.id)&&<small>{[recurrenceCountFor(a)>1?(expenseByActivityId.get(a.id)?.occurrencePricing==='per_occurrence'?'cada día':'total'):'',expenseByActivityId.get(a.id)?.amountBasis==='group'?'grupo':''].filter(Boolean).join(' · ')}</small>}</div>}{canEdit&&(expenseByActivityId.get(a.id)?<button className="icon-btn" title={`Editar ${a.title} en Presupuesto`} aria-label={`Editar ${a.title} en Presupuesto`} onClick={()=>setEditingExpense(expenseByActivityId.get(a.id)!)}><Edit3 size={16}/></button>:<button className="icon-btn" title={`Editar ${a.title}`} aria-label={`Editar ${a.title}`} onClick={()=>{setCreatingActivity(false);setEditingActivity(a)}}><Edit3 size={16}/></button>)}</div>
           </div>)}
         </div>)}
-        {!dates.length&&<div className="empty"><h3>Itinerario vacío</h3><p>Agregá o editá un gasto en Presupuesto y asignale un día para que aparezca acá.</p>{canEdit&&<button className="btn btn-primary" onClick={()=>setTab('Presupuesto')}>Ir a Presupuesto</button>}</div>}
+        {!dates.length&&<div className="empty"><h3>Itinerario vacío</h3><p>Agregá la primera actividad para empezar a organizar el viaje.</p>{canEdit&&<button className="btn btn-primary" onClick={openNewActivity}>Agregar actividad</button>}</div>}
       </section>}
 
       {tab==='Presupuesto' && <div className="two-col">
@@ -1013,6 +1090,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       </div>}
 
       {editingExpense&&<ExpenseModal expense={editingExpense} activities={acts} categoryOptions={expenseCategories} minDate={trip.startDate} maxDate={trip.endDate} onClose={()=>setEditingExpense(null)} onSave={saveExpense} onDelete={setExpenseToDelete}/>}
+      {editingActivity&&<ActivityModal activity={editingActivity} currency={trip.currency} minDate={trip.startDate} maxDate={trip.endDate} isNew={creatingActivity} onClose={()=>{setEditingActivity(null);setCreatingActivity(false)}} onSave={saveActivity} onDelete={setActivityToDelete}/>}
       {editingPacking&&<PackingItemModal item={editingPacking} categoryOptions={packingCategories} onClose={()=>setEditingPacking(null)} onSave={savePacking} onDelete={setPackingToDelete}/>}
       {editingReservation&&<ReservationModal reservation={editingReservation} expenses={expensesAvailableForReservation(editingReservation)} currency={trip.currency} onClose={()=>setEditingReservation(null)} onSave={saveReservation} onDelete={setReservationToDelete}/>}
       {editingPlace&&<PlaceModal place={editingPlace} categoryOptions={placeCategories} onClose={()=>setEditingPlace(null)} onSave={savePlace} onDelete={setPlaceToDelete}/>}
@@ -1020,6 +1098,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       {addKind&&<QuickAddModal kind={addKind} categoryOptions={addKind==='expense'?expenseCategories:addKind==='packing'?packingCategories:addKind==='place'?placeCategories:[]} expenses={addKind==='reservation'?expensesAvailableForReservation():[]} currency={trip.currency} minDate={trip.startDate} maxDate={trip.endDate} onClose={()=>setAddKind(null)} onSave={addQuick}/>}
       {memberToRemove&&<ConfirmDialog title="Expulsar integrante" confirmLabel="Expulsar" confirmIcon={<UserMinus size={16}/>} onClose={()=>setMemberToRemove(null)} onConfirm={confirmRemoveMember}>Vas a quitar a <b>{memberToRemove.name}</b> de este viaje. Ya no podrá ver ni editar la planificación compartida.</ConfirmDialog>}
       {expenseToDelete&&<ConfirmDialog title="Eliminar gasto" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setExpenseToDelete(null)} onConfirm={confirmDeleteExpense}>Vas a eliminar <b>{expenseToDelete.title}</b> del presupuesto{activitiesForExpense(expenseToDelete).length>1?` y sus ${activitiesForExpense(expenseToDelete).length} apariciones del itinerario`:isExpenseLinked(expenseToDelete)?' y también del itinerario':''}.{res.some(reservation=>reservation.expenseId===expenseToDelete.id)?' La reserva vinculada se conservará sin costo asociado.':''} Esta acción no se puede deshacer desde la app.</ConfirmDialog>}
+      {activityToDelete&&<ConfirmDialog title="Eliminar actividad" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setActivityToDelete(null)} onConfirm={confirmDeleteActivity}>Vas a eliminar <b>{activityToDelete.title}</b> del itinerario. Esta acción no se puede deshacer desde la app.</ConfirmDialog>}
       {packingToDelete&&<ConfirmDialog title="Eliminar ítem" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setPackingToDelete(null)} onConfirm={confirmDeletePacking}>Vas a eliminar <b>{packingToDelete.label}</b> de tu valija. Esta acción no se puede deshacer desde la app.</ConfirmDialog>}
       {reservationToDelete&&<ConfirmDialog title="Eliminar reserva" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setReservationToDelete(null)} onConfirm={confirmDeleteReservation}>Vas a eliminar <b>{reservationToDelete.title}</b>.{reservationToDelete.expenseId?' El gasto vinculado se conservará en Presupuesto.':''} Esta acción no se puede deshacer desde la app.</ConfirmDialog>}
       {placeToDelete&&<ConfirmDialog title="Eliminar lugar" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setPlaceToDelete(null)} onConfirm={confirmDeletePlace}>Vas a eliminar <b>{placeToDelete.name}</b>{placeToDelete.isBase?' y dejar el viaje sin esa base':''}. Esta acción no se puede deshacer desde la app.</ConfirmDialog>}

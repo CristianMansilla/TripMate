@@ -20,6 +20,7 @@ export function mapActivity(row: any): Activity {
   return {
     id: row.id,
     tripId: row.trip_id,
+    updatedAt: row.updated_at || undefined,
     expenseId: row.expense_id || null,
     date: row.date,
     startTime: row.start_time?.slice(0, 5) || undefined,

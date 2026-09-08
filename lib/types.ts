@@ -33,6 +33,7 @@ export type Trip = {
 export type Activity = {
   id: string
   tripId: string
+  updatedAt?: string
   expenseId?: string | null
   date: string
   startTime?: string
