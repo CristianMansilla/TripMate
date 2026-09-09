@@ -1,83 +1,48 @@
 'use client'
 
 import { useState } from 'react'
-import { ActivityStep, ExpenseOccurrence } from '@/lib/types'
+import type { ExpenseOccurrence } from '@/lib/types'
 import { Plus, Trash2 } from 'lucide-react'
+import ActivityStepsEditor from './ActivityStepsEditor'
 import ConfirmDialog from './ConfirmDialog'
-
-type PendingRemoval=
-  | {kind:'occurrence'; occurrenceIndex:number}
-  | {kind:'step'; occurrenceIndex:number; stepIndex:number}
 
 function newOccurrence():ExpenseOccurrence{
   return {date:'',startTime:'',endTime:'',steps:[]}
 }
 
-function newStep():ActivityStep{
-  return {title:'',amount:0,startTime:'',endTime:'',place:'',notes:'',optional:false}
-}
-
-export default function ExpenseOccurrencesEditor({value,onChange,minDate,maxDate,idPrefix,amountBasis}:{value:ExpenseOccurrence[],onChange:(value:ExpenseOccurrence[])=>void,minDate?:string,maxDate?:string,idPrefix:string,amountBasis:'per_person'|'group'}){
-  const [pendingRemoval,setPendingRemoval]=useState<PendingRemoval|null>(null)
+export default function ExpenseOccurrencesEditor({value,onChange,minDate,maxDate,idPrefix,amountBasis}:{
+  value:ExpenseOccurrence[]
+  onChange:(value:ExpenseOccurrence[])=>void
+  minDate?:string
+  maxDate?:string
+  idPrefix:string
+  amountBasis:'per_person'|'group'
+}){
+  const [pendingRemoval,setPendingRemoval]=useState<number|null>(null)
   const patch=(index:number,next:Partial<ExpenseOccurrence>)=>onChange(value.map((item,itemIndex)=>itemIndex===index?{...item,...next}:item))
-  const patchStep=(occurrenceIndex:number,stepIndex:number,next:Partial<ActivityStep>)=>{
-    const occurrence=value[occurrenceIndex]
-    patch(occurrenceIndex,{steps:(occurrence.steps || []).map((step,index)=>index===stepIndex?{...step,...next}:step)})
-  }
-  function confirmRemoval(){
-    if(!pendingRemoval)return
-    if(pendingRemoval.kind==='occurrence'){
-      onChange(value.filter((_,index)=>index!==pendingRemoval.occurrenceIndex))
-    }else{
-      const occurrence=value[pendingRemoval.occurrenceIndex]
-      patch(pendingRemoval.occurrenceIndex,{steps:(occurrence.steps || []).filter((_,index)=>index!==pendingRemoval.stepIndex)})
-    }
-    setPendingRemoval(null)
-  }
+
   return <>
-  <fieldset className="occurrences-fieldset">
-    <legend>Agenda</legend>
-    <div className="occurrences-list">
-      {value.map((occurrence,index)=><div className="occurrence-card" key={occurrence.id || `new-${index}`}>
-        <div className="occurrence-card-head">
-          <div><b>Bloque principal</b><span>Día {index+1}</span></div>
-          <button type="button" className="icon-btn" onClick={()=>setPendingRemoval({kind:'occurrence',occurrenceIndex:index})} title="Quitar día" aria-label={`Quitar día ${index+1}`}><Trash2 size={16}/></button>
-        </div>
-        <div className="occurrence-row">
-          <div className="field occurrence-date"><label htmlFor={`${idPrefix}-date-${index}`}>Fecha del bloque</label><input id={`${idPrefix}-date-${index}`} type="date" min={minDate} max={maxDate} value={occurrence.date} onChange={event=>patch(index,{date:event.target.value})}/></div>
-          <div className="field"><label htmlFor={`${idPrefix}-start-${index}`}>Inicio del bloque</label><input id={`${idPrefix}-start-${index}`} type="time" value={occurrence.startTime || ''} onChange={event=>patch(index,{startTime:event.target.value})}/></div>
-          <div className="field"><label htmlFor={`${idPrefix}-end-${index}`}>Fin del bloque</label><input id={`${idPrefix}-end-${index}`} type="time" value={occurrence.endTime || ''} onChange={event=>patch(index,{endTime:event.target.value})}/></div>
-        </div>
-        <div className="steps-editor">
-          <div className="steps-editor-head"><div><b>Paradas de la actividad</b><small>{(occurrence.steps || []).length?`${(occurrence.steps || []).length} cargada${(occurrence.steps || []).length===1?'':'s'}`:'Sin paradas'}</small></div><button type="button" className="btn btn-secondary step-add" onClick={()=>patch(index,{steps:[...(occurrence.steps || []),newStep()]})}><Plus size={15}/> Agregar parada</button></div>
-          {(occurrence.steps || []).map((step,stepIndex)=><fieldset className="step-editor-row" key={step.id || `new-${index}-${stepIndex}`}>
-            <legend>Parada {stepIndex+1}</legend>
-            <button type="button" className="icon-btn step-remove" onClick={()=>setPendingRemoval({kind:'step',occurrenceIndex:index,stepIndex})} title="Quitar parada" aria-label={`Quitar parada ${stepIndex+1}`}><Trash2 size={16}/></button>
-            <div className="field step-title"><label htmlFor={`${idPrefix}-step-title-${index}-${stepIndex}`}>Nombre de la parada</label><input id={`${idPrefix}-step-title-${index}-${stepIndex}`} value={step.title} onChange={event=>patchStep(index,stepIndex,{title:event.target.value})} placeholder="Museo, plaza, visita..." required/></div>
-            <div className="field"><label htmlFor={`${idPrefix}-step-start-${index}-${stepIndex}`}>Desde</label><input id={`${idPrefix}-step-start-${index}-${stepIndex}`} type="time" value={step.startTime || ''} onChange={event=>patchStep(index,stepIndex,{startTime:event.target.value})}/></div>
-            <div className="field"><label htmlFor={`${idPrefix}-step-end-${index}-${stepIndex}`}>Hasta</label><input id={`${idPrefix}-step-end-${index}-${stepIndex}`} type="time" value={step.endTime || ''} onChange={event=>patchStep(index,stepIndex,{endTime:event.target.value})}/></div>
-            <div className="field step-amount"><label htmlFor={`${idPrefix}-step-amount-${index}-${stepIndex}`}>{amountBasis==='group'?'Costo grupal de la parada':'Costo de la parada'}</label><input id={`${idPrefix}-step-amount-${index}-${stepIndex}`} type="number" min="0" step="0.01" value={Number.isNaN(step.amount)?'':step.amount} onChange={event=>patchStep(index,stepIndex,{amount:event.target.value===''?Number.NaN:Number(event.target.value)})}/></div>
-            <div className="field step-place"><label htmlFor={`${idPrefix}-step-place-${index}-${stepIndex}`}>Lugar de esta parada</label><input id={`${idPrefix}-step-place-${index}-${stepIndex}`} value={step.place || ''} onChange={event=>patchStep(index,stepIndex,{place:event.target.value})} placeholder="Dirección o punto de encuentro"/></div>
-            <div className="field step-notes"><label htmlFor={`${idPrefix}-step-notes-${index}-${stepIndex}`}>Detalle</label><input id={`${idPrefix}-step-notes-${index}-${stepIndex}`} value={step.notes || ''} onChange={event=>patchStep(index,stepIndex,{notes:event.target.value})} placeholder="Entrada, indicaciones, recordatorio..."/></div>
-            <label className="step-optional"><input type="checkbox" checked={Boolean(step.optional)} onChange={event=>patchStep(index,stepIndex,{optional:event.target.checked})}/> Opcional</label>
-          </fieldset>)}
-          {(occurrence.steps || []).length>0&&<div className="occurrence-steps-total"><span>{amountBasis==='group'?'Subtotal informativo del grupo':'Subtotal informativo'}</span><strong>{(occurrence.steps || []).reduce((sum,step)=>sum+(Number.isFinite(step.amount)?step.amount:0),0).toLocaleString('es-AR',{maximumFractionDigits:2})}</strong></div>}
-        </div>
-      </div>)}
-    </div>
-    <button type="button" className="btn btn-secondary occurrence-add" onClick={()=>onChange([...value,newOccurrence()])}><Plus size={16}/> Agregar bloque a la agenda</button>
-    {!value.length&&<small className="field-help">Sin bloques en la agenda</small>}
-  </fieldset>
-  {pendingRemoval&&<ConfirmDialog
-    title={pendingRemoval.kind==='occurrence'?'Quitar bloque':'Quitar parada'}
-    confirmLabel="Quitar"
-    confirmIcon={<Trash2 size={16}/>}
-    onClose={()=>setPendingRemoval(null)}
-    onConfirm={confirmRemoval}
-  >
-    {pendingRemoval.kind==='occurrence'
-      ?<>Se quitará este bloque de la agenda y todas sus paradas. El cambio se aplicará al guardar el formulario.</>
-      :<>Se quitará esta parada de la actividad. El cambio se aplicará al guardar el formulario.</>}
-  </ConfirmDialog>}
+    <fieldset className="occurrences-fieldset">
+      <legend>Agenda</legend>
+      <div className="occurrences-list">
+        {value.map((occurrence,index)=><div className="occurrence-card" key={occurrence.id || `new-${index}`}>
+          <div className="occurrence-card-head">
+            <div><b>Actividad</b><span>{value.length>1?`Aparición ${index+1}`:'Horario'}</span></div>
+            <button type="button" className="icon-btn" onClick={()=>setPendingRemoval(index)} title="Quitar de la agenda" aria-label={`Quitar aparición ${index+1}`}><Trash2 size={16}/></button>
+          </div>
+          <div className="occurrence-row">
+            <div className="field occurrence-date"><label htmlFor={`${idPrefix}-date-${index}`}>Día</label><input id={`${idPrefix}-date-${index}`} type="date" min={minDate} max={maxDate} value={occurrence.date} onChange={event=>patch(index,{date:event.target.value})}/></div>
+            <div className="field"><label htmlFor={`${idPrefix}-start-${index}`}>Desde</label><input id={`${idPrefix}-start-${index}`} type="time" value={occurrence.startTime || ''} onChange={event=>patch(index,{startTime:event.target.value})}/></div>
+            <div className="field"><label htmlFor={`${idPrefix}-end-${index}`}>Hasta</label><input id={`${idPrefix}-end-${index}`} type="time" value={occurrence.endTime || ''} onChange={event=>patch(index,{endTime:event.target.value})}/></div>
+          </div>
+          <ActivityStepsEditor value={occurrence.steps || []} onChange={steps=>patch(index,{steps})} idPrefix={`${idPrefix}-step-${index}`} amountBasis={amountBasis}/>
+          {(occurrence.steps || []).length>0&&<div className="occurrence-steps-total"><span>{amountBasis==='group'?'Subtotal del grupo':'Subtotal informativo'}</span><strong>{(occurrence.steps || []).reduce((sum,step)=>sum+(Number.isFinite(step.amount)?step.amount:0),0).toLocaleString('es-AR',{maximumFractionDigits:2})}</strong></div>}
+        </div>)}
+      </div>
+      <button type="button" className="btn btn-secondary occurrence-add" onClick={()=>onChange([...value,newOccurrence()])}><Plus size={15}/> {value.length?'Repetir en otro día':'Agregar al itinerario'}</button>
+    </fieldset>
+    {pendingRemoval!==null&&<ConfirmDialog title="Quitar de la agenda" confirmLabel="Quitar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setPendingRemoval(null)} onConfirm={()=>{onChange(value.filter((_,index)=>index!==pendingRemoval));setPendingRemoval(null)}}>
+      Vas a quitar esta aparición del itinerario y sus paradas. El cambio se aplicará al guardar.
+    </ConfirmDialog>}
   </>
 }

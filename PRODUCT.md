@@ -4,7 +4,7 @@
 Una sola fuente de verdad para un viaje compartido. Reduce chats dispersos, capturas, notas, planillas y links sueltos.
 
 ## Estado de esta dirección
-Revisada el 8 de septiembre de 2026. `v0.4.2` y `v0.4.3` ya fueron validadas en la base conectada. El parche local `v0.4.4` incorpora la creación directa de actividades desde Itinerario y deja el costo como una decisión opcional; todavía debe ejecutarse y validarse. Ver [auditoría completa y evidencias](docs/AUDITORIA-UX-2026-09-08.md).
+Revisada el 8 de septiembre de 2026. `v0.4.2` y `v0.4.3` ya fueron validadas en la base conectada. `v0.4.4` incorpora la creación directa de actividades desde Itinerario y deja el costo como una decisión opcional. El parche local `v0.4.5` extiende ese flujo con paradas progresivas y tipos personalizados mediante la opción `Otro`; todavía debe ejecutarse y validarse. Ver [auditoría completa y evidencias](docs/AUDITORIA-UX-2026-09-08.md).
 
 ## Principios UX
 - **Confiabilidad primero:** no perder borradores, duplicar compras ni cambiar importes como efecto lateral de editar una agenda.
@@ -40,7 +40,7 @@ Cierre: ningún borrador pisado por realtime; ninguna parada eliminada al cambia
 ### 2. Simplificar el núcleo en v0.5
 Alta desde agenda, actividad gratuita o con precio por definir, gasto general sin fecha, agregar al viaje frente a guardar como idea. Formularios progresivos, actividad/paradas como vocabulario, repeticiones con total visible y separación entre agenda e inclusión presupuestaria.
 
-Estado local: la primera parte está implementada en `v0.4.4`. Itinerario permite crear una actividad sin pasar por Presupuesto y, sólo si el usuario carga un costo, crea un gasto vinculado que suma una vez.
+Estado local: la primera parte está implementada en `v0.4.4` y `v0.4.5`. Itinerario permite crear una actividad sin pasar por Presupuesto y, sólo si el usuario carga un costo, crea un gasto vinculado que suma una vez. Las paradas comparten un editor compacto: nombre y horario primero; detalles bajo demanda. Las categorías frecuentes siguen siendo directas y `Otro` habilita un nombre personalizado opcional.
 
 Cierre: resolver paseo gratis, seguro, paquete y gasto repetido sin doble carga ni pasos ocultos. Revisar datos históricos antes de reinterpretar sus checks o precios.
 

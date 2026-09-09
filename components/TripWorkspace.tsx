@@ -51,7 +51,7 @@ function activityCategoryLabel(category:Activity['category']){
     nightlife:'Noche',
     event:'Evento',
     other:'Otro',
-  })[category]
+  } as Record<string,string>)[category] || category
 }
 function reservationLabel(status:Reservation['status']){
   return ({watching:'Esperando',pending:'Pendiente',reserved:'Reservado',paid:'Pagado'})[status]
@@ -570,7 +570,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
         const expense:Expense={
           id:expenseId,tripId:trip.id,activityId:saved.id,title:saved.title,
           category:activityCategoryLabel(saved.category),amount:cost.amount,amountBasis:cost.amountBasis,
-          occurrencePricing:'total',occurrences:[{id:saved.id,date:saved.date,startTime:saved.startTime,endTime:saved.endTime}],
+          occurrencePricing:'total',occurrences:[{id:saved.id,date:saved.date,startTime:saved.startTime,endTime:saved.endTime,steps:saved.steps || []}],
           currency:trip.currency,status:saved.status==='paid'?'paid':saved.status==='reserved'?'confirmed':'estimated',
           scope:cost.amountBasis==='group'?'shared':'per_person',included:true,date:saved.date,
           startTime:saved.startTime,endTime:saved.endTime,place:saved.place,notes:saved.notes,optional:saved.optional,
@@ -583,12 +583,16 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       showSuccess(isNew?'Actividad creada.':'Actividad guardada.')
       return
     }
-    const {data,error}=await supabase.rpc('save_activity_plan',{
+    const {data,error}=await supabase.rpc('save_activity_plan_v2',{
       p_activity_id:isNew?null:next.id,p_trip_id:trip.id,p_expected_updated_at:isNew?null:next.updatedAt || null,
       p_title:next.title,p_date:next.date,p_start_time:next.startTime || null,p_end_time:next.endTime || null,
       p_category:next.category,p_place:next.place || null,p_notes:next.notes || null,p_status:next.status,
       p_optional:Boolean(next.optional),p_cost_mode:cost.mode,p_cost_amount:cost.mode==='new'?cost.amount:null,
       p_cost_amount_basis:cost.mode==='new'?cost.amountBasis:null,
+      p_steps:(next.steps || []).map(step=>({
+        id:step.id || null,title:step.title,amount:step.amount,start_time:step.startTime || null,
+        end_time:step.endTime || null,place:step.place || null,notes:step.notes || null,optional:Boolean(step.optional),
+      })),
     })
     if(error){
       if(String(error.message || '').toLowerCase().includes('la actividad cambió'))await loadConnectedData(true)
@@ -947,9 +951,9 @@ export default function TripWorkspace({tripId}:{tripId:string}){
                 {a.steps!.map((step,stepIndex)=><div className="activity-step" key={step.id || `${a.id}-step-${stepIndex}`}>
                   <div className="activity-step-time">{step.startTime || 'Sin hora'}{step.endTime?` a ${step.endTime}`:''}</div>
                   <div className="activity-step-content"><strong>{step.title}</strong>{step.optional&&<span className="chip optional">Opcional</span>}{(step.place||step.notes)&&<small>{[step.place,step.notes].filter(Boolean).join(' · ')}</small>}</div>
-                  <div className="activity-step-price">{money(step.amount,trip.currency)}</div>
+                  {step.amount>0&&<div className="activity-step-price">{money(step.amount,trip.currency)}</div>}
                 </div>)}
-                <div className="activity-steps-total"><span>{expenseByActivityId.get(a.id)?.amountBasis==='group'?'Subtotal informativo del grupo':'Subtotal informativo'}</span><strong>{money(a.steps!.reduce((sum,step)=>sum+step.amount,0),trip.currency)}</strong></div>
+                {a.steps!.some(step=>step.amount>0)&&<div className="activity-steps-total"><span>{expenseByActivityId.get(a.id)?.amountBasis==='group'?'Subtotal informativo del grupo':'Subtotal informativo'}</span><strong>{money(a.steps!.reduce((sum,step)=>sum+step.amount,0),trip.currency)}</strong></div>}
               </div>}
               {a.optional&&alternativesFor(a).length>0&&<div className="alternatives-box">
                 <span>Alternativas para este horario</span>

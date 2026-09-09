@@ -39,7 +39,7 @@ export type Activity = {
   startTime?: string
   endTime?: string
   title: string
-  category: 'transport' | 'lodging' | 'food' | 'activity' | 'museum' | 'nightlife' | 'event' | 'other'
+  category: string
   place?: string
   address?: string
   notes?: string
