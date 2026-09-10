@@ -375,6 +375,13 @@ export default function TripWorkspace({tripId}:{tripId:string}){
   },[exp,acts])
   const expenseById=useMemo(()=>new Map(exp.map(expense=>[expense.id,expense])),[exp])
   const recurrenceCountFor=(activity:Activity)=>expenseByActivityId.get(activity.id)?.occurrences?.length || 0
+  const recurrenceLabelFor=(activity:Activity)=>{
+    const occurrences=expenseByActivityId.get(activity.id)?.occurrences || []
+    const count=occurrences.length
+    if(count<2)return ''
+    const distinctDates=new Set(occurrences.map(item=>item.date)).size
+    return distinctDates===count?`${count} días`:`${count} apariciones`
+  }
   const expensesAvailableForReservation=(current?:Reservation)=>{
     const linked=new Set(res.filter(reservation=>reservation.id!==current?.id && reservation.expenseId).map(reservation=>reservation.expenseId))
     return exp.filter(expense=>!linked.has(expense.id))
@@ -946,7 +953,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
               <span className="time-start">{a.startTime||'—'}</span>
               {a.endTime&&<><span className="time-to">a</span><span className="time-end">{a.endTime}</span></>}
             </div>
-            <div><div className="activity-title">{a.title} {a.optional?<span className="chip optional">Opcional</span>:null}</div><div className="activity-sub">{a.place}{a.place&&a.notes?' · ':''}{a.notes}</div><div className="chips"><span className={`chip ${activityChip(a.status)}`}>{activityStateLabel(a.status)}</span><span className="chip category-chip">{activityCategoryLabel(a.category)}</span>{recurrenceCountFor(a)>1&&<span className="chip recurrence-chip" title={`Esta actividad aparece en ${recurrenceCountFor(a)} días`}><Repeat2 size={12}/>{recurrenceCountFor(a)} días</span>}{Boolean(a.steps?.length)&&<span className="chip category-chip">{a.steps!.length} {a.steps!.length===1?'parada':'paradas'}</span>}</div>
+            <div><div className="activity-title">{a.title} {a.optional?<span className="chip optional">Opcional</span>:null}</div><div className="activity-sub">{a.place}{a.place&&a.notes?' · ':''}{a.notes}</div><div className="chips"><span className={`chip ${activityChip(a.status)}`}>{activityStateLabel(a.status)}</span><span className="chip category-chip">{activityCategoryLabel(a.category)}</span>{recurrenceCountFor(a)>1&&<span className="chip recurrence-chip" title={`Esta actividad tiene ${recurrenceCountFor(a)} apariciones en el itinerario`}><Repeat2 size={12}/>{recurrenceLabelFor(a)}</span>}{Boolean(a.steps?.length)&&<span className="chip category-chip">{a.steps!.length} {a.steps!.length===1?'parada':'paradas'}</span>}</div>
               {Boolean(a.steps?.length)&&<div className="activity-steps" aria-label={`Paradas de ${a.title}`}>
                 {a.steps!.map((step,stepIndex)=><div className="activity-step" key={step.id || `${a.id}-step-${stepIndex}`}>
                   <div className="activity-step-time">{step.startTime || 'Sin hora'}{step.endTime?` a ${step.endTime}`:''}</div>
@@ -960,7 +967,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
                 <div>{alternativesFor(a).slice(0,3).map(alt=><span className="alternative-pill" key={alt.id}>{alt.startTime||'Sin hora'} · {alt.title}</span>)}</div>
               </div>}
             </div>
-            <div className="activity-side">{(Boolean(expenseByActivityId.get(a.id))||(a.actualCost ?? a.estimatedCost)>0)&&<div className="price">{money(a.actualCost ?? a.estimatedCost,trip.currency)}{expenseByActivityId.get(a.id)&&<small>{[recurrenceCountFor(a)>1?(expenseByActivityId.get(a.id)?.occurrencePricing==='per_occurrence'?'cada día':'total'):'',expenseByActivityId.get(a.id)?.amountBasis==='group'?'grupo':''].filter(Boolean).join(' · ')}</small>}</div>}{canEdit&&(expenseByActivityId.get(a.id)?<button className="icon-btn" title={`Editar ${a.title} en Presupuesto`} aria-label={`Editar ${a.title} en Presupuesto`} onClick={()=>setEditingExpense(expenseByActivityId.get(a.id)!)}><Edit3 size={16}/></button>:<button className="icon-btn" title={`Editar ${a.title}`} aria-label={`Editar ${a.title}`} onClick={()=>{setCreatingActivity(false);setEditingActivity(a)}}><Edit3 size={16}/></button>)}</div>
+            <div className="activity-side">{(Boolean(expenseByActivityId.get(a.id))||(a.actualCost ?? a.estimatedCost)>0)&&<div className="price">{money(a.actualCost ?? a.estimatedCost,trip.currency)}{expenseByActivityId.get(a.id)&&<small>{[recurrenceCountFor(a)>1?(expenseByActivityId.get(a.id)?.occurrencePricing==='per_occurrence'?'cada aparición':'total'):'',expenseByActivityId.get(a.id)?.amountBasis==='group'?'grupo':''].filter(Boolean).join(' · ')}</small>}</div>}{canEdit&&(expenseByActivityId.get(a.id)?<button className="icon-btn" title={`Editar ${a.title} en Presupuesto`} aria-label={`Editar ${a.title} en Presupuesto`} onClick={()=>setEditingExpense(expenseByActivityId.get(a.id)!)}><Edit3 size={16}/></button>:<button className="icon-btn" title={`Editar ${a.title}`} aria-label={`Editar ${a.title}`} onClick={()=>{setCreatingActivity(false);setEditingActivity(a)}}><Edit3 size={16}/></button>)}</div>
           </div>)}
         </div>)}
         {!dates.length&&<div className="empty"><h3>Itinerario vacío</h3><p>Agregá la primera actividad para empezar a organizar el viaje.</p>{canEdit&&<button className="btn btn-primary" onClick={openNewActivity}>Agregar actividad</button>}</div>}
@@ -971,7 +978,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
           <div className="panel-head"><div><h3>Presupuesto editable</h3><div className="muted subcopy">Los precios grupales se identifican de forma explícita.</div></div>{canEdit&&<button className="btn btn-primary" onClick={()=>setAddKind('expense')}><Plus size={16}/> Gasto</button>}</div>
           {expenseCategoryFilter&&<div className="filter-notice">Mostrando gastos de <b>{expenseCategoryFilter}</b><button onClick={()=>setExpenseCategoryFilter(null)}>Ver todos</button></div>}
           <div className="budget-days">{expensesByDay.map(([date,items])=><div className="budget-day" key={date}>
-            <div className="day-heading budget-day-heading"><strong>{date==='varios-dias'?'Varios días':date==='sin-fecha'?'Sin día en itinerario':dayLabel(date)}</strong><span>{items.length} {items.length===1?'gasto':'gastos'}</span></div>
+            <div className="day-heading budget-day-heading"><strong>{date==='varios-dias'?'Varias apariciones':date==='sin-fecha'?'Sin día en itinerario':dayLabel(date)}</strong><span>{items.length} {items.length===1?'gasto':'gastos'}</span></div>
             <div className="list">{items.map(e=>{
               const status=expenseStatusLabel(e.status)
               const linked=isExpenseLinked(e)
@@ -981,7 +988,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
               const activity=linkedActivities[0]
               const stepCount=linkedActivities.reduce((total,item)=>total+(item.steps?.length??0),0)
               const hasSteps=stepCount>0
-              const occurrenceLabel=linkedActivities.length>1?`${linkedActivities.length} días · ${e.occurrencePricing==='per_occurrence'?'importe por día':'importe total'}`:''
+              const occurrenceLabel=linkedActivities.length>1?`${linkedActivities.length} apariciones · ${e.occurrencePricing==='per_occurrence'?'importe por aparición':'importe total'}`:''
               const occurrenceDates=linkedActivities.length>1?linkedActivities.map(item=>occurrenceDateLabel(item.date)).join(', '):''
               return <div className={`list-row budget-line ${!included?'excluded':''}`} key={e.id} style={{alignItems:'center'}}>
                 <div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className={`budget-check ${included?'on':''}`} disabled={!canEdit} onClick={()=>toggleExpenseIncluded(e.id)} aria-label={`${included?'Excluir':'Incluir'} ${e.title}`} aria-pressed={included}>{included?'✓':''}</button><div><div className="budget-title-row"><strong>{e.title}</strong>{linkedReservation&&<span className="budget-structure-badge" title="Este gasto está vinculado a una reserva"><ClipboardCheck size={13}/>Reserva</span>}{hasSteps&&<span className="budget-structure-badge" title="Esta actividad incluye paradas"><ListTree size={13}/>{stepCount} {stepCount===1?'parada':'paradas'}</span>}</div><small>{[occurrenceDates,linkedActivities.length===1?activity?.startTime:'',e.place||activity?.place,e.category,e.amountBasis==='group'?'total grupo':'',occurrenceLabel,status,!linked?'sin día en itinerario':!included?'fuera del total':''].filter(Boolean).join(' · ')}</small></div></div>

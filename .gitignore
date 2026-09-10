@@ -48,3 +48,8 @@ Desktop.ini
 # Local temp files
 *.tmp
 *.temp
+
+# Local UX audit artifacts
+/docs/AUDITORIA-SIMPLIFICACION-2026-09-09.md
+/docs/REVISION-VISUAL-2026-09-09.md
+/docs/auditoria-visual-2026-09-09/

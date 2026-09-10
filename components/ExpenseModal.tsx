@@ -73,7 +73,7 @@ export default function ExpenseModal({expense,activities,onClose,onSave,onDelete
         <section className="expense-form-section full" hidden={activeTab!=='main'} aria-labelledby="expense-details-section">
           <div className="expense-section-head"><h3 id="expense-details-section">Presupuesto y detalles</h3></div>
           <div className="expense-section-grid">
-            {(draft.occurrences?.length || 0)>1&&<div className="field full"><label htmlFor="expense-occurrence-pricing">Cómo se calcula en días repetidos</label><select id="expense-occurrence-pricing" value={draft.occurrencePricing || 'total'} onChange={e=>patch('occurrencePricing',e.target.value)}><option value="total">El importe es el total de todos los días</option><option value="per_occurrence">El importe se cobra por cada día</option></select></div>}
+            {(draft.occurrences?.length || 0)>1&&<div className="field full"><label htmlFor="expense-occurrence-pricing">Cómo se calcula en apariciones repetidas</label><select id="expense-occurrence-pricing" value={draft.occurrencePricing || 'total'} onChange={e=>patch('occurrencePricing',e.target.value)}><option value="total">El importe es el total de todas las apariciones</option><option value="per_occurrence">El importe se cobra por cada aparición</option></select></div>}
             <div className="field"><label htmlFor="expense-status">Estado</label><select id="expense-status" value={draft.status} onChange={e=>patch('status',e.target.value)}>
               <option value="estimated">Estimado</option>
               <option value="confirmed">Confirmado</option>

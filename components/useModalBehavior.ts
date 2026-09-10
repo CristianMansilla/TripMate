@@ -26,12 +26,28 @@ export function useModalBehavior<T extends HTMLElement=HTMLDivElement>(onClose:(
       if(event.shiftKey && document.activeElement===first){event.preventDefault();last.focus()}
       else if(!event.shiftKey && document.activeElement===last){event.preventDefault();first.focus()}
     }
+    const handleFocusIn=(event:FocusEvent)=>{
+      const target=event.target
+      if(!(target instanceof HTMLElement)||!dialog?.contains(target)||target.closest('.modal-actions'))return
+      requestAnimationFrame(()=>{
+        if(!target.isConnected)return
+        const footer=dialog.querySelector<HTMLElement>('.modal-actions')
+        if(!footer)return
+        const targetRect=target.getBoundingClientRect()
+        const dialogRect=dialog.getBoundingClientRect()
+        const footerRect=footer.getBoundingClientRect()
+        if(targetRect.top<dialogRect.top+12||targetRect.bottom>footerRect.top-12){
+          target.scrollIntoView({block:'center',inline:'nearest'})
+        }
+      })
+    }
     if(openModalCount===0){
       bodyOverflowBeforeModals=document.body.style.overflow
       document.body.style.overflow='hidden'
     }
     openModalCount+=1
     document.addEventListener('keydown',handleKeyDown)
+    dialog?.addEventListener('focusin',handleFocusIn)
     requestAnimationFrame(()=>{
       const preferred=dialog?.querySelector<HTMLElement>('[autofocus]')
       ;(preferred || focusable()[0] || dialog)?.focus()
@@ -40,6 +56,7 @@ export function useModalBehavior<T extends HTMLElement=HTMLDivElement>(onClose:(
       openModalCount=Math.max(0,openModalCount-1)
       if(openModalCount===0)document.body.style.overflow=bodyOverflowBeforeModals
       document.removeEventListener('keydown',handleKeyDown)
+      dialog?.removeEventListener('focusin',handleFocusIn)
       if(previousFocus?.isConnected)previousFocus.focus()
     }
   },[active])

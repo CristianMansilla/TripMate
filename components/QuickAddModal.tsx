@@ -100,7 +100,7 @@ export default function QuickAddModal({kind,onClose,onSave,categoryOptions=[],ex
           <section className="expense-form-section full" hidden={activeExpenseTab!=='main'} aria-labelledby="quick-details-section">
             <div className="expense-section-head"><h3 id="quick-details-section">Presupuesto y detalles</h3></div>
             <div className="expense-section-grid">
-              {occurrences.length>1&&<div className="field full"><label htmlFor="quick-occurrence-pricing">Cómo se calcula en días repetidos</label><select id="quick-occurrence-pricing" value={occurrencePricing} onChange={e=>setOccurrencePricing(e.target.value as 'total'|'per_occurrence')}><option value="total">El importe es el total de todos los días</option><option value="per_occurrence">El importe se cobra por cada día</option></select></div>}
+              {occurrences.length>1&&<div className="field full"><label htmlFor="quick-occurrence-pricing">Cómo se calcula en apariciones repetidas</label><select id="quick-occurrence-pricing" value={occurrencePricing} onChange={e=>setOccurrencePricing(e.target.value as 'total'|'per_occurrence')}><option value="total">El importe es el total de todas las apariciones</option><option value="per_occurrence">El importe se cobra por cada aparición</option></select></div>}
               <label className="toggle-field full">
                 <input type="checkbox" checked={included} onChange={e=>setIncluded(e.target.checked)}/>
                 <span><b>Incluir en el presupuesto</b><small>Podés excluir el costo sin quitar la actividad de la agenda.</small></span>

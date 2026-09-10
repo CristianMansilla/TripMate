@@ -33,15 +33,19 @@ export default function ActivityModal({activity,currency,minDate,maxDate,isNew=f
   onSave:(input:ActivitySaveInput)=>Promise<void>|void
   onDelete?:(activity:Activity)=>void
 }){
+  const initialCategoryMode=standardCategories.has(activity.category)?activity.category:'other'
+  const initialCustomCategory=initialCategoryMode==='other'&&activity.category!=='other'?activity.category:''
   const [draft,setDraft]=useState(activity)
+  const [categoryMode,setCategoryMode]=useState(initialCategoryMode)
+  const [customCategory,setCustomCategory]=useState(initialCustomCategory)
   const [addCost,setAddCost]=useState(false)
   const [costAmount,setCostAmount]=useState(activity.estimatedCost>0?String(activity.estimatedCost):'')
   const [groupCost,setGroupCost]=useState(false)
   const [loading,setLoading]=useState(false)
   const [message,setMessage]=useState('')
   const runOnce=useSubmissionGuard()
-  const initial=JSON.stringify({activity,addCost:false,costAmount:activity.estimatedCost>0?String(activity.estimatedCost):'',groupCost:false})
-  const current=JSON.stringify({activity:draft,addCost,costAmount,groupCost})
+  const initial=JSON.stringify({activity,categoryMode:initialCategoryMode,customCategory:initialCustomCategory,addCost:false,costAmount:activity.estimatedCost>0?String(activity.estimatedCost):'',groupCost:false})
+  const current=JSON.stringify({activity:draft,categoryMode,customCategory,addCost,costAmount,groupCost})
   const discard=useDiscardConfirmation(current!==initial,onClose,loading)
   const dialogRef=useModalBehavior<HTMLFormElement>(discard.requestClose)
   const patch=<K extends keyof Activity>(key:K,value:Activity[K])=>setDraft(current=>({...current,[key]:value}))
@@ -50,7 +54,7 @@ export default function ActivityModal({activity,currency,minDate,maxDate,isNew=f
     event.preventDefault()
     setMessage('')
     const title=draft.title.trim()
-    const category=draft.category.trim() || 'other'
+    const category=categoryMode==='other'?customCategory.trim() || 'other':categoryMode
     if(!title){setMessage('El nombre no puede estar vacío.');return}
     if(category.length>60){setMessage('El tipo no puede superar los 60 caracteres.');return}
     if(!draft.date){setMessage('Elegí un día para la actividad.');return}
@@ -77,8 +81,8 @@ export default function ActivityModal({activity,currency,minDate,maxDate,isNew=f
       <div className="form-grid">
         <div className="field full"><label htmlFor="activity-title">Nombre</label><input id="activity-title" value={draft.title} onChange={event=>patch('title',event.target.value)} autoFocus required/></div>
         <div className="field"><label htmlFor="activity-date">Día</label><input id="activity-date" type="date" min={minDate} max={maxDate} value={draft.date} onChange={event=>patch('date',event.target.value)} required/></div>
-        <div className="field"><label htmlFor="activity-category">Tipo</label><select id="activity-category" value={standardCategories.has(draft.category)?draft.category:'other'} onChange={event=>patch('category',event.target.value)}>{categoryOptions.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div>
-        {(draft.category==='other'||!standardCategories.has(draft.category))&&<div className="field"><label htmlFor="activity-custom-category">Nombre del tipo <span className="optional-label">(opcional)</span></label><input id="activity-custom-category" maxLength={60} value={draft.category==='other'?'':draft.category} onChange={event=>patch('category',event.target.value || 'other')} placeholder="Ej. Compras"/></div>}
+        <div className="field"><label htmlFor="activity-category">Tipo</label><select id="activity-category" value={categoryMode} onChange={event=>{const mode=event.target.value;setCategoryMode(mode);patch('category',mode==='other'?customCategory || 'other':mode)}}>{categoryOptions.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div>
+        {categoryMode==='other'&&<div className="field"><label htmlFor="activity-custom-category">Nombre del tipo <span className="optional-label">(opcional)</span></label><input id="activity-custom-category" maxLength={60} value={customCategory} onChange={event=>{setCustomCategory(event.target.value);patch('category',event.target.value || 'other')}} placeholder="Ej. Compras"/></div>}
         <div className="field"><label htmlFor="activity-start">Desde</label><input id="activity-start" type="time" value={draft.startTime || ''} onChange={event=>patch('startTime',event.target.value || undefined)}/></div>
         <div className="field"><label htmlFor="activity-end">Hasta</label><input id="activity-end" type="time" value={draft.endTime || ''} onChange={event=>patch('endTime',event.target.value || undefined)}/></div>
         <div className="field"><label htmlFor="activity-status">Estado</label><select id="activity-status" value={draft.status} onChange={event=>patch('status',event.target.value as Activity['status'])}><option value="idea">Idea</option><option value="planned">Planificado</option><option value="reserved">Reservado</option><option value="done">Hecho</option>{draft.status==='paid'&&<option value="paid">Pagado</option>}</select></div>
