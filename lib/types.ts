@@ -33,6 +33,7 @@ export type Trip = {
 export type Activity = {
   id: string
   tripId: string
+  itemId?: string
   updatedAt?: string
   expenseId?: string | null
   date: string
@@ -64,6 +65,7 @@ export type ExpenseOccurrence = {
 export type Reservation = {
   id: string
   tripId: string
+  itemId?: string
   updatedAt?: string
   expenseId?: string | null
   title: string
@@ -89,6 +91,7 @@ export type ReservationSaveInput = {
 export type Expense = {
   id: string
   tripId: string
+  itemId?: string
   updatedAt?: string
   activityId?: string | null
   title: string

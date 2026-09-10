@@ -20,6 +20,7 @@ export function mapActivity(row: any): Activity {
   return {
     id: row.id,
     tripId: row.trip_id,
+    itemId: row.item_id || undefined,
     updatedAt: row.updated_at || undefined,
     expenseId: row.expense_id || null,
     date: row.date,
@@ -80,6 +81,7 @@ export function mapExpense(row: any): Expense {
   return {
     id: row.id,
     tripId: row.trip_id,
+    itemId: row.item_id || undefined,
     updatedAt: row.updated_at || undefined,
     activityId: row.activity_id || null,
     title: row.title,
@@ -104,6 +106,7 @@ export function mapReservation(row: any): Reservation {
   return {
     id: row.id,
     tripId: row.trip_id,
+    itemId: row.item_id || undefined,
     updatedAt: row.updated_at || undefined,
     expenseId: row.expense_id || null,
     title: row.title,

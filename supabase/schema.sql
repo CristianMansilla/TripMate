@@ -41,9 +41,27 @@ create table public.trip_members (
   primary key(trip_id,user_id)
 );
 
+create table public.trip_items (
+  id uuid primary key default gen_random_uuid(),
+  trip_id uuid not null references public.trips(id) on delete cascade,
+  title text not null check(length(trim(title)) > 0),
+  category text not null default 'other',
+  place text,
+  notes text,
+  optional boolean not null default false,
+  origin_type text not null check(origin_type in ('expense','activity','reservation')),
+  origin_id uuid not null,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(origin_type,origin_id)
+);
+create index trip_items_trip_id_idx on public.trip_items(trip_id);
+
 create table public.activities (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references public.trips(id) on delete cascade,
+  item_id uuid not null references public.trip_items(id) on delete cascade,
   date date not null,
   start_time time,
   end_time time,
@@ -68,6 +86,7 @@ create table public.activities (
 create table public.expenses (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references public.trips(id) on delete cascade,
+  item_id uuid not null references public.trip_items(id) on delete cascade,
   activity_id uuid references public.activities(id) on delete set null,
   title text not null check(length(trim(title)) > 0),
   category text not null,
@@ -93,10 +112,12 @@ create table public.expenses (
 create unique index expenses_one_per_activity
   on public.expenses (activity_id)
   where activity_id is not null;
+create unique index expenses_one_per_trip_item on public.expenses(item_id);
 
 alter table public.activities
   add column expense_id uuid references public.expenses(id) on delete cascade;
 create index activities_expense_id_idx on public.activities(expense_id);
+create index activities_item_id_idx on public.activities(item_id);
 
 create table public.activity_steps (
   id uuid primary key default gen_random_uuid(),
@@ -120,6 +141,7 @@ create index activity_steps_activity_position_idx on public.activity_steps(activ
 create table public.reservations (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references public.trips(id) on delete cascade,
+  item_id uuid not null references public.trip_items(id) on delete cascade,
   activity_id uuid references public.activities(id) on delete set null,
   expense_id uuid references public.expenses(id) on delete set null,
   title text not null check(length(trim(title)) > 0),
@@ -139,6 +161,7 @@ create table public.reservations (
 create unique index reservations_one_per_expense
   on public.reservations(expense_id)
   where expense_id is not null;
+create index reservations_item_id_idx on public.reservations(item_id);
 
 create table public.places (
   id uuid primary key default gen_random_uuid(),
@@ -964,9 +987,112 @@ end $$;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user();
 
+-- Stable trip item identity ---------------------------------------------
+create or replace function public.ensure_trip_item_reference()
+returns trigger language plpgsql set search_path=public as $$
+declare
+  v_linked_item_id uuid;
+  v_activity_item_id uuid;
+  v_origin_type text;
+begin
+  if tg_table_name='activities' then
+    if new.expense_id is not null then
+      select expense.item_id into v_linked_item_id from public.expenses expense
+      where expense.id=new.expense_id and expense.trip_id=new.trip_id;
+      if not found then raise exception 'La actividad y el gasto deben pertenecer al mismo viaje.'; end if;
+    end if;
+  elsif tg_table_name='expenses' then
+    if new.activity_id is not null then
+      select activity.item_id into v_linked_item_id from public.activities activity
+      where activity.id=new.activity_id and activity.trip_id=new.trip_id;
+      if not found then raise exception 'La actividad y el gasto deben pertenecer al mismo viaje.'; end if;
+    end if;
+  elsif tg_table_name='reservations' then
+    if new.expense_id is not null then
+      select expense.item_id into v_linked_item_id from public.expenses expense
+      where expense.id=new.expense_id and expense.trip_id=new.trip_id;
+      if not found then raise exception 'La reserva y el gasto deben pertenecer al mismo viaje.'; end if;
+    end if;
+    if new.activity_id is not null then
+      select activity.item_id into v_activity_item_id from public.activities activity
+      where activity.id=new.activity_id and activity.trip_id=new.trip_id;
+      if not found then raise exception 'La reserva y la actividad deben pertenecer al mismo viaje.'; end if;
+      if v_linked_item_id is not null and v_activity_item_id<>v_linked_item_id then
+        raise exception 'La actividad y el gasto de la reserva no representan el mismo elemento.';
+      end if;
+      v_linked_item_id:=coalesce(v_linked_item_id,v_activity_item_id);
+    end if;
+  end if;
+
+  if v_linked_item_id is not null then
+    new.item_id:=v_linked_item_id;
+  elsif new.item_id is null then
+    v_origin_type:=case tg_table_name when 'activities' then 'activity' when 'expenses' then 'expense' when 'reservations' then 'reservation' end;
+    if v_origin_type is null then raise exception 'No se puede crear la identidad del elemento.'; end if;
+    if tg_table_name='activities' then
+      insert into public.trip_items(trip_id,title,category,place,notes,optional,origin_type,origin_id,created_by,created_at,updated_at)
+      values(new.trip_id,new.title,coalesce(nullif(new.category,''),'other'),new.place,new.notes,coalesce(new.optional,false),v_origin_type,new.id,coalesce(new.created_by,auth.uid()),coalesce(new.created_at,now()),coalesce(new.updated_at,now()))
+      returning id into new.item_id;
+    elsif tg_table_name='expenses' then
+      insert into public.trip_items(trip_id,title,category,place,notes,optional,origin_type,origin_id,created_by,created_at,updated_at)
+      values(new.trip_id,new.title,coalesce(nullif(new.category,''),'other'),new.place,new.notes,coalesce(new.optional,false),v_origin_type,new.id,coalesce(new.created_by,auth.uid()),coalesce(new.created_at,now()),coalesce(new.updated_at,now()))
+      returning id into new.item_id;
+    else
+      insert into public.trip_items(trip_id,title,category,notes,origin_type,origin_id,created_by,created_at,updated_at)
+      values(new.trip_id,new.title,'reservation',new.notes,v_origin_type,new.id,coalesce(new.created_by,auth.uid()),coalesce(new.created_at,now()),coalesce(new.updated_at,now()))
+      returning id into new.item_id;
+    end if;
+  end if;
+  if not exists(select 1 from public.trip_items item where item.id=new.item_id and item.trip_id=new.trip_id) then
+    raise exception 'El elemento y sus datos deben pertenecer al mismo viaje.';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger activities_trip_item before insert or update of item_id,trip_id,expense_id on public.activities
+  for each row execute function public.ensure_trip_item_reference();
+create trigger expenses_trip_item before insert or update of item_id,trip_id,activity_id on public.expenses
+  for each row execute function public.ensure_trip_item_reference();
+create trigger reservations_trip_item before insert or update of item_id,trip_id,expense_id,activity_id on public.reservations
+  for each row execute function public.ensure_trip_item_reference();
+
+create or replace function public.cleanup_empty_trip_item()
+returns trigger language plpgsql set search_path=public as $$
+begin
+  if not exists(select 1 from public.activities where item_id=old.item_id)
+    and not exists(select 1 from public.expenses where item_id=old.item_id)
+    and not exists(select 1 from public.reservations where item_id=old.item_id)
+  then
+    delete from public.trip_items where id=old.item_id;
+  end if;
+  return old;
+end;
+$$;
+
+create trigger activities_cleanup_trip_item after delete or update of item_id,expense_id on public.activities
+  for each row execute function public.cleanup_empty_trip_item();
+create trigger expenses_cleanup_trip_item after delete or update of item_id,activity_id on public.expenses
+  for each row execute function public.cleanup_empty_trip_item();
+create trigger reservations_cleanup_trip_item after delete or update of item_id,expense_id,activity_id on public.reservations
+  for each row execute function public.cleanup_empty_trip_item();
+
+create or replace function public.protect_trip_item_identity()
+returns trigger language plpgsql set search_path=public as $$
+begin
+  if new.trip_id is distinct from old.trip_id or new.origin_type is distinct from old.origin_type or new.origin_id is distinct from old.origin_id then
+    raise exception 'La identidad de un elemento del viaje no se puede reemplazar.';
+  end if;
+  return new;
+end;
+$$;
+create trigger trip_items_protect_identity before update of trip_id,origin_type,origin_id on public.trip_items
+  for each row execute function public.protect_trip_item_identity();
+
 -- updated_at helper -----------------------------------------------------
 create or replace function public.set_updated_at() returns trigger language plpgsql as $$ begin new.updated_at=now(); return new; end $$;
 create trigger trips_updated before update on public.trips for each row execute function public.set_updated_at();
+create trigger trip_items_updated before update on public.trip_items for each row execute function public.set_updated_at();
 create trigger activities_updated before update on public.activities for each row execute function public.set_updated_at();
 create trigger activity_steps_updated before update on public.activity_steps for each row execute function public.set_updated_at();
 create trigger expenses_updated before update on public.expenses for each row execute function public.set_updated_at();
@@ -979,6 +1105,7 @@ create trigger notes_updated before update on public.trip_notes for each row exe
 alter table public.profiles enable row level security;
 alter table public.trips enable row level security;
 alter table public.trip_members enable row level security;
+alter table public.trip_items enable row level security;
 alter table public.activities enable row level security;
 alter table public.activity_steps enable row level security;
 alter table public.expenses enable row level security;
@@ -1026,6 +1153,11 @@ create policy "owners delete trips" on public.trips for delete to authenticated 
 create policy "members read memberships" on public.trip_members for select to authenticated using(public.is_trip_member(trip_id));
 create policy "owners manage memberships" on public.trip_members for all to authenticated using(public.is_trip_owner(trip_id)) with check(public.is_trip_owner(trip_id));
 
+revoke all on table public.trip_items from public,anon;
+grant select,insert,update,delete on table public.trip_items to authenticated;
+create policy "members read trip items" on public.trip_items for select to authenticated using(public.is_trip_member(trip_id));
+create policy "editors write trip items" on public.trip_items for all to authenticated using(public.can_edit_trip(trip_id)) with check(public.can_edit_trip(trip_id));
+
 -- Generic member/edit policies per collaborative table
 create policy "members read activities" on public.activities for select to authenticated using(public.is_trip_member(trip_id));
 create policy "editors write activities" on public.activities for all to authenticated using(public.can_edit_trip(trip_id)) with check(public.can_edit_trip(trip_id));
@@ -1058,6 +1190,7 @@ create policy "editors write log" on public.change_log for insert to authenticat
 
 -- Realtime --------------------------------------------------------------
 alter publication supabase_realtime add table public.activities;
+alter publication supabase_realtime add table public.trip_items;
 alter publication supabase_realtime add table public.activity_steps;
 alter publication supabase_realtime add table public.expenses;
 alter publication supabase_realtime add table public.reservations;
