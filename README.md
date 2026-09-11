@@ -1,37 +1,25 @@
-# TripMate · v0.4 en desarrollo
+# TripMate · v0.6.1 en desarrollo
 
-TripMate es una aplicación web colaborativa y mobile-first para planificar **cualquier viaje**: Córdoba, Brasil, Europa, escapadas con amigos, etc. Cada usuario puede crear múltiples viajes, invitar acompañantes y compartir itinerario, presupuesto, reservas y lugares. La valija es personal para cada usuario logueado.
+TripMate es una aplicación web colaborativa y mobile-first para planificar viajes. Cada usuario puede crear varios viajes, invitar acompañantes y compartir itinerario, presupuesto, reservas y lugares. La valija es personal para cada cuenta.
 
-## Qué trae esta versión
+## Funciones principales
 
-- Next.js + TypeScript.
-- Supabase Auth preparado: registro, login, recuperación y cambio de contraseña.
-- Login con email o nombre de usuario.
-- Perfil editable con nombre visible y nombre de usuario.
-- Dashboard multi-viaje.
-- Creación real de viajes con Supabase.
-- Roles `owner`, `editor`, `viewer`.
-- Gestión de integrantes con cambio de rol y expulsión.
-- Invitaciones por enlace/código.
-- Itinerario armado desde los gastos incluidos que tienen día y horario.
-- Alta rápida de gastos, reservas, lugares y valija personal.
-- Cantidad de viajeros independiente de las cuentas invitadas, para calcular correctamente el presupuesto del grupo.
-- Gastos editables/eliminables con datos de itinerario, categoría, estado, opción de incluir y marca opcional.
-- Lugares editables y eliminables, con base del viaje y rutas externas en Google Maps, sin API paga.
-- Presupuesto editable por persona, con total de grupo calculado automáticamente y filtro interactivo por categoría.
-- Reservas editables, eliminables y ordenables manualmente sin que cambien de lugar al modificar su estado.
-- Valija personal por usuario, con ítems editables/eliminables.
-- Categorías por sección, con opción de crear una nueva categoría desde el formulario.
-- Sincronización Realtime de actividades, gastos, reservas, lugares y valija.
-- Historial de cambios básico.
-- PWA instalable con manifest e icono de app.
-- RLS por viaje.
-- Modo demo sin Supabase, con persistencia en `localStorage`.
-- Ropa fuera del presupuesto del viaje.
+- Next.js, TypeScript y Supabase Auth.
+- Login con email o nombre de usuario y perfiles editables.
+- Viajes colaborativos con roles `owner`, `editor` y `viewer`.
+- Una ficha única por elemento del viaje, con itinerario, costo y reserva opcionales.
+- Altas contextuales desde Itinerario, Presupuesto y Reservas usando el mismo editor y la misma identidad.
+- Actividades repetidas sin duplicar el costo cuando el importe se define como total.
+- Presupuesto por persona y grupo, con categorías normalizadas y filtros.
+- Reservas con estado y fecha límite independientes del estado de pago.
+- Paradas opcionales; sus importes son referencias y no se suman al presupuesto.
+- Lugares guardados, base del viaje, enlaces a Google Maps y autocompletado opcional mediante Geoapify.
+- Valija personal, invitaciones, historial básico, Realtime, PWA y RLS por viaje.
+- Modo demo sin Supabase, persistido en `localStorage`.
 
 ## Arranque local
 
-Requiere Node.js 22. El proyecto incluye `.nvmrc` y `.node-version` para seleccionar esa versión automáticamente con un gestor compatible.
+Requiere Node.js 22.
 
 ```bash
 npm install
@@ -40,74 +28,54 @@ npm run dev
 
 Sin variables de entorno funciona en modo demo.
 
-## Conectar Supabase
+## Variables de entorno
 
-1. Crear proyecto.
-2. Ejecutar `supabase/schema.sql` en SQL Editor.
-3. Copiar `.env.example` a `.env.local`.
-4. Completar:
+Copiar `.env.example` a `.env.local` y completar:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
 SUPABASE_SERVICE_ROLE_KEY=tu_service_role_solo_del_servidor
+GEOAPIFY_API_KEY=tu_clave_opcional
 ```
 
-Si tu proyecto todavía muestra la clave legacy `anon`, también se admite `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+`SUPABASE_SERVICE_ROLE_KEY` sólo se usa en el servidor para resolver el login por nombre de usuario. Nunca debe llevar el prefijo `NEXT_PUBLIC_` ni versionarse.
 
-5. En Supabase Auth habilitar Email/Password.
-6. Configurar Site URL y Redirect URLs para localhost y Vercel.
-7. Ejecutar la app y crear cuenta.
+`GEOAPIFY_API_KEY` es opcional y sólo se lee desde la ruta del servidor. Sin esa clave, el lugar se puede escribir manualmente y se mantienen las sugerencias guardadas en el viaje. El uso está sujeto al plan y los límites de Geoapify; TripMate no contrata ni activa planes pagos.
 
-Si venís desde una base `v0.1`, ejecutar `supabase/v0.2.sql` una sola vez antes de usar nombres de usuario.
-Si ya estabas en `v0.2`, ejecutar `supabase/v0.3.sql` para habilitar lugares con base, orden manual de reservas y valija personal por usuario.
-Después de `v0.3`, ejecutar `supabase/v0.4.sql` para activar el guardado transaccional de gastos, apariciones y paradas del itinerario, los importes por persona/grupo y los permisos corregidos.
-Si `v0.4.sql` ya fue ejecutado, aplicar después `supabase/v0.4.1.sql`, `supabase/v0.4.2.sql` y `supabase/v0.4.3.sql`, en ese orden. El primer parche conserva el importe principal al agregar paradas, evita que una edición rápida reenvíe una agenda desactualizada y bloquea nombres vacíos. El segundo evita que un guardado completo sobrescriba una versión más reciente del mismo gasto. El tercero conecta Reservas con Presupuesto sin duplicar ni eliminar costos silenciosamente.
+## Base de datos
 
-`SUPABASE_SERVICE_ROLE_KEY` sólo se usa en el servidor para resolver el login por nombre de usuario. Debe configurarse también en Vercel y nunca llevar el prefijo `NEXT_PUBLIC_`.
+Para una base nueva, ejecutar una sola vez `supabase/schema.sql`.
 
-## Primer uso recomendado
+Para una base existente, aplicar en orden sólo las versiones posteriores a la instalada:
 
-1. Crear tu cuenta.
-2. Abrir o crear un viaje.
-3. Generar una invitación.
-4. La otra persona entra con el link, crea/inicia sesión y se une.
-5. Probar desde dos dispositivos cambiando un gasto, una reserva o un lugar.
+1. `supabase/v0.2.sql`
+2. `supabase/v0.3.sql`
+3. `supabase/v0.4.sql`
+4. `supabase/v0.4.1.sql`
+5. `supabase/v0.4.2.sql`
+6. `supabase/v0.4.3.sql`
+7. `supabase/v0.4.4.sql`
+8. `supabase/v0.4.5.sql`
+9. `supabase/v0.5.sql`
+10. `supabase/v0.6.sql`
+11. `supabase/v0.6.1.sql`
 
-## Deploy
-
-Ver `SETUP.md` para GitHub + Supabase + Vercel.
+Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base.
 
 ## Seguridad
 
 - La publishable/anon key puede estar en el frontend.
-- **Nunca** exponer `service_role`.
-- RLS limita acceso a integrantes de cada viaje.
-- Los perfiles sólo son visibles para personas que comparten al menos un viaje.
-- Los archivos futuros de tickets/comprobantes deben ir a un bucket privado.
+- `service_role` y `GEOAPIFY_API_KEY` son secretos de servidor.
+- RLS limita los datos a integrantes del viaje.
+- Los perfiles sólo son visibles para personas que comparten un viaje.
+- Los futuros comprobantes deben almacenarse en un bucket privado.
 
-## Modelo de datos
+## Modelo principal
 
-- `profiles`
-- `trips`
-- `trip_members`
-- `activities`
-- `expenses`
-- `reservations`
-- `places`
-- `packing_items`
-- `trip_notes`
-- `trip_invites`
-- `change_log`
+- `profiles`, `trips`, `trip_members`
+- `trip_items` como identidad estable
+- `activities`, `activity_steps`, `expenses`, `reservations` como facetas
+- `places`, `packing_items`, `trip_invites`, `change_log`
 
-## Próximas mejoras
-
-La ruta vigente está en [PRODUCT.md](PRODUCT.md), respaldada por la [auditoría de UX y flujos del 8 de septiembre de 2026](docs/AUDITORIA-UX-2026-09-08.md).
-
-1. Corregir pérdida de borradores, cancelaciones, validaciones, concurrencia y cambios involuntarios de precio.
-2. Simplificar Presupuesto e Itinerario, con altas en contexto y separación entre programación y costo.
-3. Vincular Reservas a un gasto único, sin duplicar importes ni confundir reserva con pago.
-4. Completar navegación, accesibilidad y gestión cotidiana; validar con dos cuentas y usuarios reales.
-5. Incorporar plantillas genéricas opcionales, copia de valija y exportación después de estabilizar el núcleo. Empezar de cero siempre sigue disponible.
-
-Estas son propuestas pendientes, no funciones ya implementadas. No se debe reimportar ni publicar el viaje personal de Córdoba como plantilla.
+La dirección vigente y los próximos pasos están en [PRODUCT.md](PRODUCT.md). La instalación y el despliegue están detallados en [SETUP.md](SETUP.md).

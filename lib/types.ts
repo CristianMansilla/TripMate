@@ -59,7 +59,28 @@ export type ExpenseOccurrence = {
   date: string
   startTime?: string
   endTime?: string
+  status?: ActivityStatus
   steps?: ActivityStep[]
+}
+
+export type TripItem = {
+  id: string
+  tripId: string
+  title: string
+  category: string
+  place?: string
+  notes?: string
+  optional: boolean
+  originType: 'item' | 'expense' | 'activity' | 'reservation'
+  originId: string
+  updatedAt: string
+}
+
+export type TripItemSaveInput = {
+  item: TripItem
+  activities: ExpenseOccurrence[]
+  expense: Expense | null
+  reservation: Reservation | null
 }
 
 export type Reservation = {
@@ -75,17 +96,6 @@ export type Reservation = {
   notes?: string
   amount?: number
   position?: number
-}
-
-export type ReservationCostChoice =
-  | { mode: 'none' }
-  | { mode: 'legacy'; amount: number }
-  | { mode: 'existing'; expenseId: string }
-  | { mode: 'new'; amount: number; amountBasis: 'per_person' | 'group' }
-
-export type ReservationSaveInput = {
-  reservation: Reservation
-  cost: ReservationCostChoice
 }
 
 export type Expense = {

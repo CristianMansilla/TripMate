@@ -1,40 +1,21 @@
 # TripMate · guía de configuración
 
-## 1. GitHub
+## 1. Repositorio
 
-```bash
-git init
-git add .
-git commit -m "TripMate v0.3"
-git branch -M main
-git remote add origin https://github.com/TU_USUARIO/tripmate.git
-git push -u origin main
-```
-
-No versionar `.env.local`.
+No versionar `.env.local`. Sí versionar `.env.example`, las migraciones y la documentación técnica.
 
 ## 2. Supabase
 
-Crear un proyecto gratuito y ejecutar completo:
+Para un proyecto nuevo, ejecutar completo `supabase/schema.sql` en SQL Editor.
 
-`supabase/schema.sql`
+Para actualizar una base existente, ejecutar en orden sólo los archivos posteriores a la versión ya aplicada:
 
-Después verificar que existan las tablas del proyecto.
+```text
+v0.2 → v0.3 → v0.4 → v0.4.1 → v0.4.2 → v0.4.3
+→ v0.4.4 → v0.4.5 → v0.5 → v0.6 → v0.6.1
+```
 
-Para actualizar una base existente de `v0.1` a `v0.2`, ejecutar:
-
-`supabase/v0.2.sql`
-
-Para actualizar de `v0.2` a `v0.3`, ejecutar:
-
-`supabase/v0.3.sql`
-
-Para actualizar de `v0.3` a `v0.4`, ejecutar después:
-
-`supabase/v0.4.sql`
-
-La migración v0.4 no elimina gastos ni actividades existentes. Copia al gasto los datos de agenda que ya tenga su actividad vinculada antes de activar el nuevo guardado.
-Durante el desarrollo de v0.4 el archivo puede volver a ejecutarse para actualizar sus funciones RPC; no duplica ni elimina gastos o actividades. La versión actual agrega la cantidad de viajeros independiente de los integrantes y convierte cada actividad ya vinculada en la primera aparición de su gasto. Después permite agregar más días sin duplicar el gasto.
+Cada script termina con una consulta de comprobación. No continuar si arroja una excepción o un indicador esperado devuelve `false`.
 
 ## 3. Variables locales
 
@@ -44,72 +25,54 @@ Crear `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=https://TU_PROYECTO.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=TU_CLAVE_PUBLICA
 SUPABASE_SERVICE_ROLE_KEY=TU_CLAVE_SECRETA_DE_SERVIDOR
+GEOAPIFY_API_KEY=TU_CLAVE_OPCIONAL
 ```
 
-La clave `service_role` es necesaria para iniciar sesión con nombre de usuario. Es secreta: no debe tener prefijo `NEXT_PUBLIC_`, enviarse al navegador ni versionarse.
+- `SUPABASE_SERVICE_ROLE_KEY` permite el login por nombre de usuario.
+- `GEOAPIFY_API_KEY` habilita autocompletado de lugares desde una ruta protegida del servidor.
+- Ninguna de las dos claves secretas debe usar `NEXT_PUBLIC_`, enviarse al navegador ni subirse a Git.
+- Geoapify es opcional: sin clave, los lugares siguen admitiendo escritura manual y registros guardados.
 
 ## 4. Auth
 
 En Supabase:
 
-- Authentication → Providers → Email habilitado.
-- Authentication → URL Configuration.
-
-Durante desarrollo:
-
-- Site URL: `http://localhost:3000`
-- Redirect URL: `http://localhost:3000/**`
-
-Luego de desplegar, agregar también la URL de Vercel.
+- Habilitar Authentication → Providers → Email.
+- Configurar Site URL `http://localhost:3000` durante desarrollo.
+- Agregar `http://localhost:3000/**` a Redirect URLs.
+- Después del despliegue, agregar también la URL definitiva.
 
 ## 5. Probar local
 
-Instalar Node.js 22 antes de ejecutar el proyecto. Si usás un gestor de versiones, los archivos `.nvmrc` y `.node-version` seleccionan la versión requerida.
+Requiere Node.js 22. Los archivos `.nvmrc` y `.node-version` documentan esa versión.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Crear cuenta en `/signup`, confirmar email y entrar.
-
-Durante pruebas, los emails enviados por Supabase Auth pueden llegar a correo no deseado. Para producción conviene configurar SMTP propio en Supabase Auth y autenticar el dominio del remitente.
+Crear una cuenta, confirmar el email y entrar. Los correos de Supabase pueden llegar a spam; para producción conviene SMTP propio.
 
 ## 6. Vercel
 
-- Add New → Project.
-- Importar el repo de GitHub.
-- Framework: Next.js.
-- Agregar Environment Variables:
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-- Deploy.
+1. Importar el repositorio como proyecto Next.js.
+2. Configurar las tres variables de Supabase.
+3. Agregar `GEOAPIFY_API_KEY` sólo si se usará el autocompletado.
+4. Desplegar.
+5. Volver a Supabase y agregar `https://TU_APP.vercel.app/**` a Redirect URLs.
 
-## 7. Volver a Supabase
+## 7. Prueba colaborativa
 
-Cambiar Site URL por la URL final de Vercel y agregar:
+1. Usuario A crea un viaje e invita a B como editor.
+2. B entra mediante el enlace.
+3. B crea o edita una ficha con itinerario, costo y reserva.
+4. A debe recibir el cambio por Realtime sin duplicados.
+5. Verificar que un `viewer` no pueda editar datos compartidos y sí gestione su propia valija.
 
-`https://TU_APP.vercel.app/**`
+## 8. Antes de publicar
 
-a Redirect URLs.
-
-## 8. Prueba colaborativa
-
-1. Usuario A abre un viaje.
-2. Invitar → rol Editor.
-3. Copiar enlace.
-4. Usuario B abre el enlace, crea/inicia sesión.
-5. B cambia un gasto, reserva o lugar.
-6. A debe ver el cambio por Realtime.
-
-## 9. Antes de hacerla pública
-
-- Agregar rate limiting a invitaciones si escala.
-- Bucket privado para comprobantes/tickets.
-- Política de privacidad si se abre a terceros.
-- Dominio propio opcional.
-- Backups/exportación.
-- Monitoreo de errores.
-- SMTP propio para mejorar la entrega de emails de registro y recuperación.
-- Notificaciones agrupadas por viaje para avisar cambios sin saturar al usuario.
+- Ejecutar typecheck y build.
+- Probar creación, edición y eliminación en escritorio y móvil.
+- Probar owner, editor, viewer y usuario no integrante.
+- Revisar límites gratuitos de los servicios externos.
+- Configurar monitoreo, backups, política de privacidad y SMTP.

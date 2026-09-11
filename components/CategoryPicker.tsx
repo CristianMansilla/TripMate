@@ -32,10 +32,11 @@ export default function CategoryPicker({
 }){
   const fieldId=useId()
   const choices=uniqueOptions(options)
-  const matchesChoice=choices.some(option=>option.toLowerCase()===value.trim().toLowerCase())
+  const matchedChoice=choices.find(option=>option.toLowerCase()===value.trim().toLowerCase())
+  const matchesChoice=Boolean(matchedChoice)
   const [customMode,setCustomMode]=useState(Boolean(value.trim()) && !matchesChoice)
   const usingCustom=Boolean(value.trim()) && !matchesChoice
-  const selectValue=customMode || usingCustom?customValue:value
+  const selectValue=customMode || usingCustom?customValue:(matchedChoice || value)
 
   useEffect(()=>{
     if(!value.trim())return
@@ -49,6 +50,7 @@ export default function CategoryPicker({
       setCustomMode(next===customValue)
       onChange(next===customValue?'':next)
     }} required={required}>
+      <option value="" disabled>Seleccioná una opción</option>
       {choices.map(option=><option key={option} value={option}>{option}</option>)}
       <option value={customValue}>Otra categoría...</option>
     </select>

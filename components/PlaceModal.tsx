@@ -10,15 +10,17 @@ import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
 import DiscardChangesDialog from './DiscardChangesDialog'
 import { useDiscardConfirmation } from './useDiscardConfirmation'
+import PlaceAutocomplete, { PlaceAutocompleteOption } from './PlaceAutocomplete'
 
 function validExternalUrl(value:string){
   if(!value)return true
   try{return ['http:','https:'].includes(new URL(value).protocol)}catch{return false}
 }
 
-export default function PlaceModal({place,categoryOptions,onClose,onSave,onDelete}:{
+export default function PlaceModal({place,categoryOptions,placeSuggestions,onClose,onSave,onDelete}:{
   place:Place
   categoryOptions:string[]
+  placeSuggestions:PlaceAutocompleteOption[]
   onClose:()=>void
   onSave:(place:Place)=>Promise<void>|void
   onDelete:(place:Place)=>void
@@ -56,7 +58,7 @@ export default function PlaceModal({place,categoryOptions,onClose,onSave,onDelet
         <div className="field full"><label htmlFor="place-name">Nombre</label><input id="place-name" value={draft.name} onChange={event=>patch('name',event.target.value)} required/></div>
         <CategoryPicker value={draft.category} options={categoryOptions} onChange={value=>patch('category',value)} required/>
         <div className="field"><label htmlFor="place-status">Estado</label><select id="place-status" value={draft.status} onChange={event=>patch('status',event.target.value as Place['status'])}><option value="saved">Guardado</option><option value="candidate">Candidato</option><option value="confirmed">Confirmado</option><option value="visited">Visitado</option><option value="discarded">Descartado</option></select></div>
-        <div className="field full"><label htmlFor="place-address">Dirección o zona</label><input id="place-address" value={draft.address || ''} onChange={event=>patch('address',event.target.value)}/></div>
+        <PlaceAutocomplete className="full" id="place-address" label="Dirección o zona" tripId={place.tripId} value={draft.address || ''} onChange={value=>setDraft(current=>({...current,address:value,latitude:null,longitude:null}))} localSuggestions={placeSuggestions} onSelect={selection=>setDraft(current=>({...current,name:current.name.trim()?current.name:selection.name,address:selection.address || selection.value,latitude:selection.latitude ?? null,longitude:selection.longitude ?? null}))}/>
         <div className="field full"><label htmlFor="place-url">Enlace</label><input id="place-url" type="url" value={draft.url || ''} onChange={event=>patch('url',event.target.value)} placeholder="https://..."/></div>
         <div className="field full"><label htmlFor="place-notes">Notas</label><textarea id="place-notes" value={draft.notes || ''} onChange={event=>patch('notes',event.target.value)} placeholder="Horarios, referencias o recomendaciones"/></div>
       </div>

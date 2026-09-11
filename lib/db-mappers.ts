@@ -1,4 +1,4 @@
-import { Activity, ActivityStep, Expense, PackingItem, Place, Reservation, Trip } from './types'
+import { Activity, ActivityStep, Expense, PackingItem, Place, Reservation, Trip, TripItem } from './types'
 
 export function mapTrip(row: any, memberNames: string[] = [], role?: Trip['role']): Trip {
   return {
@@ -13,6 +13,21 @@ export function mapTrip(row: any, memberNames: string[] = [], role?: Trip['role'
     travelerCount: Math.max(1, Number(row.traveler_count || memberNames.length || 1)),
     memberNames,
     role,
+  }
+}
+
+export function mapTripItem(row:any):TripItem {
+  return {
+    id:row.id,
+    tripId:row.trip_id,
+    title:row.title,
+    category:row.category || 'other',
+    place:row.place || undefined,
+    notes:row.notes || undefined,
+    optional:Boolean(row.optional),
+    originType:row.origin_type,
+    originId:row.origin_id,
+    updatedAt:row.updated_at,
   }
 }
 
