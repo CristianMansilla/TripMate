@@ -41,10 +41,10 @@ function occurrenceDateLabel(date:string){
   return new Date(date+'T12:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'})
 }
 function activityStateLabel(status:Activity['status']){
-  return ({idea:'Idea',planned:'Planificado',reserved:'Reservado',paid:'Pagado',done:'Hecho'})[status]
+  return ({idea:'Idea',planned:'Planificado',reserved:'Planificado',paid:'Planificado',done:'Hecho'})[status]
 }
 function activityChip(status:Activity['status']){
-  return `status-${status}`
+  return `status-${status==='reserved'||status==='paid'?'planned':status}`
 }
 function activityCategoryLabel(category:Activity['category']){
   return itemCategoryLabel(category)
@@ -82,7 +82,7 @@ function reservationPriorityLabel(priority:Reservation['priority']){
   return ({high:'Prioridad alta',medium:'Prioridad media',low:'Prioridad baja'})[priority]
 }
 function expenseStatusLabel(status:Expense['status']){
-  return ({estimated:'',confirmed:'Confirmado',paid:'Pagado'})[status]
+  return ({estimated:'Estimado',confirmed:'Confirmado',paid:'Pagado'})[status]
 }
 function roleDescription(role:TripMember['role']){
   return ({owner:'Organizador del viaje',editor:'Puede editar el viaje',viewer:'Sólo puede consultar'})[role]
@@ -255,7 +255,12 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       const mapped=mapActivityStep(row)
       stepsByActivity.set(row.activity_id,[...(stepsByActivity.get(row.activity_id) || []),mapped])
     })
-    const mappedItems=(itemsQ.data||[]).map(mapTripItem)
+    const mappedPlaces=(placesQ.data||[]).map(mapPlace)
+    const placeById=new Map(mappedPlaces.map(place=>[place.id,place]))
+    const mappedItems=(itemsQ.data||[]).map(mapTripItem).map(item=>{
+      const place=item.placeId?placeById.get(item.placeId):undefined
+      return place?{...item,place:[place.name,place.address].filter(Boolean).join(', ')}:item
+    })
     const itemById=new Map(mappedItems.map(item=>[item.id,item]))
     const mappedActivities=(actsQ.data||[]).map(row=>{
       const activity={...mapActivity(row),steps:stepsByActivity.get(row.id) || []}
@@ -278,7 +283,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     setExp(mappedExpenses)
     setRes(mappedReservations)
     setItems(mappedItems)
-    setPlaces((placesQ.data||[]).map(mapPlace))
+    setPlaces(mappedPlaces)
     setPack((packQ.data||[]).map(mapPacking))
     setChanges((logQ.data||[]).map((r:any)=>({
       id:r.id,tripId:r.trip_id,entityType:r.entity_type,entityId:r.entity_id,action:r.action,summary:r.summary,createdAt:r.created_at
@@ -393,6 +398,11 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     return result
   },[exp,acts])
   const expenseById=useMemo(()=>new Map(exp.map(expense=>[expense.id,expense])),[exp])
+  const reservationByItemId=useMemo(()=>new Map(res.filter(reservation=>reservation.itemId).map(reservation=>[reservation.itemId!,reservation])),[res])
+  const milestoneActivities=useMemo(()=>visibleActivities.filter(activity=>
+    Boolean(activity.itemId&&reservationByItemId.get(activity.itemId)) ||
+    ['Evento','Alojamiento'].includes(itemCategoryLabel(activity.category))
+  ).slice(0,6),[visibleActivities,reservationByItemId])
   const recurrenceCountFor=(activity:Activity)=>expenseByActivityId.get(activity.id)?.occurrences?.length || 0
   const recurrenceLabelFor=(activity:Activity)=>{
     const occurrences=expenseByActivityId.get(activity.id)?.occurrences || []
@@ -476,13 +486,14 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       showSuccess(editingItem.isNew?'Detalle creado.':'Cambios guardados.')
       return
     }
-    const {data,error}=await supabase.rpc('save_trip_item_v1',{
+    const {data,error}=await supabase.rpc('save_trip_item_v2',{
       p_item_id:editingItem.isNew?null:item.id,
       p_trip_id:trip.id,
       p_expected_updated_at:editingItem.isNew?null:item.updatedAt,
       p_title:item.title,
       p_category:item.category,
       p_place:item.place || null,
+      p_place_id:item.placeId || null,
       p_notes:item.notes || null,
       p_optional:item.optional,
       p_activities:activities.map(activity=>({
@@ -803,11 +814,11 @@ export default function TripWorkspace({tripId}:{tripId:string}){
         <section className="panel">
           <div className="panel-head"><div><h3>Próximos hitos</h3><div className="muted subcopy">Lo importante del viaje, sin leer todo el itinerario.</div></div><button className="btn btn-ghost" onClick={()=>setTab('Itinerario')}>Ver todo</button></div>
           <div className="list">
-            {visibleActivities.filter(a=>['reserved','paid'].includes(a.status)||['Evento','Alojamiento'].includes(itemCategoryLabel(a.category))).slice(0,6).map(a=><div className="list-row" key={a.id}>
+            {milestoneActivities.map(a=><div className="list-row" key={a.id}>
               <div><strong>{a.title}</strong><small>{shortDate(a.date)} {a.startTime?`· ${a.startTime}`:''} {a.place?`· ${a.place}`:''}</small></div>
-              <span className={`chip ${activityChip(a.status)}`}>{activityStateLabel(a.status)}</span>
+              {a.itemId&&reservationByItemId.get(a.itemId)?<span className={`chip ${reservationChip(reservationByItemId.get(a.itemId)!.status)}`}>Reserva: {reservationLabel(reservationByItemId.get(a.itemId)!.status)}</span>:<span className={`chip ${activityChip(a.status)}`}>Agenda: {activityStateLabel(a.status)}</span>}
             </div>)}
-            {!visibleActivities.length&&<div className="empty compact">Todavía no hay actividades en el itinerario.</div>}
+            {!milestoneActivities.length&&<div className="empty compact">Todavía no hay reservas, eventos ni alojamientos programados.</div>}
           </div>
         </section>
         <aside style={{display:'grid',gap:18}}>
@@ -832,7 +843,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
               <span className="time-start">{a.startTime||'—'}</span>
               {a.endTime&&<><span className="time-to">a</span><span className="time-end">{a.endTime}</span></>}
             </div>
-            <div><div className="activity-title">{a.title} {a.optional?<span className="chip optional">Opcional</span>:null}</div><div className="activity-sub">{a.place}{a.place&&a.notes?' · ':''}{a.notes}</div><div className="chips"><span className={`chip ${activityChip(a.status)}`}>{activityStateLabel(a.status)}</span><span className="chip category-chip">{activityCategoryLabel(a.category)}</span>{recurrenceCountFor(a)>1&&<span className="chip recurrence-chip" title={`Esta actividad tiene ${recurrenceCountFor(a)} apariciones en el itinerario`}><Repeat2 size={12}/>{recurrenceLabelFor(a)}</span>}{Boolean(a.steps?.length)&&<span className="chip category-chip">{a.steps!.length} {a.steps!.length===1?'parada':'paradas'}</span>}</div>
+            <div><div className="activity-title">{a.title} {a.optional?<span className="chip optional">Opcional</span>:null}</div><div className="activity-sub">{a.place}{a.place&&a.notes?' · ':''}{a.notes}</div><div className="chips"><span className={`chip ${activityChip(a.status)}`}>Agenda: {activityStateLabel(a.status)}</span>{a.itemId&&reservationByItemId.get(a.itemId)&&<span className={`chip ${reservationChip(reservationByItemId.get(a.itemId)!.status)}`}>Reserva: {reservationLabel(reservationByItemId.get(a.itemId)!.status)}</span>}{expenseByActivityId.get(a.id)&&<span className={`chip status-${expenseByActivityId.get(a.id)!.status}`}>Costo: {expenseStatusLabel(expenseByActivityId.get(a.id)!.status)}</span>}{a.status==='reserved'&&!(a.itemId&&reservationByItemId.get(a.itemId))&&<span className="chip">Reserva anterior: Reservado</span>}{a.status==='paid'&&!expenseByActivityId.get(a.id)&&<span className="chip">Costo anterior: Pagado</span>}<span className="chip category-chip">{activityCategoryLabel(a.category)}</span>{recurrenceCountFor(a)>1&&<span className="chip recurrence-chip" title={`Esta actividad tiene ${recurrenceCountFor(a)} apariciones en el itinerario`}><Repeat2 size={12}/>{recurrenceLabelFor(a)}</span>}{Boolean(a.steps?.length)&&<span className="chip category-chip">{a.steps!.length} {a.steps!.length===1?'parada':'paradas'}</span>}</div>
               {Boolean(a.steps?.length)&&<div className="activity-steps" aria-label={`Paradas de ${a.title}`}>
                 {a.steps!.map((step,stepIndex)=><div className="activity-step" key={step.id || `${a.id}-step-${stepIndex}`}>
                   <div className="activity-step-time">{step.startTime || 'Sin hora'}{step.endTime?` a ${step.endTime}`:''}</div>
@@ -870,7 +881,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
               const occurrenceLabel=linkedActivities.length>1?`${linkedActivities.length} apariciones · ${e.occurrencePricing==='per_occurrence'?'importe por aparición':'importe total'}`:''
               const occurrenceDates=linkedActivities.length>1?linkedActivities.map(item=>occurrenceDateLabel(item.date)).join(', '):''
               return <div className={`list-row budget-line ${!included?'excluded':''}`} key={e.id} style={{alignItems:'center'}}>
-                <div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className={`budget-check ${included?'on':''}`} disabled={!canEdit} onClick={()=>toggleExpenseIncluded(e.id)} aria-label={`${included?'Excluir':'Incluir'} ${e.title}`} aria-pressed={included}>{included?'✓':''}</button><div><div className="budget-title-row"><strong>{e.title}</strong>{linkedReservation&&<span className="budget-structure-badge" title="Este gasto está vinculado a una reserva"><ClipboardCheck size={13}/>Reserva</span>}{hasSteps&&<span className="budget-structure-badge" title="Esta actividad incluye paradas"><ListTree size={13}/>{stepCount} {stepCount===1?'parada':'paradas'}</span>}</div><small>{[occurrenceDates,linkedActivities.length===1?activity?.startTime:'',e.place||activity?.place,itemCategoryLabel(e.category),e.amountBasis==='group'?'total grupo':'',occurrenceLabel,status,!linked?'sin día en itinerario':!included?'fuera del total':''].filter(Boolean).join(' · ')}</small></div></div>
+                <div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className={`budget-check ${included?'on':''}`} disabled={!canEdit} onClick={()=>toggleExpenseIncluded(e.id)} aria-label={`${included?'Excluir':'Incluir'} ${e.title}`} aria-pressed={included}>{included?'✓':''}</button><div><div className="budget-title-row"><strong>{e.title}</strong>{linkedReservation&&<span className="budget-structure-badge" title="Este gasto está vinculado a una reserva"><ClipboardCheck size={13}/>Reserva: {reservationLabel(linkedReservation.status)}</span>}{hasSteps&&<span className="budget-structure-badge" title="Esta actividad incluye paradas"><ListTree size={13}/>{stepCount} {stepCount===1?'parada':'paradas'}</span>}</div><small>{[occurrenceDates,linkedActivities.length===1?activity?.startTime:'',e.place||activity?.place,itemCategoryLabel(e.category),e.amountBasis==='group'?'total grupo':'',occurrenceLabel,status,!linked?'sin día en itinerario':!included?'fuera del total':''].filter(Boolean).join(' · ')}</small></div></div>
                 <div className="budget-actions"><div className="money-input"><span>{trip.currency}</span><input aria-label={`Costo ${e.title}`} disabled={!canEdit} min="0" step="0.01" type="number" value={expenseAmountDrafts[e.id] ?? String(e.amount)} onChange={ev=>setExpenseAmountDrafts(current=>({...current,[e.id]:ev.target.value}))} onBlur={()=>commitExpenseAmount(e)}/></div>{canEdit&&<>{linkedReservation&&<button className="icon-btn" title={`Editar reserva ${linkedReservation.title}`} aria-label={`Editar la reserva vinculada a ${e.title}`} onClick={()=>openItemForFacet('reservation',linkedReservation)}><ClipboardCheck size={16}/></button>}<button className="icon-btn" title={`Editar ${e.title}`} aria-label={`Editar ${e.title}`} onClick={()=>openItemForFacet('cost',e)}><Edit3 size={16}/></button></>}</div>
               </div>
             })}</div>
@@ -888,11 +899,11 @@ export default function TripWorkspace({tripId}:{tripId:string}){
         <div className="list">{[...res].sort(sortReservations).map((r,index,items)=>{
           const linkedExpense=r.expenseId?expenseById.get(r.expenseId):undefined
           const costLabel=linkedExpense
-            ? `${money(linkedExpense.amount*expenseMultiplier(linkedExpense),linkedExpense.currency || trip.currency)} en Presupuesto${linkedExpense.amountBasis==='group'?' · grupo':''}${linkedExpense.included===false?' · fuera del total':''}`
+            ? `${money(linkedExpense.amount*expenseMultiplier(linkedExpense),linkedExpense.currency || trip.currency)} en Presupuesto · costo ${expenseStatusLabel(linkedExpense.status).toLowerCase()}${linkedExpense.amountBasis==='group'?' · grupo':''}${linkedExpense.included===false?' · fuera del total':''}`
             : r.amount!==undefined
               ? `${money(r.amount,trip.currency)} · no incluido en Presupuesto`
               : ''
-          return <div key={r.id} className="list-row reservation-row"><div><strong><span className={`status-dot ${r.status==='reserved'||r.status==='paid'?'done':''}`}/>{r.title}</strong><small>{[reservationPriorityLabel(r.priority),r.dueDate?`vence ${shortDate(r.dueDate)}`:'',costLabel,r.notes].filter(Boolean).join(' · ')}</small></div><div className="reservation-actions"><select className={`chip status-select ${reservationChip(r.status)}`} aria-label={`Estado de ${r.title}`} disabled={!canEdit} value={r.status} onChange={event=>setReservationStatus(r.id,event.target.value as Reservation['status'])}><option value="watching">Esperando</option><option value="pending">Pendiente</option><option value="reserved">Reservado</option><option value="paid">Pagado</option></select>{canEdit&&<>{linkedExpense&&<button className="icon-btn" title={`Editar costo de ${r.title}`} aria-label={`Editar el costo de ${r.title}`} onClick={()=>openItemForFacet('cost',r)}><ReceiptText size={16}/></button>}<button className="icon-btn" title={`Editar ${r.title}`} aria-label={`Editar ${r.title}`} onClick={()=>openItemForFacet('reservation',r)}><Edit3 size={16}/></button><button className="icon-btn" disabled={index===0} title="Subir reserva" aria-label={`Subir ${r.title}`} onClick={()=>moveReservation(r,-1)}><ArrowUp size={16}/></button><button className="icon-btn" disabled={index===items.length-1} title="Bajar reserva" aria-label={`Bajar ${r.title}`} onClick={()=>moveReservation(r,1)}><ArrowDown size={16}/></button></>}</div></div>
+          return <div key={r.id} className="list-row reservation-row"><div><strong><span className={`status-dot ${r.status==='reserved'||r.status==='paid'?'done':''}`}/>{r.title}</strong><small>{[reservationPriorityLabel(r.priority),r.dueDate?`vence ${shortDate(r.dueDate)}`:'',costLabel,r.notes].filter(Boolean).join(' · ')}</small></div><div className="reservation-actions"><select className={`chip status-select ${reservationChip(r.status)}`} aria-label={`Estado de ${r.title}`} disabled={!canEdit} value={r.status} onChange={event=>setReservationStatus(r.id,event.target.value as Reservation['status'])}><option value="watching">Esperando</option><option value="pending">Pendiente</option><option value="reserved">Reservado</option>{r.status==='paid'&&<option value="paid">Pagado (estado anterior)</option>}</select>{canEdit&&<>{linkedExpense&&<button className="icon-btn" title={`Editar costo de ${r.title}`} aria-label={`Editar el costo de ${r.title}`} onClick={()=>openItemForFacet('cost',r)}><ReceiptText size={16}/></button>}<button className="icon-btn" title={`Editar ${r.title}`} aria-label={`Editar ${r.title}`} onClick={()=>openItemForFacet('reservation',r)}><Edit3 size={16}/></button><button className="icon-btn" disabled={index===0} title="Subir reserva" aria-label={`Subir ${r.title}`} onClick={()=>moveReservation(r,-1)}><ArrowUp size={16}/></button><button className="icon-btn" disabled={index===items.length-1} title="Bajar reserva" aria-label={`Bajar ${r.title}`} onClick={()=>moveReservation(r,1)}><ArrowDown size={16}/></button></>}</div></div>
         })}</div>
         {!res.length&&<div className="empty compact">No hay reservas cargadas.</div>}
       </section>}

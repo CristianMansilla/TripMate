@@ -47,6 +47,7 @@ create table public.trip_items (
   title text not null check(length(trim(title)) > 0),
   category text not null default 'other',
   place text,
+  place_id uuid,
   notes text,
   optional boolean not null default false,
   origin_type text not null check(origin_type in ('item','expense','activity','reservation')),
@@ -184,6 +185,10 @@ create table public.places (
 create unique index places_one_base_per_trip
   on public.places (trip_id)
   where is_base;
+
+alter table public.trip_items add constraint trip_items_place_id_fkey
+  foreign key(place_id) references public.places(id) on delete set null;
+create index trip_items_place_id_idx on public.trip_items(place_id);
 
 create table public.packing_items (
   id uuid primary key default gen_random_uuid(),
@@ -1193,6 +1198,35 @@ begin
 end;
 $$;
 
+create or replace function public.save_trip_item_v2(
+  p_item_id uuid,p_trip_id uuid,p_expected_updated_at timestamptz,
+  p_title text,p_category text,p_place text,p_place_id uuid,p_notes text,p_optional boolean,
+  p_activities jsonb,p_expense jsonb,p_reservation jsonb
+) returns uuid
+language plpgsql security invoker set search_path=public as $$
+declare
+  v_item_id uuid;
+  v_place text:=p_place;
+begin
+  if p_place_id is not null then
+    select case
+      when nullif(trim(place.address),'') is null or trim(place.address)=trim(place.name) then trim(place.name)
+      else trim(place.name)||', '||trim(place.address)
+    end into v_place
+    from public.places place
+    where place.id=p_place_id and place.trip_id=p_trip_id;
+    if not found then raise exception 'El lugar guardado y el elemento deben pertenecer al mismo viaje.'; end if;
+  end if;
+  select public.save_trip_item_v1(
+    p_item_id,p_trip_id,p_expected_updated_at,p_title,p_category,v_place,p_notes,
+    p_optional,p_activities,p_expense,p_reservation
+  ) into v_item_id;
+  update public.trip_items set place_id=p_place_id where id=v_item_id and trip_id=p_trip_id;
+  if not found then raise exception 'No se pudo vincular el lugar al elemento.'; end if;
+  return v_item_id;
+end;
+$$;
+
 create or replace function public.delete_trip_item_v1(
   p_item_id uuid,p_trip_id uuid,p_expected_updated_at timestamptz
 ) returns void
@@ -1294,6 +1328,22 @@ create trigger expenses_trip_item before insert or update of item_id,trip_id,act
   for each row execute function public.ensure_trip_item_reference();
 create trigger reservations_trip_item before insert or update of item_id,trip_id,expense_id,activity_id on public.reservations
   for each row execute function public.ensure_trip_item_reference();
+
+create or replace function public.ensure_trip_item_place_reference()
+returns trigger language plpgsql set search_path=public as $$
+begin
+  if new.place_id is not null and not exists(
+    select 1 from public.places place where place.id=new.place_id and place.trip_id=new.trip_id
+  ) then
+    raise exception 'El lugar guardado y el elemento deben pertenecer al mismo viaje.';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trip_items_place_reference
+  before insert or update of place_id,trip_id on public.trip_items
+  for each row execute function public.ensure_trip_item_place_reference();
 
 create or replace function public.use_trip_item_common_fields()
 returns trigger language plpgsql security definer set search_path=public as $$
@@ -1466,9 +1516,11 @@ revoke all on function public.save_activity_plan(uuid,uuid,timestamptz,text,date
 revoke all on function public.save_activity_plan_v2(uuid,uuid,timestamptz,text,date,time,time,text,text,text,text,boolean,text,numeric,text,jsonb) from public, anon;
 revoke all on function public.delete_activity_plan(uuid,uuid) from public, anon;
 revoke all on function public.save_trip_item_v1(uuid,uuid,timestamptz,text,text,text,text,boolean,jsonb,jsonb,jsonb) from public, anon;
+revoke all on function public.save_trip_item_v2(uuid,uuid,timestamptz,text,text,text,uuid,text,boolean,jsonb,jsonb,jsonb) from public, anon;
 revoke all on function public.delete_trip_item_v1(uuid,uuid,timestamptz) from public, anon;
 revoke all on function public.validate_trip_item_reservation_due_date() from public, anon, authenticated;
 revoke all on function public.use_trip_item_common_fields() from public, anon, authenticated;
+revoke all on function public.ensure_trip_item_place_reference() from public, anon, authenticated;
 revoke all on function public.move_reservation(uuid,uuid,integer) from public, anon;
 revoke all on function public.set_trip_base_place(uuid,uuid) from public, anon;
 grant execute on function public.save_expense_plan(uuid,uuid,text,text,numeric,text,boolean,text,date,time,time,text,text,boolean) to authenticated;
@@ -1482,6 +1534,7 @@ grant execute on function public.save_activity_plan(uuid,uuid,timestamptz,text,d
 grant execute on function public.save_activity_plan_v2(uuid,uuid,timestamptz,text,date,time,time,text,text,text,text,boolean,text,numeric,text,jsonb) to authenticated;
 grant execute on function public.delete_activity_plan(uuid,uuid) to authenticated;
 grant execute on function public.save_trip_item_v1(uuid,uuid,timestamptz,text,text,text,text,boolean,jsonb,jsonb,jsonb) to authenticated;
+grant execute on function public.save_trip_item_v2(uuid,uuid,timestamptz,text,text,text,uuid,text,boolean,jsonb,jsonb,jsonb) to authenticated;
 grant execute on function public.delete_trip_item_v1(uuid,uuid,timestamptz) to authenticated;
 grant execute on function public.move_reservation(uuid,uuid,integer) to authenticated;
 grant execute on function public.set_trip_base_place(uuid,uuid) to authenticated;

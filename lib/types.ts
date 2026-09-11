@@ -69,6 +69,7 @@ export type TripItem = {
   title: string
   category: string
   place?: string
+  placeId?: string
   notes?: string
   optional: boolean
   originType: 'item' | 'expense' | 'activity' | 'reservation'

@@ -23,6 +23,7 @@ export function mapTripItem(row:any):TripItem {
     title:row.title,
     category:row.category || 'other',
     place:row.place || undefined,
+    placeId:row.place_id || undefined,
     notes:row.notes || undefined,
     optional:Boolean(row.optional),
     originType:row.origin_type,

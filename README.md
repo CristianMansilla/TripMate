@@ -12,6 +12,7 @@ TripMate es una aplicación web colaborativa y mobile-first para planificar viaj
 - Actividades repetidas sin duplicar el costo cuando el importe se define como total.
 - Presupuesto por persona y grupo, con categorías normalizadas y filtros.
 - Reservas con estado y fecha límite independientes del estado de pago.
+- Estados separados por responsabilidad: agenda, reserva y costo.
 - Paradas opcionales; sus importes son referencias y no se suman al presupuesto.
 - Lugares guardados, base del viaje, enlaces a Google Maps y autocompletado opcional mediante Geoapify.
 - Valija personal, invitaciones, historial básico, Realtime, PWA y RLS por viaje.
@@ -61,8 +62,9 @@ Para una base existente, aplicar en orden sólo las versiones posteriores a la i
 10. `supabase/v0.6.sql`
 11. `supabase/v0.6.1.sql`
 12. `supabase/v0.7.sql`
+13. `supabase/v0.7.1.sql`
 
-Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base. `v0.7` establece `trip_items` como fuente canónica de nombre, tipo, lugar, notas y condición opcional.
+Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base. `v0.7` establece `trip_items` como fuente canónica de nombre, tipo, lugar, notas y condición opcional. `v0.7.1` permite vincular una ficha con un Lugar guardado sin impedir el texto libre.
 
 ## Seguridad
 

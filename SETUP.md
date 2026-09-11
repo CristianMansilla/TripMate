@@ -12,7 +12,7 @@ Para actualizar una base existente, ejecutar en orden sólo los archivos posteri
 
 ```text
 v0.2 → v0.3 → v0.4 → v0.4.1 → v0.4.2 → v0.4.3
-→ v0.4.4 → v0.4.5 → v0.5 → v0.6 → v0.6.1 → v0.7
+→ v0.4.4 → v0.4.5 → v0.5 → v0.6 → v0.6.1 → v0.7 → v0.7.1
 ```
 
 Cada script termina con una consulta de comprobación. No continuar si arroja una excepción o un indicador esperado devuelve `false`.

@@ -90,7 +90,7 @@ export default function PlaceAutocomplete({
     const local=localSuggestions
       .filter(place=>!normalized || `${place.name} ${place.address || ''}`.toLocaleLowerCase('es').includes(normalized))
       .map(place=>({
-        id:`saved-${place.id}`,name:place.name,address:place.address || '',
+        id:place.id,name:place.name,address:place.address || '',
         value:[place.name,place.address].filter(Boolean).join(', '),
         latitude:place.latitude ?? undefined,longitude:place.longitude ?? undefined,source:'saved' as const,
       }))
