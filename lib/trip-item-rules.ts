@@ -1,4 +1,4 @@
-import type { ActivityStatus, Expense } from './types'
+import type { ActivityStatus, Expense, Reservation } from './types'
 
 const categoryAliases:Record<string,string>={
   activity:'Actividad',actividad:'Actividad',actividades:'Actividad',
@@ -50,4 +50,16 @@ export function expenseGroupTotal(expense:Expense,travelerCount:number,linkedAct
 
 export function savedPlaceValue(place:{name:string;address?:string}){
   return [place.name,place.address].filter(Boolean).join(', ')
+}
+
+const reservationStatusOrder:Record<Reservation['status'],number>={
+  pending:0,watching:1,reserved:2,paid:3,
+}
+
+export function sortReservationsForDisplay(a:Reservation,b:Reservation){
+  const byStatus=reservationStatusOrder[a.status]-reservationStatusOrder[b.status]
+  if(byStatus!==0)return byStatus
+  const byDueDate=(a.dueDate || '9999-12-31').localeCompare(b.dueDate || '9999-12-31')
+  if(byDueDate!==0)return byDueDate
+  return a.title.localeCompare(b.title,'es',{sensitivity:'base'}) || a.id.localeCompare(b.id)
 }

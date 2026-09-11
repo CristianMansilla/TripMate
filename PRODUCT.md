@@ -6,7 +6,7 @@ Una sola fuente de verdad para un viaje compartido. La ficha de un elemento conc
 
 ## Estado
 
-Revisado el 10 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas y las correcciones de UX detectadas en la auditoría posterior. `v0.7` está consolidando `trip_items` como fuente canónica para eliminar divergencias heredadas.
+Revisado el 11 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas. `v0.7` consolidó `trip_items` como fuente canónica y `v0.7.1` vinculó cada ficha con un lugar guardado opcional. Las dos migraciones están aplicadas y sus comprobaciones posteriores devolvieron `true`.
 
 Los botones “Agregar actividad”, “Agregar gasto” y “Agregar reserva” se conservan dentro de sus secciones porque representan la intención inicial, no fuentes de datos distintas. Los tres abren el mismo editor, guardan mediante la misma RPC y permiten añadir las demás facetas.
 
@@ -38,21 +38,22 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 
 ## Próximas etapas
 
-### Cerrar v0.6.1
+### v0.7 cerrada
 
-- Aplicar y validar la migración incremental.
-- Probar la ficha desde los tres accesos contextuales.
-- Confirmar que quitar una faceta no borre las demás.
-- Verificar categorías, repeticiones, fechas límite y costos informativos de paradas.
-- Repetir una auditoría visual breve en escritorio y móvil.
+- `trip_items` posee los campos comunes y las facetas heredadas se alinean con esa identidad.
+- Actividades, costos y reservas abren y guardan la misma ficha desde sus accesos contextuales.
+- Quitar una faceta conserva las demás; eliminar la ficha completa mantiene confirmación explícita.
+- Las categorías, repeticiones, fechas límite, costos y lugares reutilizables tienen reglas compartidas.
+- Reservas conserva prioridad y posición antiguas en la base, pero la interfaz usa un orden automático por acción y vencimiento.
+- Las pruebas manuales colaborativas, las comprobaciones SQL y la auditoría visual automatizada de escritorio pasaron. Queda pendiente ampliar el recorrido automatizado a un viewport móvil.
 
-### v0.7 · relaciones y consistencia
+### Próxima etapa · agenda y navegación
 
-- Leer y proteger los campos comunes desde `trip_items`, incluso ante escrituras heredadas. Implementado localmente; pendiente de migración y validación.
-- Vincular una ficha con un `place_id` reutilizable, manteniendo texto libre. Implementado localmente en `v0.7.1`; pendiente de migración y validación.
-- Revisar la presentación conjunta de estados de agenda, reserva y pago. Implementado localmente: los estados se muestran por responsabilidad y los valores históricos dejan de ofrecerse para nuevas fichas.
-- Ampliar las pruebas automatizadas: las reglas de categorías, estados, costos repetidos y Lugares ya están cubiertas; faltan integración de RPC y recorridos del navegador.
-- Medir rendimiento y calidad del autocompletado antes de conservarlo como función estable.
+- Modelar transporte nocturno y estancias con fecha de finalización explícita, sin reinterpretar horarios históricos.
+- Conservar sección y contexto al volver, recargar o compartir una URL del viaje.
+- Ampliar pruebas de integración de RPC cuando exista una base de prueba aislada.
+- Ampliar los recorridos automatizados al viewport móvil y mantener una comprobación breve de escritorio en cada cambio relevante de interfaz.
+- Medir rendimiento y calidad del autocompletado antes de declararlo una función estable.
 
 ### Después de estabilizar
 

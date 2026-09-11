@@ -8,6 +8,7 @@ import {
   itineraryStatus,
   itineraryStatusLabel,
   savedPlaceValue,
+  sortReservationsForDisplay,
 } from './trip-item-rules'
 
 function expense(overrides:Partial<Expense>={}):Expense{
@@ -52,5 +53,16 @@ describe('trip item rules',()=>{
   it('formats saved places consistently',()=>{
     expect(savedPlaceValue({name:'Museo',address:'Colón 100'})).toBe('Museo, Colón 100')
     expect(savedPlaceValue({name:'Plaza'})).toBe('Plaza')
+  })
+
+  it('orders reservations by action, due date and title',()=>{
+    const reservations=[
+      {id:'4',tripId:'trip-1',title:'Hotel',status:'reserved',priority:'high'},
+      {id:'3',tripId:'trip-1',title:'Cena',status:'watching',priority:'low'},
+      {id:'2',tripId:'trip-1',title:'Museo',status:'pending',priority:'low',dueDate:'2026-01-08'},
+      {id:'1',tripId:'trip-1',title:'Aerosilla',status:'pending',priority:'high',dueDate:'2026-01-03'},
+    ] satisfies import('./types').Reservation[]
+
+    expect([...reservations].sort(sortReservationsForDisplay).map(item=>item.id)).toEqual(['1','2','3','4'])
   })
 })

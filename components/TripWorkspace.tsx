@@ -14,7 +14,7 @@ import { money } from '@/lib/money'
 import { createClient } from '@/lib/supabase-client'
 import { mapActivity, mapActivityStep, mapExpense, mapPacking, mapPlace, mapReservation, mapTrip, mapTripItem } from '@/lib/db-mappers'
 import { logChange } from '@/lib/change-log'
-import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Edit3, ExternalLink, History, Link2, ListTree, Luggage, Map as MapIcon, MapPin, Menu, Minus, Navigation, Plus, ReceiptText, Repeat2, Share2, Star, Trash2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Edit3, ExternalLink, History, Link2, ListTree, Luggage, Map as MapIcon, MapPin, Menu, Minus, Navigation, Plus, ReceiptText, Repeat2, Share2, Star, Trash2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { changeActionLabel, tripRoleLabel, userFacingError } from '@/lib/ui-text'
 import type { PlaceAutocompleteOption } from './PlaceAutocomplete'
@@ -26,6 +26,7 @@ import {
   itineraryStatus,
   itineraryStatusLabel,
   savedPlaceValue,
+  sortReservationsForDisplay,
 } from '@/lib/trip-item-rules'
 
 const tabs = ['Resumen','Itinerario','Presupuesto','Reservas','Lugares','Valija','Integrantes'] as const
@@ -64,9 +65,6 @@ function reservationLabel(status:Reservation['status']){
 }
 function reservationChip(status:Reservation['status']){
   return `reservation-${status}`
-}
-function reservationPriorityLabel(priority:Reservation['priority']){
-  return ({high:'Prioridad alta',medium:'Prioridad media',low:'Prioridad baja'})[priority]
 }
 function expenseStatusLabel(status:Expense['status']){
   return ({estimated:'Estimado',confirmed:'Confirmado',paid:'Pagado'})[status]
@@ -119,11 +117,6 @@ function sortActivities(a:Activity,b:Activity){
 }
 function sortOccurrenceActivities(a:Activity,b:Activity){
   return a.date.localeCompare(b.date) || (a.startTime || '99:99').localeCompare(b.startTime || '99:99') || a.id.localeCompare(b.id)
-}
-function sortReservations(a:Reservation,b:Reservation){
-  const byPosition=(a.position ?? 0)-(b.position ?? 0)
-  if(byPosition!==0)return byPosition
-  return a.title.localeCompare(b.title)
 }
 function uniqueCategories(existing:string[], fallback:string[]=[]){
   const seen=new Set<string>()
@@ -501,8 +494,8 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       throw new Error(userFacingError(error,'No pudimos guardar el elemento. Intentá nuevamente.'))
     }
     setEditingItem(null)
-    await loadConnectedData(true)
     await logChange(trip.id,'trip_item',data,editingItem.isNew?'created':'updated',`${editingItem.isNew?'Se agregó':'Se actualizó'} “${item.title}”.`)
+    await loadConnectedData(true)
     showSuccess(editingItem.isNew?'Detalle creado.':'Cambios guardados.')
   }
 
@@ -520,8 +513,8 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     const {error}=await supabase.rpc('delete_trip_item_v1',{p_item_id:item.id,p_trip_id:trip.id,p_expected_updated_at:item.updatedAt})
     if(error){setError(userFacingError(error,'No pudimos eliminar el elemento. Intentá nuevamente.'));await loadConnectedData(true);return}
     setItemToDelete(null);setEditingItem(null)
-    await loadConnectedData(true)
     await logChange(trip.id,'trip_item',item.id,'deleted',`Se eliminó “${item.title}” y toda su información vinculada.`)
+    await loadConnectedData(true)
     showSuccess('Detalle eliminado.')
   }
 
@@ -535,8 +528,8 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     if(!supabase)return
     const {error}=await supabase.rpc('update_expense_amount',{p_expense_id:id,p_trip_id:trip.id,p_amount:next.amount})
     if(error){setError(userFacingError(error));await loadConnectedData(true);return}
-    await loadConnectedData(true)
     await logChange(trip.id,'expense',id,'updated',`Se actualizó “${next.title}” a ${money(next.amount,trip.currency)}.`)
+    await loadConnectedData(true)
     showSuccess('Importe guardado.')
   }
   async function commitExpenseAmount(expense:Expense){
@@ -610,29 +603,6 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     await logChange(trip.id,'reservation',id,'updated',`“${current.title}” pasó a ${reservationLabel(status)}.`)
   }
 
-  async function moveReservation(reservation:Reservation,direction:-1|1){
-    if(!canEdit)return
-    const ordered=[...res].sort(sortReservations)
-    const index=ordered.findIndex(item=>item.id===reservation.id)
-    const swapIndex=index+direction
-    if(index<0 || swapIndex<0 || swapIndex>=ordered.length)return
-    const current=ordered[index]
-    const target=ordered[swapIndex]
-    const currentPosition=index
-    const targetPosition=swapIndex
-    setRes(items=>items.map(item=>{
-      if(item.id===current.id)return {...item,position:targetPosition}
-      if(item.id===target.id)return {...item,position:currentPosition}
-      return item
-    }))
-    const supabase=createClient()
-    if(!supabase)return
-    const {error}=await supabase.rpc('move_reservation',{p_reservation_id:reservation.id,p_trip_id:trip.id,p_direction:direction})
-    if(error){setError(userFacingError(error));await loadConnectedData(true);return}
-    await loadConnectedData(true)
-    await logChange(trip.id,'reservation',reservation.id,'updated',`Se reordenó “${reservation.title}”.`)
-  }
-
   async function savePlace(place:Place){
     if(!canEdit)return
     const next={...place,name:place.name.trim(),category:place.category.trim(),address:place.address?.trim() || undefined,url:place.url?.trim() || undefined,notes:place.notes?.trim() || undefined}
@@ -652,8 +622,8 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     }).eq('id',next.id).eq('trip_id',trip.id)
     if(error)throw new Error(userFacingError(error,'No pudimos guardar el lugar. Intentá nuevamente.'))
     setEditingPlace(null)
-    await loadConnectedData(true)
     await logChange(trip.id,'place',next.id,'updated',`Se actualizó el lugar “${next.name}”.`)
+    await loadConnectedData(true)
     showSuccess('Lugar guardado.')
   }
 
@@ -672,8 +642,8 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     if(error){setError(userFacingError(error,'No pudimos eliminar el lugar. Intentá nuevamente.'));return}
     setPlaceToDelete(null)
     setEditingPlace(null)
-    await loadConnectedData(true)
     await logChange(trip.id,'place',place.id,'deleted',`Se eliminó el lugar “${place.name}”.`)
+    await loadConnectedData(true)
     showSuccess('Lugar eliminado.')
   }
 
@@ -704,8 +674,8 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     if(!supabase){setPlaces(current=>current.map(p=>({...p,isBase:p.id===place.id})));showSuccess('Base del viaje guardada.');return}
     const {error}=await supabase.rpc('set_trip_base_place',{p_place_id:place.id,p_trip_id:trip.id})
     if(error){setError(userFacingError(error));await loadConnectedData(true);return}
-    await loadConnectedData(true)
     await logChange(trip.id,'place',place.id,'updated',`Se marcó “${place.name}” como base del viaje.`)
+    await loadConnectedData(true)
     showSuccess('Base del viaje guardada.')
   }
 
@@ -883,14 +853,14 @@ export default function TripWorkspace({tripId}:{tripId:string}){
 
       {tab==='Reservas' && <section className="panel">
         <div className="panel-head"><div><h3>Reservas y compras</h3><div className="muted subcopy">Pendientes, confirmadas y pagadas.</div></div>{canEdit&&<button className="btn btn-primary" onClick={()=>openNewItem('reservation')}><Plus size={16}/> Reserva</button>}</div>
-        <div className="list">{[...res].sort(sortReservations).map((r,index,items)=>{
+        <div className="list">{[...res].sort(sortReservationsForDisplay).map(r=>{
           const linkedExpense=r.expenseId?expenseById.get(r.expenseId):undefined
           const costLabel=linkedExpense
             ? `${money(linkedExpense.amount*expenseMultiplier(linkedExpense),linkedExpense.currency || trip.currency)} en Presupuesto · costo ${expenseStatusLabel(linkedExpense.status).toLowerCase()}${linkedExpense.amountBasis==='group'?' · grupo':''}${linkedExpense.included===false?' · fuera del total':''}`
             : r.amount!==undefined
               ? `${money(r.amount,trip.currency)} · no incluido en Presupuesto`
               : ''
-          return <div key={r.id} className="list-row reservation-row"><div><strong><span className={`status-dot ${r.status==='reserved'||r.status==='paid'?'done':''}`}/>{r.title}</strong><small>{[reservationPriorityLabel(r.priority),r.dueDate?`vence ${shortDate(r.dueDate)}`:'',costLabel,r.notes].filter(Boolean).join(' · ')}</small></div><div className="reservation-actions"><select className={`chip status-select ${reservationChip(r.status)}`} aria-label={`Estado de ${r.title}`} disabled={!canEdit} value={r.status} onChange={event=>setReservationStatus(r.id,event.target.value as Reservation['status'])}><option value="watching">Esperando</option><option value="pending">Pendiente</option><option value="reserved">Reservado</option>{r.status==='paid'&&<option value="paid">Pagado (estado anterior)</option>}</select>{canEdit&&<>{linkedExpense&&<button className="icon-btn" title={`Editar costo de ${r.title}`} aria-label={`Editar el costo de ${r.title}`} onClick={()=>openItemForFacet('cost',r)}><ReceiptText size={16}/></button>}<button className="icon-btn" title={`Editar ${r.title}`} aria-label={`Editar ${r.title}`} onClick={()=>openItemForFacet('reservation',r)}><Edit3 size={16}/></button><button className="icon-btn" disabled={index===0} title="Subir reserva" aria-label={`Subir ${r.title}`} onClick={()=>moveReservation(r,-1)}><ArrowUp size={16}/></button><button className="icon-btn" disabled={index===items.length-1} title="Bajar reserva" aria-label={`Bajar ${r.title}`} onClick={()=>moveReservation(r,1)}><ArrowDown size={16}/></button></>}</div></div>
+          return <div key={r.id} className="list-row reservation-row"><div><strong><span className={`status-dot ${r.status==='reserved'||r.status==='paid'?'done':''}`}/>{r.title}</strong><small>{[r.dueDate?`vence ${shortDate(r.dueDate)}`:'',costLabel,r.notes].filter(Boolean).join(' · ')}</small></div><div className="reservation-actions"><select className={`chip status-select ${reservationChip(r.status)}`} aria-label={`Estado de ${r.title}`} disabled={!canEdit} value={r.status} onChange={event=>setReservationStatus(r.id,event.target.value as Reservation['status'])}><option value="watching">Esperando</option><option value="pending">Pendiente</option><option value="reserved">Reservado</option>{r.status==='paid'&&<option value="paid">Pagado (estado anterior)</option>}</select>{canEdit&&<>{linkedExpense&&<button className="icon-btn" title={`Editar costo de ${r.title}`} aria-label={`Editar el costo de ${r.title}`} onClick={()=>openItemForFacet('cost',r)}><ReceiptText size={16}/></button>}<button className="icon-btn" title={`Editar ${r.title}`} aria-label={`Editar ${r.title}`} onClick={()=>openItemForFacet('reservation',r)}><Edit3 size={16}/></button></>}</div></div>
         })}</div>
         {!res.length&&<div className="empty compact">No hay reservas cargadas.</div>}
       </section>}
