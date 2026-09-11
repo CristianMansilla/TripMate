@@ -18,6 +18,15 @@ import { ArrowDown, ArrowUp, CalendarDays, CheckCircle2, ClipboardCheck, Clock3,
 import { useRouter } from 'next/navigation'
 import { changeActionLabel, tripRoleLabel, userFacingError } from '@/lib/ui-text'
 import type { PlaceAutocompleteOption } from './PlaceAutocomplete'
+import {
+  canonicalItemCategory as itemCategoryLabel,
+  expenseGroupTotal,
+  expenseOccurrenceMultiplier,
+  isTechnicalLegacyCategory,
+  itineraryStatus,
+  itineraryStatusLabel,
+  savedPlaceValue,
+} from '@/lib/trip-item-rules'
 
 const tabs = ['Resumen','Itinerario','Presupuesto','Reservas','Lugares','Valija','Integrantes'] as const
 type Tab = typeof tabs[number]
@@ -41,37 +50,15 @@ function occurrenceDateLabel(date:string){
   return new Date(date+'T12:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'})
 }
 function activityStateLabel(status:Activity['status']){
-  return ({idea:'Idea',planned:'Planificado',reserved:'Planificado',paid:'Planificado',done:'Hecho'})[status]
+  return itineraryStatusLabel(status)
 }
 function activityChip(status:Activity['status']){
-  return `status-${status==='reserved'||status==='paid'?'planned':status}`
+  return `status-${itineraryStatus(status)}`
 }
 function activityCategoryLabel(category:Activity['category']){
   return itemCategoryLabel(category)
 }
 
-function itemCategoryLabel(category:string){
-  const value=category.trim()
-  const key=value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
-  return ({
-    activity:'Actividad',actividad:'Actividad',actividades:'Actividad',
-    museum:'Museo',museo:'Museo',museos:'Museo',
-    event:'Evento',evento:'Evento',eventos:'Evento',entrada:'Evento',entradas:'Evento',
-    transport:'Transporte',transporte:'Transporte',
-    food:'Comida',comida:'Comida',comidas:'Comida',
-    lodging:'Alojamiento',alojamiento:'Alojamiento',
-    nightlife:'Noche',noche:'Noche',salida:'Noche',salidas:'Noche',
-    paseo:'Paseo',paseos:'Paseo',
-    compra:'Compras',compras:'Compras',
-    contingencia:'Contingencia',
-    other:'Actividad',otro:'Actividad',otros:'Actividad',
-    reservation:'Reserva',reserva:'Reserva',reservas:'Reserva',
-  } as Record<string,string>)[key] ?? value
-}
-function isTechnicalLegacyCategory(category:string){
-  const key=category.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
-  return ['other','otro','otros','reservation','reserva','reservas'].includes(key)
-}
 function reservationLabel(status:Reservation['status']){
   return ({watching:'Esperando',pending:'Pendiente',reserved:'Reservado',paid:'Pagado'})[status]
 }
@@ -259,7 +246,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     const placeById=new Map(mappedPlaces.map(place=>[place.id,place]))
     const mappedItems=(itemsQ.data||[]).map(mapTripItem).map(item=>{
       const place=item.placeId?placeById.get(item.placeId):undefined
-      return place?{...item,place:[place.name,place.address].filter(Boolean).join(', ')}:item
+      return place?{...item,place:savedPlaceValue(place)}:item
     })
     const itemById=new Map(mappedItems.map(item=>[item.id,item]))
     const mappedActivities=(actsQ.data||[]).map(row=>{
@@ -350,8 +337,8 @@ export default function TripWorkspace({tripId}:{tripId:string}){
   const isExpenseLinked=(expense:Expense)=>activitiesForExpense(expense).length>0
   const isExpenseIncluded=(expense:Expense)=>expense.included!==false
   const travellers=Math.max(1,trip.travelerCount || 1)
-  const expenseMultiplier=(expense:Expense)=>expense.occurrencePricing==='per_occurrence'?Math.max(1,expense.occurrences?.length || activitiesForExpense(expense).length):1
-  const expenseGroupAmount=(expense:Expense)=>(expense.amountBasis==='group'?expense.amount:expense.amount*travellers)*expenseMultiplier(expense)
+  const expenseMultiplier=(expense:Expense)=>expenseOccurrenceMultiplier(expense,activitiesForExpense(expense).length)
+  const expenseGroupAmount=(expense:Expense)=>expenseGroupTotal(expense,travellers,activitiesForExpense(expense).length)
   const groupBudget=exp.filter(isExpenseIncluded).reduce((sum,expense)=>sum+expenseGroupAmount(expense),0)
   const perPersonBudget=groupBudget/travellers
   const fixedBudget=perPersonBudget

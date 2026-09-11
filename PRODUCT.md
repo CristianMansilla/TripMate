@@ -51,7 +51,7 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 - Leer y proteger los campos comunes desde `trip_items`, incluso ante escrituras heredadas. Implementado localmente; pendiente de migración y validación.
 - Vincular una ficha con un `place_id` reutilizable, manteniendo texto libre. Implementado localmente en `v0.7.1`; pendiente de migración y validación.
 - Revisar la presentación conjunta de estados de agenda, reserva y pago. Implementado localmente: los estados se muestran por responsabilidad y los valores históricos dejan de ofrecerse para nuevas fichas.
-- Añadir pruebas automatizadas de las RPC y de los flujos críticos.
+- Ampliar las pruebas automatizadas: las reglas de categorías, estados, costos repetidos y Lugares ya están cubiertas; faltan integración de RPC y recorridos del navegador.
 - Medir rendimiento y calidad del autocompletado antes de conservarlo como función estable.
 
 ### Después de estabilizar

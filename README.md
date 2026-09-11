@@ -13,6 +13,7 @@ TripMate es una aplicación web colaborativa y mobile-first para planificar viaj
 - Presupuesto por persona y grupo, con categorías normalizadas y filtros.
 - Reservas con estado y fecha límite independientes del estado de pago.
 - Estados separados por responsabilidad: agenda, reserva y costo.
+- Pruebas automatizadas para categorías, estados, costos repetidos y Lugares.
 - Paradas opcionales; sus importes son referencias y no se suman al presupuesto.
 - Lugares guardados, base del viaje, enlaces a Google Maps y autocompletado opcional mediante Geoapify.
 - Valija personal, invitaciones, historial básico, Realtime, PWA y RLS por viaje.
@@ -28,6 +29,14 @@ npm run dev
 ```
 
 Sin variables de entorno funciona en modo demo.
+
+Antes de confirmar cambios:
+
+```bash
+npm test
+npm run typecheck
+npm run build
+```
 
 ## Variables de entorno
 

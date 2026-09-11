@@ -71,7 +71,7 @@ Crear una cuenta, confirmar el email y entrar. Los correos de Supabase pueden ll
 
 ## 8. Antes de publicar
 
-- Ejecutar typecheck y build.
+- Ejecutar `npm test`, `npm run typecheck` y `npm run build`.
 - Probar creación, edición y eliminación en escritorio y móvil.
 - Probar owner, editor, viewer y usuario no integrante.
 - Revisar límites gratuitos de los servicios externos.
