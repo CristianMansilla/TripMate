@@ -1,4 +1,4 @@
-# TripMate · v0.6.1 en desarrollo
+# TripMate · v0.7 en desarrollo
 
 TripMate es una aplicación web colaborativa y mobile-first para planificar viajes. Cada usuario puede crear varios viajes, invitar acompañantes y compartir itinerario, presupuesto, reservas y lugares. La valija es personal para cada cuenta.
 
@@ -60,8 +60,9 @@ Para una base existente, aplicar en orden sólo las versiones posteriores a la i
 9. `supabase/v0.5.sql`
 10. `supabase/v0.6.sql`
 11. `supabase/v0.6.1.sql`
+12. `supabase/v0.7.sql`
 
-Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base.
+Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base. `v0.7` establece `trip_items` como fuente canónica de nombre, tipo, lugar, notas y condición opcional.
 
 ## Seguridad
 

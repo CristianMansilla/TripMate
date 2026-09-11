@@ -255,18 +255,29 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       const mapped=mapActivityStep(row)
       stepsByActivity.set(row.activity_id,[...(stepsByActivity.get(row.activity_id) || []),mapped])
     })
-    const mappedActivities=(actsQ.data||[]).map(row=>({...mapActivity(row),steps:stepsByActivity.get(row.id) || []}))
+    const mappedItems=(itemsQ.data||[]).map(mapTripItem)
+    const itemById=new Map(mappedItems.map(item=>[item.id,item]))
+    const mappedActivities=(actsQ.data||[]).map(row=>{
+      const activity={...mapActivity(row),steps:stepsByActivity.get(row.id) || []}
+      const item=activity.itemId?itemById.get(activity.itemId):undefined
+      return item?{...activity,title:item.title,category:item.category,place:item.place,notes:item.notes,optional:item.optional}:activity
+    })
     const mappedExpenses=(expQ.data||[]).map(mapExpense).map(expense=>{
+      const item=expense.itemId?itemById.get(expense.itemId):undefined
       const occurrences=mappedActivities
         .filter(activity=>activity.expenseId===expense.id || activity.id===expense.activityId)
         .sort((a,b)=>a.date.localeCompare(b.date) || (a.startTime || '99:99').localeCompare(b.startTime || '99:99'))
         .map(activity=>({id:activity.id,date:activity.date,startTime:activity.startTime,endTime:activity.endTime,steps:activity.steps || []}))
-      return {...expense,activityId:occurrences[0]?.id || expense.activityId,occurrences}
+      return {...expense,...(item?{title:item.title,category:item.category,place:item.place,notes:item.notes,optional:item.optional}:{}),activityId:occurrences[0]?.id || expense.activityId,occurrences}
+    })
+    const mappedReservations=(resQ.data||[]).map(mapReservation).map(reservation=>{
+      const item=reservation.itemId?itemById.get(reservation.itemId):undefined
+      return item?{...reservation,title:item.title,notes:item.notes}:reservation
     })
     setActs(mappedActivities)
     setExp(mappedExpenses)
-    setRes((resQ.data||[]).map(mapReservation))
-    setItems((itemsQ.data||[]).map(mapTripItem))
+    setRes(mappedReservations)
+    setItems(mappedItems)
     setPlaces((placesQ.data||[]).map(mapPlace))
     setPack((packQ.data||[]).map(mapPacking))
     setChanges((logQ.data||[]).map((r:any)=>({

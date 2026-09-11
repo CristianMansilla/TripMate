@@ -1295,6 +1295,34 @@ create trigger expenses_trip_item before insert or update of item_id,trip_id,act
 create trigger reservations_trip_item before insert or update of item_id,trip_id,expense_id,activity_id on public.reservations
   for each row execute function public.ensure_trip_item_reference();
 
+create or replace function public.use_trip_item_common_fields()
+returns trigger language plpgsql security definer set search_path=public as $$
+declare v_item public.trip_items%rowtype;
+begin
+  select * into v_item from public.trip_items item
+  where item.id=new.item_id and item.trip_id=new.trip_id;
+  if not found then raise exception 'La faceta y el elemento deben pertenecer al mismo viaje.'; end if;
+  new.title:=v_item.title;
+  new.notes:=v_item.notes;
+  if tg_table_name in ('activities','expenses') then
+    new.category:=v_item.category;
+    new.place:=v_item.place;
+    new.optional:=v_item.optional;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger activities_use_trip_item_common
+  before insert or update of item_id,trip_id,title,category,place,notes,optional on public.activities
+  for each row execute function public.use_trip_item_common_fields();
+create trigger expenses_use_trip_item_common
+  before insert or update of item_id,trip_id,title,category,place,notes,optional on public.expenses
+  for each row execute function public.use_trip_item_common_fields();
+create trigger reservations_use_trip_item_common
+  before insert or update of item_id,trip_id,title,notes on public.reservations
+  for each row execute function public.use_trip_item_common_fields();
+
 create or replace function public.validate_trip_item_reservation_due_date()
 returns trigger language plpgsql security definer set search_path=public as $$
 declare
@@ -1440,6 +1468,7 @@ revoke all on function public.delete_activity_plan(uuid,uuid) from public, anon;
 revoke all on function public.save_trip_item_v1(uuid,uuid,timestamptz,text,text,text,text,boolean,jsonb,jsonb,jsonb) from public, anon;
 revoke all on function public.delete_trip_item_v1(uuid,uuid,timestamptz) from public, anon;
 revoke all on function public.validate_trip_item_reservation_due_date() from public, anon, authenticated;
+revoke all on function public.use_trip_item_common_fields() from public, anon, authenticated;
 revoke all on function public.move_reservation(uuid,uuid,integer) from public, anon;
 revoke all on function public.set_trip_base_place(uuid,uuid) from public, anon;
 grant execute on function public.save_expense_plan(uuid,uuid,text,text,numeric,text,boolean,text,date,time,time,text,text,boolean) to authenticated;

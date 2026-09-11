@@ -6,7 +6,7 @@ Una sola fuente de verdad para un viaje compartido. La ficha de un elemento conc
 
 ## Estado
 
-Revisado el 10 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completa integridad de reservas y correcciones de UX detectadas en la auditoría posterior.
+Revisado el 10 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas y las correcciones de UX detectadas en la auditoría posterior. `v0.7` está consolidando `trip_items` como fuente canónica para eliminar divergencias heredadas.
 
 Los botones “Agregar actividad”, “Agregar gasto” y “Agregar reserva” se conservan dentro de sus secciones porque representan la intención inicial, no fuentes de datos distintas. Los tres abren el mismo editor, guardan mediante la misma RPC y permiten añadir las demás facetas.
 
@@ -48,8 +48,8 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 
 ### v0.7 · relaciones y consistencia
 
+- Leer y proteger los campos comunes desde `trip_items`, incluso ante escrituras heredadas. Implementado localmente; pendiente de migración y validación.
 - Vincular una ficha con un `place_id` reutilizable, manteniendo texto libre.
-- Reducir o sincronizar de forma estricta los campos comunes duplicados en tablas legacy.
 - Revisar la presentación conjunta de estados de agenda, reserva y pago.
 - Añadir pruebas automatizadas de las RPC y de los flujos críticos.
 - Medir rendimiento y calidad del autocompletado antes de conservarlo como función estable.
