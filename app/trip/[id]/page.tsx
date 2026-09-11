@@ -1,5 +1,10 @@
 import TripWorkspace from '@/components/TripWorkspace'
-export default async function TripPage({params}:{params:Promise<{id:string}>}){
-  const {id}=await params
-  return <TripWorkspace tripId={id}/>
+import { tripTabFromParam } from '@/lib/trip-navigation'
+
+export default async function TripPage({
+  params,
+  searchParams,
+}:PageProps<'/trip/[id]'>){
+  const [{id},query]=await Promise.all([params,searchParams])
+  return <TripWorkspace tripId={id} initialTab={tripTabFromParam(query.seccion)}/>
 }

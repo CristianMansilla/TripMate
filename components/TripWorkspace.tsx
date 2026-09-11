@@ -28,9 +28,8 @@ import {
   savedPlaceValue,
   sortReservationsForDisplay,
 } from '@/lib/trip-item-rules'
+import { tripSectionPath, tripTabs, type TripTab } from '@/lib/trip-navigation'
 
-const tabs = ['Resumen','Itinerario','Presupuesto','Reservas','Lugares','Valija','Integrantes'] as const
-type Tab = typeof tabs[number]
 type AddKind = 'packing'|'place'|null
 type SyncStatus = 'demo'|'syncing'|'synced'|'error'
 type TripMember = { id:string; name:string; username?:string; role:'owner'|'editor'|'viewer'; joinedAt?:string }
@@ -135,10 +134,10 @@ function demoTripFor(id:string):Trip{
   }
 }
 
-export default function TripWorkspace({tripId}:{tripId:string}){
+export default function TripWorkspace({tripId,initialTab}:{tripId:string;initialTab:TripTab}){
   const router=useRouter()
   const [trip,setTrip]=useState<Trip>(demoTripFor(tripId))
-  const [tab,setTab]=useState<Tab>('Resumen')
+  const [tab,setTab]=useState<TripTab>(initialTab)
   const [acts,setActs]=useState<Activity[]>(seedActivities.filter(x=>x.tripId===tripId))
   const [exp,setExp]=useState<Expense[]>(seedExpenses.filter(x=>x.tripId===tripId))
   const [res,setRes]=useState<Reservation[]>(seedReservations.filter(x=>x.tripId===tripId))
@@ -178,6 +177,18 @@ export default function TripWorkspace({tripId}:{tripId:string}){
   const storageKey=`tripmate-demo:${tripId}`
 
   useEffect(()=>{
+    setTab(initialTab)
+    setMobileMoreOpen(false)
+  },[initialTab])
+
+  function selectTab(nextTab:TripTab){
+    setMobileMoreOpen(false)
+    if(nextTab===tab)return
+    setTab(nextTab)
+    router.push(tripSectionPath(tripId,nextTab,window.location.search),{scroll:false})
+  }
+
+  useEffect(()=>{
     const message=sessionStorage.getItem('tripmate-success')
     if(!message)return
     sessionStorage.removeItem('tripmate-success')
@@ -189,7 +200,7 @@ export default function TripWorkspace({tripId}:{tripId:string}){
     const supabase=createClient()
     if(!supabase)return false
     const {data:{user}}=await supabase.auth.getUser()
-    if(!user){router.replace(`/login?next=${encodeURIComponent(`/trip/${tripId}`)}`);return true}
+    if(!user){router.replace(`/login?next=${encodeURIComponent(tripSectionPath(tripId,initialTab))}`);return true}
     setCurrentUserId(user.id)
     setConnected(true)
     setSyncStatus('syncing')
@@ -764,12 +775,12 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       </section>
 
       <nav className="tabs" aria-label="Secciones del viaje">
-        {tabs.map(t=><button key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>{t}</button>)}
+        {tripTabs.map(t=><button key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>selectTab(t)}>{t}</button>)}
       </nav>
 
       {tab==='Resumen' && <div className="two-col">
         <section className="panel">
-          <div className="panel-head"><div><h3>Próximos hitos</h3><div className="muted subcopy">Lo importante del viaje, sin leer todo el itinerario.</div></div><button className="btn btn-ghost" onClick={()=>setTab('Itinerario')}>Ver todo</button></div>
+          <div className="panel-head"><div><h3>Próximos hitos</h3><div className="muted subcopy">Lo importante del viaje, sin leer todo el itinerario.</div></div><button className="btn btn-ghost" onClick={()=>selectTab('Itinerario')}>Ver todo</button></div>
           <div className="list">
             {milestoneActivities.map(a=><div className="list-row" key={a.id}>
               <div><strong>{a.title}</strong><small>{shortDate(a.date)} {a.startTime?`· ${a.startTime}`:''} {a.place?`· ${a.place}`:''}</small></div>
@@ -940,11 +951,11 @@ export default function TripWorkspace({tripId}:{tripId:string}){
       </section>}
 
       <div className="bottom-nav">
-        {(['Resumen','Itinerario','Presupuesto','Valija'] as Tab[]).map((t,i)=>{const Icon=[CalendarDays,Clock3,DollarSign,Luggage][i];return <button key={t} className={tab===t?'active':''} onClick={()=>{setTab(t);setMobileMoreOpen(false)}}><Icon size={18}/>{t}</button>})}
-        <button className={(['Reservas','Lugares','Integrantes'] as Tab[]).includes(tab)||mobileMoreOpen?'active':''} onClick={()=>setMobileMoreOpen(value=>!value)} aria-expanded={mobileMoreOpen}><Menu size={18}/>Más</button>
+        {(['Resumen','Itinerario','Presupuesto','Valija'] as TripTab[]).map((t,i)=>{const Icon=[CalendarDays,Clock3,DollarSign,Luggage][i];return <button key={t} className={tab===t?'active':''} onClick={()=>selectTab(t)}><Icon size={18}/>{t}</button>})}
+        <button className={(['Reservas','Lugares','Integrantes'] as TripTab[]).includes(tab)||mobileMoreOpen?'active':''} onClick={()=>setMobileMoreOpen(value=>!value)} aria-expanded={mobileMoreOpen}><Menu size={18}/>Más</button>
       </div>
       {mobileMoreOpen&&<div className="mobile-more-menu" role="menu">
-        {([['Reservas',ClipboardCheck],['Lugares',MapIcon],['Integrantes',Users]] as const).map(([target,Icon])=><button key={target} role="menuitem" className={tab===target?'active':''} onClick={()=>{setTab(target);setMobileMoreOpen(false)}}><Icon size={18}/>{target}</button>)}
+        {([['Reservas',ClipboardCheck],['Lugares',MapIcon],['Integrantes',Users]] as const).map(([target,Icon])=><button key={target} role="menuitem" className={tab===target?'active':''} onClick={()=>selectTab(target)}><Icon size={18}/>{target}</button>)}
       </div>}
 
       {editingItem&&<TripItemModal

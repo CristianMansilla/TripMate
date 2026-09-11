@@ -45,14 +45,14 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 - Quitar una faceta conserva las demás; eliminar la ficha completa mantiene confirmación explícita.
 - Las categorías, repeticiones, fechas límite, costos y lugares reutilizables tienen reglas compartidas.
 - Reservas conserva prioridad y posición antiguas en la base, pero la interfaz usa un orden automático por acción y vencimiento.
-- Las pruebas manuales colaborativas, las comprobaciones SQL y la auditoría visual automatizada de escritorio pasaron. Queda pendiente ampliar el recorrido automatizado a un viewport móvil.
+- Las pruebas manuales colaborativas, las comprobaciones SQL y la auditoría visual automatizada en escritorio y móvil pasaron.
+- La sección activa forma parte de la URL y se conserva al recargar, compartir y navegar con atrás o adelante.
 
-### Próxima etapa · agenda y navegación
+### Próxima etapa · agenda y robustez
 
 - Modelar transporte nocturno y estancias con fecha de finalización explícita, sin reinterpretar horarios históricos.
-- Conservar sección y contexto al volver, recargar o compartir una URL del viaje.
 - Ampliar pruebas de integración de RPC cuando exista una base de prueba aislada.
-- Ampliar los recorridos automatizados al viewport móvil y mantener una comprobación breve de escritorio en cada cambio relevante de interfaz.
+- Mantener una comprobación visual breve en escritorio y móvil ante cada cambio relevante de interfaz.
 - Medir rendimiento y calidad del autocompletado antes de declararlo una función estable.
 
 ### Después de estabilizar
