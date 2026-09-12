@@ -69,16 +69,27 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 - La auditoría breve de v0.8.1 no dejó hallazgos críticos o altos abiertos. El detalle está en `docs/AUDITORIA-v0.8.1.md`.
 - Las comprobaciones visuales breves en escritorio y móvil quedan como requisito de regresión ante cambios relevantes de interfaz.
 
-### v0.9 en curso
+### v0.9 cerrada
 
 - El plan compartido se puede guardar como PDF desde el navegador.
 - La salida reúne itinerario, presupuesto, reservas y lugares, pero excluye la valija personal y los datos de acceso de integrantes.
 
-### Opciones posteriores
+### Ideas futuras no comprometidas
 
-- Señales y saldos sólo si el uso real lo necesita.
-- Exportación estructurada si el uso real requiere un formato adicional al PDF.
-- Plantillas genéricas opcionales y copia de valija propia.
-- Consulta offline con caché privado por cuenta.
+Estas propuestas no son trabajo pendiente de la versión actual. Se evaluarán sólo cuando el uso real muestre una necesidad repetida:
 
-Chat, IA, clima, mapas embebidos, conversión automática multimoneda, votaciones, reparto de deudas y edición offline completa permanecen postergados. No se amplía el producto para compensar un flujo básico confuso.
+- Señales, anticipos y saldos de reservas.
+- Plantillas genéricas de viajes y copia de la valija propia.
+- Exportación estructurada en un formato adicional al PDF.
+- Consulta offline mediante una caché privada por cuenta.
+- Comprobantes almacenados de forma privada.
+- Chat interno entre integrantes.
+- Asistencia con inteligencia artificial.
+- Clima para las fechas y destinos del viaje.
+- Mapas y rutas dentro de TripMate.
+- Conversión automática entre monedas.
+- Votaciones para decidir actividades o lugares.
+- Reparto de gastos, pagos y deudas entre integrantes.
+- Edición completamente offline con sincronización posterior.
+
+Antes de implementar una idea se debe comprobar que resuelve un problema real, que no duplica una función existente y que su costo operativo es apropiado para la cantidad de usuarios. No se amplía el producto para compensar un flujo básico confuso.
