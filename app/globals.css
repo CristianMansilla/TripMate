@@ -141,6 +141,7 @@ button { cursor: pointer; }
 .status-dot.done { background:var(--green); }
 .bottom-nav { display:none; }
 .mobile-more-menu { display:none; }
+.trip-print-view { display:none; }
 .skeleton-block,.skeleton-line { background:#e8ebf2; overflow:hidden; position:relative; }
 .skeleton-block::after,.skeleton-line::after { content:""; position:absolute; inset:0; transform:translateX(-100%); background:linear-gradient(90deg,transparent,rgba(255,255,255,.72),transparent); animation:skeleton-sweep 1.35s ease-in-out infinite; }
 .skeleton-cover { height:170px; }
@@ -311,7 +312,9 @@ button { cursor: pointer; }
   .hero { border-radius:23px; padding:20px; }
   .hero h1 { font-size:30px; }
   .hero-head { flex-direction:column; }
-  .hero-actions { align-self:flex-start; }
+  .hero-actions { align-self:flex-start; flex-wrap:wrap; }
+  .trip-print-button { width:40px; height:40px; padding:0; justify-content:center; }
+  .trip-print-button span { display:none; }
   .stats { gap:8px; }
   .stat { padding:11px; }
   .stat b { font-size:16px; }
@@ -347,6 +350,45 @@ button { cursor: pointer; }
   .expense-derived-total { width:100%; display:flex; align-items:baseline; justify-content:space-between; text-align:left; }
   .compact-step-extra { grid-template-columns:1fr; }
   .compact-step-extra > * { grid-column:1/-1; }
+}
+
+@media print {
+  @page { margin:14mm; }
+  html,body { background:#fff !important; color:#111827 !important; }
+  body { font-family:Arial,sans-serif; font-size:10pt; }
+  .appbar,.container > :not(.trip-print-view),.bottom-nav,.mobile-more-menu,.modal-backdrop { display:none !important; }
+  .shell,.container { display:block !important; width:100% !important; max-width:none !important; margin:0 !important; padding:0 !important; background:#fff !important; }
+  .trip-print-view { display:block !important; }
+  .print-header { border-bottom:2px solid #111827; padding-bottom:8mm; margin-bottom:8mm; }
+  .print-brand { color:#4f46e5; font-size:9pt; font-weight:700; text-transform:uppercase; }
+  .print-header h1 { margin:2mm 0 1mm; font-size:24pt; line-height:1.1; }
+  .print-header > p { margin:0; color:#4b5563; font-size:11pt; }
+  .print-summary { display:grid; grid-template-columns:2fr .7fr 1fr 1fr; gap:5mm; margin-top:7mm; }
+  .print-summary div { border-left:2px solid #d1d5db; padding-left:3mm; }
+  .print-summary span,.print-summary strong { display:block; }
+  .print-summary span { color:#6b7280; font-size:8pt; text-transform:uppercase; }
+  .print-summary strong { margin-top:1mm; font-size:10pt; }
+  .print-section { margin:0 0 8mm; }
+  .print-section h2 { border-bottom:1px solid #9ca3af; margin:0 0 4mm; padding-bottom:2mm; font-size:15pt; }
+  .print-day { break-inside:avoid; margin-bottom:5mm; }
+  .print-day h3 { margin:0 0 2mm; font-size:11pt; text-transform:capitalize; }
+  .print-activity { display:grid; grid-template-columns:28mm 1fr; gap:4mm; border-top:1px solid #e5e7eb; padding:2.5mm 0; break-inside:avoid; }
+  .print-time { color:#4b5563; font-weight:700; }
+  .print-activity strong,.print-list strong { font-size:10pt; }
+  .print-activity p,.print-list p { margin:1mm 0 0; color:#4b5563; line-height:1.35; }
+  .print-steps { margin:2mm 0 0; padding-left:5mm; color:#374151; }
+  .print-steps li { margin-top:1mm; }
+  .print-steps span { color:#6b7280; }
+  .print-table { width:100%; border-collapse:collapse; }
+  .print-table th,.print-table td { border-bottom:1px solid #d1d5db; padding:2.5mm 2mm; text-align:left; }
+  .print-table th { color:#374151; font-size:8pt; text-transform:uppercase; }
+  .print-table td small { display:block; margin-top:1mm; color:#6b7280; }
+  .print-table tfoot th { border-top:2px solid #111827; border-bottom:0; font-size:10pt; }
+  .print-table .print-number { text-align:right; white-space:nowrap; }
+  .print-list { display:grid; grid-template-columns:1fr 1fr; gap:0 8mm; }
+  .print-list > div { border-bottom:1px solid #e5e7eb; padding:2.5mm 0; break-inside:avoid; }
+  .print-empty { color:#6b7280; font-style:italic; }
+  .print-footer { border-top:1px solid #d1d5db; padding-top:3mm; color:#6b7280; font-size:8pt; }
 }
 
 

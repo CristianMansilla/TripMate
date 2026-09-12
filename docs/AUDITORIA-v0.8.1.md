@@ -26,7 +26,7 @@ No quedan hallazgos críticos o altos abiertos dentro del alcance revisado. La f
 ## Riesgos residuales
 
 - El límite adicional de login vive en memoria por instancia y se reinicia al reiniciar el servidor. Es adecuado como defensa complementaria para la escala actual; una exposición pública mayor requerirá un contador compartido o CAPTCHA.
-- La base remota todavía debe recibir `supabase/migrations/20260911010000_v0_8_1_retire_legacy_item_rpcs.sql` y devolver sus tres indicadores en `true`.
+- La migración remota `supabase/migrations/20260911010000_v0_8_1_retire_legacy_item_rpcs.sql` quedó aplicada el 12 de septiembre de 2026 y sus tres indicadores devolvieron `true`.
 - No se repitió una prueba física en iPhone/Android ni una edición concurrente automatizada. La prueba colaborativa manual informada por el usuario sí pasó.
 
 ## Próxima auditoría

@@ -1,4 +1,4 @@
-# TripMate · v0.8.1
+# TripMate · v0.9
 
 TripMate es una aplicación web colaborativa y mobile-first para planificar viajes. Cada usuario puede crear varios viajes, invitar acompañantes y compartir itinerario, presupuesto, reservas y lugares. La valija es personal para cada cuenta.
 
@@ -17,6 +17,7 @@ TripMate es una aplicación web colaborativa y mobile-first para planificar viaj
 - Pruebas automatizadas para categorías, estados, costos repetidos y Lugares.
 - Paradas opcionales; sus importes son referencias y no se suman al presupuesto.
 - Lugares guardados, base del viaje, enlaces a Google Maps y autocompletado opcional mediante Geoapify.
+- Guardado del plan compartido como PDF, sin exponer la valija personal ni los accesos de integrantes.
 - Valija personal, invitaciones, historial básico, Realtime, PWA y RLS por viaje.
 - Modo demo sin Supabase, persistido en `localStorage`.
 

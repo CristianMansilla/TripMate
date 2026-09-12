@@ -6,7 +6,7 @@ Una sola fuente de verdad para un viaje compartido. La ficha de un elemento conc
 
 ## Estado
 
-Revisado el 11 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas. `v0.7` consolidó `trip_items` como fuente canónica y `v0.7.1` vinculó cada ficha con un lugar guardado opcional. `v0.8` agregó la fecha de finalización explícita. Todas están aplicadas y sus comprobaciones posteriores devolvieron `true`. El ajuste `v0.8.1` quedó validado localmente y debe aplicarse todavía en la base remota.
+Revisado el 12 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas. `v0.7` consolidó `trip_items` como fuente canónica y `v0.7.1` vinculó cada ficha con un lugar guardado opcional. `v0.8` agregó la fecha de finalización explícita y `v0.8.1` retiró el acceso cliente a las RPC antiguas. Todas están aplicadas en la base remota y sus comprobaciones posteriores devolvieron `true`.
 
 Los botones “Agregar actividad”, “Agregar gasto” y “Agregar reserva” se conservan dentro de sus secciones porque representan la intención inicial, no fuentes de datos distintas. Los tres abren el mismo editor, guardan mediante la misma RPC y permiten añadir las demás facetas.
 
@@ -69,10 +69,15 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 - La auditoría breve de v0.8.1 no dejó hallazgos críticos o altos abiertos. El detalle está en `docs/AUDITORIA-v0.8.1.md`.
 - Las comprobaciones visuales breves en escritorio y móvil quedan como requisito de regresión ante cambios relevantes de interfaz.
 
+### v0.9 en curso
+
+- El plan compartido se puede guardar como PDF desde el navegador.
+- La salida reúne itinerario, presupuesto, reservas y lugares, pero excluye la valija personal y los datos de acceso de integrantes.
+
 ### Opciones posteriores
 
 - Señales y saldos sólo si el uso real lo necesita.
-- Exportación e impresión.
+- Exportación estructurada si el uso real requiere un formato adicional al PDF.
 - Plantillas genéricas opcionales y copia de valija propia.
 - Consulta offline con caché privado por cuenta.
 

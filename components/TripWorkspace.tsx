@@ -8,13 +8,14 @@ import PackingItemModal from './PackingItemModal'
 import PlaceModal from './PlaceModal'
 import QuickAddModal from './QuickAddModal'
 import TripItemModal, { TripItemTab } from './TripItemModal'
+import TripPrintView from './TripPrintView'
 import { activities as seedActivities, expenses as seedExpenses, packing as seedPacking, reservations as seedReservations, trips as demoTrips } from '@/lib/demo-data'
 import { Activity, Expense, PackingItem, Place, Reservation, Trip, ChangeLogItem, TripItem, TripItemSaveInput } from '@/lib/types'
 import { money } from '@/lib/money'
 import { createClient } from '@/lib/supabase-client'
 import { mapActivity, mapActivityStep, mapExpense, mapPacking, mapPlace, mapReservation, mapTrip, mapTripItem } from '@/lib/db-mappers'
 import { logChange } from '@/lib/change-log'
-import { CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Edit3, ExternalLink, History, Link2, ListTree, Luggage, Map as MapIcon, MapPin, Menu, Minus, Navigation, Plus, ReceiptText, Repeat2, Share2, Star, Trash2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Download, Edit3, ExternalLink, History, Link2, ListTree, Luggage, Map as MapIcon, MapPin, Menu, Minus, Navigation, Plus, ReceiptText, Repeat2, Share2, Star, Trash2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { changeActionLabel, tripRoleLabel, userFacingError } from '@/lib/ui-text'
 import type { PlaceAutocompleteOption } from './PlaceAutocomplete'
@@ -752,6 +753,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
             <p><MapPin size={14} style={{verticalAlign:'-2px'}}/> {trip.destination} · {shortDate(trip.startDate)} — {shortDate(trip.endDate)}</p>
           </div>
           <div className="hero-actions">
+            <button className="btn btn-secondary trip-print-button" onClick={()=>window.print()} title="Guardar el plan como PDF" aria-label="Guardar el plan como PDF"><Download size={16}/><span>Guardar PDF</span></button>
             {isOwner&&<button className="btn btn-secondary" onClick={()=>setInviteOpen(true)}><Share2 size={16}/> Invitar</button>}
             <div className={`sync-badge ${syncStatus==='synced'?'online':'demo'}`} title={syncStatus==='error'?'No se pudieron sincronizar todos los cambios':undefined}>{syncStatus==='synced'?<><Wifi size={13}/> Sincronizado</>:syncStatus==='syncing'?<><Wifi size={13}/> Sincronizando…</>:syncStatus==='error'?<><WifiOff size={13}/> Sin conexión</>:<><WifiOff size={13}/> Demo</>}</div>
             <div style={{display:'flex',marginLeft:2}}>{trip.memberNames.map((n,i)=><div key={`${n}-${i}`} className="avatar" title={n} style={{marginLeft:i?-8:0,border:'2px solid rgba(255,255,255,.6)',background:i?'#f1d9e8':'#dfe8ff'}}>{n[0]}</div>)}</div>
@@ -940,6 +942,8 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
           </div>)}
         </div>
       </section>}
+
+      <TripPrintView trip={trip} activities={acts} expenses={exp} reservations={res} places={places}/>
 
       <div className="bottom-nav">
         {(['Resumen','Itinerario','Presupuesto','Valija'] as TripTab[]).map((t,i)=>{const Icon=[CalendarDays,Clock3,DollarSign,Luggage][i];return <button key={t} className={tab===t?'active':''} onClick={()=>selectTab(t)}><Icon size={18}/>{t}</button>})}
