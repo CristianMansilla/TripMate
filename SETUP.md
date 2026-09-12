@@ -6,13 +6,14 @@ No versionar `.env.local`. Sí versionar `.env.example`, las migraciones y la do
 
 ## 2. Supabase
 
-Para un proyecto nuevo, ejecutar completo `supabase/schema.sql` en SQL Editor.
+Para un proyecto nuevo, ejecutar en orden todos los archivos de `supabase/migrations/`. El primero contiene el esquema v0.8 completo.
 
 Para actualizar una base existente, ejecutar en orden sólo los archivos posteriores a la versión ya aplicada:
 
 ```text
 v0.2 → v0.3 → v0.4 → v0.4.1 → v0.4.2 → v0.4.3
 → v0.4.4 → v0.4.5 → v0.5 → v0.6 → v0.6.1 → v0.7 → v0.7.1
+→ v0.8 → migrations/20260911010000_v0_8_1_retire_legacy_item_rpcs.sql
 ```
 
 Cada script termina con una consulta de comprobación. No continuar si arroja una excepción o un indicador esperado devuelve `false`.
@@ -52,6 +53,23 @@ npm run dev
 ```
 
 Crear una cuenta, confirmar el email y entrar. Los correos de Supabase pueden llegar a spam; para producción conviene SMTP propio.
+
+### Base aislada para pruebas
+
+La configuración local aplica en orden `supabase/migrations/20260911000000_v0_8_schema.sql` y cada migración posterior. No aplica nuevamente los archivos históricos `v0.x`, que se conservan para actualizar instalaciones existentes.
+
+Requiere un motor compatible con Docker en ejecución. No enlazar este entorno con el proyecto remoto.
+
+```bash
+npm run db:start
+npm run db:reset
+npm run test:db
+npm run db:stop
+```
+
+`npm run test:db` ejecuta pgTAP dentro de la base local. Sus datos de prueba usan identificadores reservados, se crean en una transacción y terminan con `rollback`.
+
+La auditoría del 11 de septiembre de 2026 ejecutó 31 pruebas pgTAP correctamente y `supabase db lint` no encontró errores. `npm run db:stop` detiene los contenedores cuando no se necesitan y conserva las imágenes descargadas para próximos usos.
 
 ## 6. Vercel
 

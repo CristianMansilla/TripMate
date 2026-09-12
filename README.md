@@ -1,4 +1,4 @@
-# TripMate · v0.8 en validación
+# TripMate · v0.8.1
 
 TripMate es una aplicación web colaborativa y mobile-first para planificar viajes. Cada usuario puede crear varios viajes, invitar acompañantes y compartir itinerario, presupuesto, reservas y lugares. La valija es personal para cada cuenta.
 
@@ -56,7 +56,7 @@ GEOAPIFY_API_KEY=tu_clave_opcional
 
 ## Base de datos
 
-Para una base nueva, ejecutar una sola vez `supabase/schema.sql`.
+Para una base nueva, ejecutar en orden los archivos de `supabase/migrations/`. El primero reconstruye el esquema v0.8 y los siguientes aplican ajustes posteriores.
 
 Para una base existente, aplicar en orden sólo las versiones posteriores a la instalada:
 
@@ -74,8 +74,9 @@ Para una base existente, aplicar en orden sólo las versiones posteriores a la i
 12. `supabase/v0.7.sql`
 13. `supabase/v0.7.1.sql`
 14. `supabase/v0.8.sql`
+15. `supabase/migrations/20260911010000_v0_8_1_retire_legacy_item_rpcs.sql`
 
-Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base. `v0.7` establece `trip_items` como fuente canónica de nombre, tipo, lugar, notas y condición opcional. `v0.7.1` permite vincular una ficha con un Lugar guardado sin impedir el texto libre. `v0.8` agrega la fecha de finalización de cada aparición sin modificar el significado de los horarios históricos.
+Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base. `v0.7` establece `trip_items` como fuente canónica de nombre, tipo, lugar, notas y condición opcional. `v0.7.1` permite vincular una ficha con un Lugar guardado sin impedir el texto libre. `v0.8` agrega la fecha de finalización de cada aparición sin modificar el significado de los horarios históricos. `v0.8.1` deja `save_trip_item_v3` como única RPC de guardado de fichas disponible para clientes autenticados.
 
 ## Seguridad
 
@@ -83,6 +84,7 @@ Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` 
 - `service_role` y `GEOAPIFY_API_KEY` son secretos de servidor.
 - RLS limita los datos a integrantes del viaje.
 - Los perfiles sólo son visibles para personas que comparten un viaje.
+- El login limita intentos repetidos por dirección e identificador y devuelve errores de credenciales genéricos.
 - Los futuros comprobantes deben almacenarse en un bucket privado.
 
 ## Modelo principal

@@ -6,7 +6,7 @@ Una sola fuente de verdad para un viaje compartido. La ficha de un elemento conc
 
 ## Estado
 
-Revisado el 11 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas. `v0.7` consolidó `trip_items` como fuente canónica y `v0.7.1` vinculó cada ficha con un lugar guardado opcional. `v0.8` agregó la fecha de finalización explícita. Todas están aplicadas y sus comprobaciones posteriores devolvieron `true`.
+Revisado el 11 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas. `v0.7` consolidó `trip_items` como fuente canónica y `v0.7.1` vinculó cada ficha con un lugar guardado opcional. `v0.8` agregó la fecha de finalización explícita. Todas están aplicadas y sus comprobaciones posteriores devolvieron `true`. El ajuste `v0.8.1` quedó validado localmente y debe aplicarse todavía en la base remota.
 
 Los botones “Agregar actividad”, “Agregar gasto” y “Agregar reserva” se conservan dentro de sus secciones porque representan la intención inicial, no fuentes de datos distintas. Los tres abren el mismo editor, guardan mediante la misma RPC y permiten añadir las demás facetas.
 
@@ -60,12 +60,16 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 - La interfaz cancela solicitudes reemplazadas, limpia resultados anteriores al cambiar la consulta y conserva la escritura manual como alternativa.
 - La medición local del 11 de septiembre de 2026 quedó documentada en `docs/AUTOCOMPLETE-BENCHMARK-2026-09-11.md`.
 
-### Próxima etapa · robustez
+### Robustez cerrada
 
-- Ampliar pruebas de integración de RPC cuando exista una base de prueba aislada.
-- Mantener una comprobación visual breve en escritorio y móvil ante cada cambio relevante de interfaz.
+- La base completa puede reconstruirse localmente desde la migración canónica sin enlazar ni modificar producción.
+- Las 31 pruebas pgTAP de RPC, RLS, permisos, fechas, facetas e identidad compartida pasaron el 11 de septiembre de 2026.
+- La aplicación conserva una sola RPC pública de guardado de fichas; las implementaciones antiguas quedan como dependencias SQL privadas.
+- El login limita intentos repetidos sin incorporar servicios pagos y las redirecciones de autenticación sólo aceptan rutas internas.
+- La auditoría breve de v0.8.1 no dejó hallazgos críticos o altos abiertos. El detalle está en `docs/AUDITORIA-v0.8.1.md`.
+- Las comprobaciones visuales breves en escritorio y móvil quedan como requisito de regresión ante cambios relevantes de interfaz.
 
-### Después de estabilizar
+### Opciones posteriores
 
 - Señales y saldos sólo si el uso real lo necesita.
 - Exportación e impresión.

@@ -4,6 +4,8 @@ Fecha: 6 de septiembre de 2026. Base revisada: v0.3.0.
 
 > Documento histórico. Para el estado del commit #20, los hallazgos vigentes y el nuevo orden de trabajo, consultar la [auditoría de UX del 8 de septiembre de 2026](AUDITORIA-UX-2026-09-08.md) y [PRODUCT.md](../PRODUCT.md). Las reglas y pruebas de esta versión anterior no certifican el comportamiento actual.
 
+> La revisión vigente está en [AUDITORIA-v0.8.1.md](AUDITORIA-v0.8.1.md). En v0.8.1 se completó el límite de intentos de login que esta auditoría había dejado pendiente.
+
 ## Dictamen
 
 La idea de cargar los datos una sola vez y reflejarlos en Presupuesto e Itinerario es adecuada. La implementación todavía mantiene dos copias de parte de esos datos y las actualiza por separado; por eso puede mostrar inconsistencias. Conviene estabilizar este núcleo antes de agregar más módulos.
@@ -54,7 +56,7 @@ Ejemplo: un ítem personal como una medicación puede quedar identificado en el 
 
 Corregir: dejar de enviar eventos personales al historial compartido o almacenar un historial privado con permisos propios. Revisar las entradas anteriores mediante un procedimiento explícito, sin borrar silenciosamente información.
 
-Evidencia: [eventos de valija](../components/TripWorkspace.tsx#L455), [logChange](../lib/change-log.ts#L3), [política del historial](../supabase/schema.sql#L300). Comprobado por código y SQL, pendiente de prueba con dos usuarios en la base desplegada.
+Evidencia: [eventos de valija](../components/TripWorkspace.tsx#L455), [logChange](../lib/change-log.ts#L3), [política del historial](../supabase/migrations/20260911000000_v0_8_schema.sql#L300). Comprobado por código y SQL, pendiente de prueba con dos usuarios en la base desplegada.
 
 ### 2. P1: se puede obtener el email de un usuario sin iniciar sesión
 
@@ -62,7 +64,7 @@ Evidencia: [eventos de valija](../components/TripWorkspace.tsx#L455), [logChange
 
 Corregir: resolver y autenticar del lado servidor, devolver respuestas genéricas y aplicar límites de intentos; también limitar quién puede ejecutar el RPC actual. No basta con ocultar el email en React. Mantener el login por usuario si resulta útil.
 
-Evidencia: [función y permisos](../supabase/schema.sql#L206), [migración v0.2](../supabase/v0.2.sql#L18), [login](../app/(auth)/login/page.tsx#L29). Verificado en SQL; no se enumeraron usuarios reales.
+Evidencia: [función y permisos](../supabase/migrations/20260911000000_v0_8_schema.sql#L206), [migración v0.2](../supabase/v0.2.sql#L18), [login](../app/(auth)/login/page.tsx#L29). Verificado en SQL; no se enumeraron usuarios reales.
 
 ### 3. P1: el callback acepta redirecciones a sitios externos
 
@@ -80,7 +82,7 @@ También hay riesgos al eliminar: se borra el gasto y luego la actividad vincula
 
 Corregir: guardar y eliminar cada operación lógica en una transacción, con una relación explícita, comprobación de pertenencia al mismo viaje y comportamiento definido para referencias compartidas. Una función de base de datos invocada por RPC permite encapsular estas operaciones; sus permisos deben respetar al usuario. [Funciones de Supabase](https://supabase.com/docs/guides/database/functions).
 
-Evidencia: [edición](../components/TripWorkspace.tsx#L379), [creación](../components/TripWorkspace.tsx#L527), [eliminación](../components/TripWorkspace.tsx#L428), [relación actual](../supabase/schema.sql#L70). Rutas de fallo comprobadas por código; no se provocaron fallos en producción.
+Evidencia: [edición](../components/TripWorkspace.tsx#L379), [creación](../components/TripWorkspace.tsx#L527), [eliminación](../components/TripWorkspace.tsx#L428), [relación actual](../supabase/migrations/20260911000000_v0_8_schema.sql#L70). Rutas de fallo comprobadas por código; no se provocaron fallos en producción.
 
 ### 5. P1: se asocian gastos por parecido del nombre
 
@@ -130,7 +132,7 @@ Reproducción en navegador: `-10` quedó guardado en el gasto. En producción la
 
 Corregir: validación en formulario y base de datos; distinguir campo vacío, cero y valor inválido; aceptar decimales de forma consistente. No convertir un importe borrado transitoriamente en un cero confirmado sin feedback.
 
-Evidencia: [modal](../components/ExpenseModal.tsx#L23), [guardado directo](../components/ExpenseModal.tsx#L58), [importe rápido](../components/TripWorkspace.tsx#L775), [SQL](../supabase/schema.sql#L73).
+Evidencia: [modal](../components/ExpenseModal.tsx#L23), [guardado directo](../components/ExpenseModal.tsx#L58), [importe rápido](../components/TripWorkspace.tsx#L775), [SQL](../supabase/migrations/20260911000000_v0_8_schema.sql#L73).
 
 ### 10. P2: errores de carga y guardado pueden parecer éxito
 
@@ -208,7 +210,7 @@ Los botones dependen de `canEdit` del viaje y las políticas de escritura de val
 
 Corregir: permitir a cualquier integrante gestionar sólo su valija, incluyendo lectores; mantener el aislamiento por `assigned_to` en cada operación.
 
-Evidencia: [UI de valija](../components/TripWorkspace.tsx#L822), [políticas](../supabase/schema.sql#L292).
+Evidencia: [UI de valija](../components/TripWorkspace.tsx#L822), [políticas](../supabase/migrations/20260911000000_v0_8_schema.sql#L292).
 
 ### 18. P2: modo demo y plantillas
 
@@ -238,7 +240,7 @@ Evidencia: [progreso fijo](../components/DashboardClient.tsx#L113), [perfil](../
 - El componente principal concentra carga, permisos, cálculo, persistencia y todas las vistas. Extraer esas responsabilidades al corregir el núcleo, sin una reescritura total.
 - Hay dependencias declaradas como `latest`. El lockfile fija esta instalación, pero conviene controlar las actualizaciones. Node quedó fijado en la versión 22 y la compilación fue verificada con ese runtime.
 
-Evidencia: [migración](../supabase/v0.3.sql#L7), [esquema](../supabase/schema.sql#L104), [miembros](../supabase/schema.sql#L281), [invitaciones](../supabase/schema.sql#L147), [cambio de base](../components/TripWorkspace.tsx#L586), [dependencias](../package.json).
+Evidencia: [migración](../supabase/v0.3.sql#L7), [esquema](../supabase/migrations/20260911000000_v0_8_schema.sql#L104), [miembros](../supabase/migrations/20260911000000_v0_8_schema.sql#L281), [invitaciones](../supabase/migrations/20260911000000_v0_8_schema.sql#L147), [cambio de base](../components/TripWorkspace.tsx#L586), [dependencias](../package.json).
 
 ## Qué ya funciona y conviene mantener
 
