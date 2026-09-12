@@ -29,6 +29,7 @@ import {
   sortReservationsForDisplay,
 } from '@/lib/trip-item-rules'
 import { tripSectionPath, tripTabs, type TripTab } from '@/lib/trip-navigation'
+import { occurrenceEndDate, occurrencesOverlap } from '@/lib/activity-dates'
 
 type AddKind = 'packing'|'place'|null
 type SyncStatus = 'demo'|'syncing'|'synced'|'error'
@@ -48,6 +49,10 @@ function shortDate(date:string){
 }
 function occurrenceDateLabel(date:string){
   return new Date(date+'T12:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'})
+}
+function occurrenceRangeLabel(activity:Pick<Activity,'date'|'endDate'>){
+  const endDate=occurrenceEndDate(activity)
+  return endDate===activity.date?occurrenceDateLabel(activity.date):`${occurrenceDateLabel(activity.date)} a ${occurrenceDateLabel(endDate)}`
 }
 function activityStateLabel(status:Activity['status']){
   return itineraryStatusLabel(status)
@@ -90,22 +95,8 @@ function safeExternalUrl(value?:string){
     return ['http:','https:'].includes(url.protocol)?url.toString():null
   }catch{return null}
 }
-function timeToMinutes(time?:string){
-  if(!time)return null
-  const [hours,minutes]=time.split(':').map(Number)
-  if(Number.isNaN(hours) || Number.isNaN(minutes))return null
-  return hours*60+minutes
-}
-function activityWindow(activity:Activity){
-  const start=timeToMinutes(activity.startTime) ?? 0
-  const end=timeToMinutes(activity.endTime) ?? start+90
-  return {start,end:Math.max(end,start+30)}
-}
 function activitiesOverlap(a:Activity,b:Activity){
-  if(a.date!==b.date)return false
-  const aw=activityWindow(a)
-  const bw=activityWindow(b)
-  return aw.start < bw.end && bw.start < aw.end
+  return occurrencesOverlap(a,b)
 }
 function sortActivities(a:Activity,b:Activity){
   const byTime=(a.startTime||'99:99').localeCompare(b.startTime||'99:99')
@@ -263,7 +254,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       const occurrences=mappedActivities
         .filter(activity=>activity.expenseId===expense.id || activity.id===expense.activityId)
         .sort((a,b)=>a.date.localeCompare(b.date) || (a.startTime || '99:99').localeCompare(b.startTime || '99:99'))
-        .map(activity=>({id:activity.id,date:activity.date,startTime:activity.startTime,endTime:activity.endTime,steps:activity.steps || []}))
+        .map(activity=>({id:activity.id,date:activity.date,endDate:activity.endDate || activity.date,startTime:activity.startTime,endTime:activity.endTime,steps:activity.steps || []}))
       return {...expense,...(item?{title:item.title,category:item.category,place:item.place,notes:item.notes,optional:item.optional}:{}),activityId:occurrences[0]?.id || expense.activityId,occurrences}
     })
     const mappedReservations=(resQ.data||[]).map(mapReservation).map(reservation=>{
@@ -462,7 +453,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       const savedItem={...item,id:itemId,originId:editingItem.isNew?itemId:item.originId,updatedAt:new Date().toISOString()}
       const savedActivities=activities.map((occurrence,index):Activity=>({
         id:occurrence.id || `a-${Date.now()}-${index}`,tripId:trip.id,itemId,date:occurrence.date,
-        startTime:occurrence.startTime,endTime:occurrence.endTime,title:item.title,category:item.category,
+        endDate:occurrence.endDate || occurrence.date,startTime:occurrence.startTime,endTime:occurrence.endTime,title:item.title,category:item.category,
         place:item.place,notes:item.notes,estimatedCost:expense?.amount || 0,actualCost:expense?.status==='paid'?expense.amount:null,
         costScope:expense?.amountBasis==='group'?'shared':'per_person',status:occurrence.status || 'planned',
         optional:item.optional,position:index,steps:occurrence.steps || [],
@@ -477,7 +468,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       showSuccess(editingItem.isNew?'Detalle creado.':'Cambios guardados.')
       return
     }
-    const {data,error}=await supabase.rpc('save_trip_item_v2',{
+    const {data,error}=await supabase.rpc('save_trip_item_v3',{
       p_item_id:editingItem.isNew?null:item.id,
       p_trip_id:trip.id,
       p_expected_updated_at:editingItem.isNew?null:item.updatedAt,
@@ -488,7 +479,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       p_notes:item.notes || null,
       p_optional:item.optional,
       p_activities:activities.map(activity=>({
-        id:activity.id || null,date:activity.date,start_time:activity.startTime || null,
+        id:activity.id || null,date:activity.date,end_date:activity.endDate || activity.date,start_time:activity.startTime || null,
         end_time:activity.endTime || null,status:activity.status || 'planned',
         steps:(activity.steps || []).map(step=>({id:step.id || null,title:step.title,amount:step.amount,
           start_time:step.startTime || null,end_time:step.endTime || null,place:step.place || null,
@@ -783,7 +774,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
           <div className="panel-head"><div><h3>Próximos hitos</h3><div className="muted subcopy">Lo importante del viaje, sin leer todo el itinerario.</div></div><button className="btn btn-ghost" onClick={()=>selectTab('Itinerario')}>Ver todo</button></div>
           <div className="list">
             {milestoneActivities.map(a=><div className="list-row" key={a.id}>
-              <div><strong>{a.title}</strong><small>{shortDate(a.date)} {a.startTime?`· ${a.startTime}`:''} {a.place?`· ${a.place}`:''}</small></div>
+              <div><strong>{a.title}</strong><small>{occurrenceEndDate(a)===a.date?shortDate(a.date):`${shortDate(a.date)} a ${shortDate(occurrenceEndDate(a))}`} {a.startTime?`· ${a.startTime}`:''} {a.place?`· ${a.place}`:''}</small></div>
               {a.itemId&&reservationByItemId.get(a.itemId)?<span className={`chip ${reservationChip(reservationByItemId.get(a.itemId)!.status)}`}>Reserva: {reservationLabel(reservationByItemId.get(a.itemId)!.status)}</span>:<span className={`chip ${activityChip(a.status)}`}>Agenda: {activityStateLabel(a.status)}</span>}
             </div>)}
             {!milestoneActivities.length&&<div className="empty compact">Todavía no hay reservas, eventos ni alojamientos programados.</div>}
@@ -811,7 +802,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
               <span className="time-start">{a.startTime||'—'}</span>
               {a.endTime&&<><span className="time-to">a</span><span className="time-end">{a.endTime}</span></>}
             </div>
-            <div><div className="activity-title">{a.title} {a.optional?<span className="chip optional">Opcional</span>:null}</div><div className="activity-sub">{a.place}{a.place&&a.notes?' · ':''}{a.notes}</div><div className="chips"><span className={`chip ${activityChip(a.status)}`}>Agenda: {activityStateLabel(a.status)}</span>{a.itemId&&reservationByItemId.get(a.itemId)&&<span className={`chip ${reservationChip(reservationByItemId.get(a.itemId)!.status)}`}>Reserva: {reservationLabel(reservationByItemId.get(a.itemId)!.status)}</span>}{expenseByActivityId.get(a.id)&&<span className={`chip status-${expenseByActivityId.get(a.id)!.status}`}>Costo: {expenseStatusLabel(expenseByActivityId.get(a.id)!.status)}</span>}{a.status==='reserved'&&!(a.itemId&&reservationByItemId.get(a.itemId))&&<span className="chip">Reserva anterior: Reservado</span>}{a.status==='paid'&&!expenseByActivityId.get(a.id)&&<span className="chip">Costo anterior: Pagado</span>}<span className="chip category-chip">{activityCategoryLabel(a.category)}</span>{recurrenceCountFor(a)>1&&<span className="chip recurrence-chip" title={`Esta actividad tiene ${recurrenceCountFor(a)} apariciones en el itinerario`}><Repeat2 size={12}/>{recurrenceLabelFor(a)}</span>}{Boolean(a.steps?.length)&&<span className="chip category-chip">{a.steps!.length} {a.steps!.length===1?'parada':'paradas'}</span>}</div>
+            <div><div className="activity-title">{a.title} {a.optional?<span className="chip optional">Opcional</span>:null}</div><div className="activity-sub">{[occurrenceEndDate(a)!==a.date?`Finaliza ${occurrenceDateLabel(occurrenceEndDate(a))}`:'',a.place,a.notes].filter(Boolean).join(' · ')}</div><div className="chips"><span className={`chip ${activityChip(a.status)}`}>Agenda: {activityStateLabel(a.status)}</span>{a.itemId&&reservationByItemId.get(a.itemId)&&<span className={`chip ${reservationChip(reservationByItemId.get(a.itemId)!.status)}`}>Reserva: {reservationLabel(reservationByItemId.get(a.itemId)!.status)}</span>}{expenseByActivityId.get(a.id)&&<span className={`chip status-${expenseByActivityId.get(a.id)!.status}`}>Costo: {expenseStatusLabel(expenseByActivityId.get(a.id)!.status)}</span>}{a.status==='reserved'&&!(a.itemId&&reservationByItemId.get(a.itemId))&&<span className="chip">Reserva anterior: Reservado</span>}{a.status==='paid'&&!expenseByActivityId.get(a.id)&&<span className="chip">Costo anterior: Pagado</span>}<span className="chip category-chip">{activityCategoryLabel(a.category)}</span>{recurrenceCountFor(a)>1&&<span className="chip recurrence-chip" title={`Esta actividad tiene ${recurrenceCountFor(a)} apariciones en el itinerario`}><Repeat2 size={12}/>{recurrenceLabelFor(a)}</span>}{Boolean(a.steps?.length)&&<span className="chip category-chip">{a.steps!.length} {a.steps!.length===1?'parada':'paradas'}</span>}</div>
               {Boolean(a.steps?.length)&&<div className="activity-steps" aria-label={`Paradas de ${a.title}`}>
                 {a.steps!.map((step,stepIndex)=><div className="activity-step" key={step.id || `${a.id}-step-${stepIndex}`}>
                   <div className="activity-step-time">{step.startTime || 'Sin hora'}{step.endTime?` a ${step.endTime}`:''}</div>
@@ -847,7 +838,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
               const stepCount=linkedActivities.reduce((total,item)=>total+(item.steps?.length??0),0)
               const hasSteps=stepCount>0
               const occurrenceLabel=linkedActivities.length>1?`${linkedActivities.length} apariciones · ${e.occurrencePricing==='per_occurrence'?'importe por aparición':'importe total'}`:''
-              const occurrenceDates=linkedActivities.length>1?linkedActivities.map(item=>occurrenceDateLabel(item.date)).join(', '):''
+              const occurrenceDates=linkedActivities.length>1 || (linkedActivities.length===1 && occurrenceEndDate(linkedActivities[0])!==linkedActivities[0].date)?linkedActivities.map(occurrenceRangeLabel).join(', '):''
               return <div className={`list-row budget-line ${!included?'excluded':''}`} key={e.id} style={{alignItems:'center'}}>
                 <div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className={`budget-check ${included?'on':''}`} disabled={!canEdit} onClick={()=>toggleExpenseIncluded(e.id)} aria-label={`${included?'Excluir':'Incluir'} ${e.title}`} aria-pressed={included}>{included?'✓':''}</button><div><div className="budget-title-row"><strong>{e.title}</strong>{linkedReservation&&<span className="budget-structure-badge" title="Este gasto está vinculado a una reserva"><ClipboardCheck size={13}/>Reserva: {reservationLabel(linkedReservation.status)}</span>}{hasSteps&&<span className="budget-structure-badge" title="Esta actividad incluye paradas"><ListTree size={13}/>{stepCount} {stepCount===1?'parada':'paradas'}</span>}</div><small>{[occurrenceDates,linkedActivities.length===1?activity?.startTime:'',e.place||activity?.place,itemCategoryLabel(e.category),e.amountBasis==='group'?'total grupo':'',occurrenceLabel,status,!linked?'sin día en itinerario':!included?'fuera del total':''].filter(Boolean).join(' · ')}</small></div></div>
                 <div className="budget-actions"><div className="money-input"><span>{trip.currency}</span><input aria-label={`Costo ${e.title}`} disabled={!canEdit} min="0" step="0.01" type="number" value={expenseAmountDrafts[e.id] ?? String(e.amount)} onChange={ev=>setExpenseAmountDrafts(current=>({...current,[e.id]:ev.target.value}))} onBlur={()=>commitExpenseAmount(e)}/></div>{canEdit&&<>{linkedReservation&&<button className="icon-btn" title={`Editar reserva ${linkedReservation.title}`} aria-label={`Editar la reserva vinculada a ${e.title}`} onClick={()=>openItemForFacet('reservation',linkedReservation)}><ClipboardCheck size={16}/></button>}<button className="icon-btn" title={`Editar ${e.title}`} aria-label={`Editar ${e.title}`} onClick={()=>openItemForFacet('cost',e)}><Edit3 size={16}/></button></>}</div>

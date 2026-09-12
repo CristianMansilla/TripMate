@@ -1,4 +1,4 @@
-# TripMate · v0.7 en desarrollo
+# TripMate · v0.8 en validación
 
 TripMate es una aplicación web colaborativa y mobile-first para planificar viajes. Cada usuario puede crear varios viajes, invitar acompañantes y compartir itinerario, presupuesto, reservas y lugares. La valija es personal para cada cuenta.
 
@@ -10,6 +10,7 @@ TripMate es una aplicación web colaborativa y mobile-first para planificar viaj
 - Una ficha única por elemento del viaje, con itinerario, costo y reserva opcionales.
 - Altas contextuales desde Itinerario, Presupuesto y Reservas usando el mismo editor y la misma identidad.
 - Actividades repetidas sin duplicar el costo cuando el importe se define como total.
+- Transporte nocturno y estancias con fecha de finalización explícita.
 - Presupuesto por persona y grupo, con categorías normalizadas y filtros.
 - Reservas con estado y fecha límite independientes del estado de pago.
 - Estados separados por responsabilidad: agenda, reserva y costo.
@@ -72,8 +73,9 @@ Para una base existente, aplicar en orden sólo las versiones posteriores a la i
 11. `supabase/v0.6.1.sql`
 12. `supabase/v0.7.sql`
 13. `supabase/v0.7.1.sql`
+14. `supabase/v0.8.sql`
 
-Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base. `v0.7` establece `trip_items` como fuente canónica de nombre, tipo, lugar, notas y condición opcional. `v0.7.1` permite vincular una ficha con un Lugar guardado sin impedir el texto libre.
+Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base. `v0.7` establece `trip_items` como fuente canónica de nombre, tipo, lugar, notas y condición opcional. `v0.7.1` permite vincular una ficha con un Lugar guardado sin impedir el texto libre. `v0.8` agrega la fecha de finalización de cada aparición sin modificar el significado de los horarios históricos.
 
 ## Seguridad
 

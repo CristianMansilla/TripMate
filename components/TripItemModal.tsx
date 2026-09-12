@@ -13,6 +13,7 @@ import { useDiscardConfirmation } from './useDiscardConfirmation'
 import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
 import { userFacingError } from '@/lib/ui-text'
+import { occurrenceDateError } from '@/lib/activity-dates'
 
 export type TripItemTab='general'|'itinerary'|'cost'|'reservation'
 type ItemFacet=Exclude<TripItemTab,'general'>
@@ -40,10 +41,10 @@ export default function TripItemModal({
 }){
   const initialOccurrences=useMemo<ExpenseOccurrence[]>(()=>{
     if(activities.length)return activities.map(activity=>({
-      id:activity.id,date:activity.date,startTime:activity.startTime,endTime:activity.endTime,
+      id:activity.id,date:activity.date,endDate:activity.endDate || activity.date,startTime:activity.startTime,endTime:activity.endTime,
       status:activity.status,steps:activity.steps || [],
     }))
-    return initialFacet==='itinerary'?[{date:minDate,status:'planned',steps:[]}]:[]
+    return initialFacet==='itinerary'?[{date:minDate,endDate:minDate,status:'planned',steps:[]}]:[]
   },[activities,initialFacet,minDate])
   const [draftItem,setDraftItem]=useState(item)
   const [occurrences,setOccurrences]=useState(initialOccurrences)
@@ -78,7 +79,7 @@ export default function TripItemModal({
   function toggleItinerary(enabled:boolean){
     if(!enabled && activities.length){setFacetToRemove('itinerary');return}
     setHasItinerary(enabled)
-    if(enabled && !occurrences.length)setOccurrences([{date:minDate,status:'planned',steps:[]}])
+    if(enabled && !occurrences.length)setOccurrences([{date:minDate,endDate:minDate,status:'planned',steps:[]}])
   }
 
   function toggleFacet(facet:ItemFacet,enabled:boolean){
@@ -118,12 +119,8 @@ export default function TripItemModal({
     }
     if(!hasItinerary && !hasCost && !hasReservation){setMessage('Activá Itinerario, Costo o Reserva para guardar el elemento.');return}
     if(hasItinerary && !occurrences.length){setActiveTab('itinerary');setMessage('Agregá al menos un día o desactivá Itinerario.');return}
-    if(hasItinerary && occurrences.some(occurrence=>!occurrence.date || occurrence.date<minDate || occurrence.date>maxDate)){
-      setActiveTab('itinerary');setMessage('Los días deben estar dentro de las fechas del viaje.');return
-    }
-    if(hasItinerary && occurrences.some(occurrence=>occurrence.startTime && occurrence.endTime && occurrence.endTime<=occurrence.startTime)){
-      setActiveTab('itinerary');setMessage('La hora de fin debe ser posterior a la hora de inicio.');return
-    }
+    const occurrenceError=hasItinerary?occurrences.map(occurrence=>occurrenceDateError(occurrence,minDate,maxDate)).find(Boolean):null
+    if(occurrenceError){setActiveTab('itinerary');setMessage(occurrenceError);return}
     if(hasItinerary && occurrences.some(occurrence=>(occurrence.steps || []).some(step=>!step.title.trim()))){
       setActiveTab('itinerary');setMessage('Completá o quitá las paradas sin nombre.');return
     }
@@ -139,7 +136,7 @@ export default function TripItemModal({
         const common={...draftItem,title,category,place:draftItem.place?.trim() || undefined,notes:draftItem.notes?.trim() || undefined}
         await onSave({
           item:common,
-          activities:hasItinerary?occurrences:[],
+          activities:hasItinerary?occurrences.map(occurrence=>({...occurrence,endDate:occurrence.endDate || occurrence.date})):[],
           expense:hasCost?{...draftExpense,title,category,place:common.place,notes:common.notes,optional:common.optional}:null,
           reservation:hasReservation?{...draftReservation,title,notes:common.notes}:null,
         })

@@ -37,6 +37,7 @@ export type Activity = {
   updatedAt?: string
   expenseId?: string | null
   date: string
+  endDate?: string
   startTime?: string
   endTime?: string
   title: string
@@ -57,6 +58,7 @@ export type Activity = {
 export type ExpenseOccurrence = {
   id?: string
   date: string
+  endDate?: string
   startTime?: string
   endTime?: string
   status?: ActivityStatus

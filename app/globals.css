@@ -217,6 +217,9 @@ button { cursor: pointer; }
 .occurrence-card-head span { color:var(--muted); font-size:12px; font-weight:750; }
 .occurrence-row { display:grid; grid-template-columns:minmax(160px,1fr) 125px 125px 150px; align-items:end; gap:10px; }
 .occurrence-row .field { gap:5px; }
+.occurrence-end-date-toggle { display:inline-flex; align-items:center; gap:7px; margin-top:10px; color:#4c5870; font-size:12px; font-weight:800; cursor:pointer; }
+.occurrence-end-date-toggle input { width:16px; height:16px; accent-color:var(--brand); }
+.occurrence-end-date { max-width:260px; margin-top:10px; }
 .occurrence-add { margin-top:8px; }
 .steps-editor { margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
 .steps-editor-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }

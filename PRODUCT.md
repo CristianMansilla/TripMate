@@ -6,7 +6,7 @@ Una sola fuente de verdad para un viaje compartido. La ficha de un elemento conc
 
 ## Estado
 
-Revisado el 11 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas. `v0.7` consolidó `trip_items` como fuente canónica y `v0.7.1` vinculó cada ficha con un lugar guardado opcional. Las dos migraciones están aplicadas y sus comprobaciones posteriores devolvieron `true`.
+Revisado el 11 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas. `v0.7` consolidó `trip_items` como fuente canónica y `v0.7.1` vinculó cada ficha con un lugar guardado opcional. `v0.8` agregó la fecha de finalización explícita. Todas están aplicadas y sus comprobaciones posteriores devolvieron `true`.
 
 Los botones “Agregar actividad”, “Agregar gasto” y “Agregar reserva” se conservan dentro de sus secciones porque representan la intención inicial, no fuentes de datos distintas. Los tres abren el mismo editor, guardan mediante la misma RPC y permiten añadir las demás facetas.
 
@@ -48,9 +48,14 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 - Las pruebas manuales colaborativas, las comprobaciones SQL y la auditoría visual automatizada en escritorio y móvil pasaron.
 - La sección activa forma parte de la URL y se conserva al recargar, compartir y navegar con atrás o adelante.
 
-### Próxima etapa · agenda y robustez
+### v0.8 cerrada
 
-- Modelar transporte nocturno y estancias con fecha de finalización explícita, sin reinterpretar horarios históricos.
+- Transporte nocturno y estancias ya admiten fecha de finalización explícita sin reinterpretar los horarios históricos.
+- `supabase/v0.8.sql` está aplicada y sus cinco comprobaciones devolvieron `true`.
+- La interfaz pasó la revisión visual focalizada en escritorio y 390 × 844, y el guardado real de una actividad nocturna conservó ambas fechas y horarios.
+
+### Próxima etapa · robustez
+
 - Ampliar pruebas de integración de RPC cuando exista una base de prueba aislada.
 - Mantener una comprobación visual breve en escritorio y móvil ante cada cambio relevante de interfaz.
 - Medir rendimiento y calidad del autocompletado antes de declararlo una función estable.

@@ -64,6 +64,7 @@ create table public.activities (
   trip_id uuid not null references public.trips(id) on delete cascade,
   item_id uuid not null references public.trip_items(id) on delete cascade,
   date date not null,
+  end_date date not null check(end_date>=date),
   start_time time,
   end_time time,
   title text not null check(length(trim(title)) > 0),
@@ -1227,6 +1228,112 @@ begin
 end;
 $$;
 
+create or replace function public.validate_activity_date_range()
+returns trigger language plpgsql set search_path=public as $$
+declare
+  v_trip_start date;
+  v_trip_end date;
+begin
+  new.end_date:=coalesce(new.end_date,new.date);
+  select trip.start_date,trip.end_date into v_trip_start,v_trip_end
+  from public.trips trip where trip.id=new.trip_id;
+  if not found then raise exception 'No se encontro el viaje de la actividad.'; end if;
+  if new.date is null or new.date<v_trip_start or new.date>v_trip_end
+    or new.end_date<v_trip_start or new.end_date>v_trip_end then
+    raise exception 'La actividad debe comenzar y finalizar dentro de las fechas del viaje.';
+  end if;
+  if new.end_date<new.date then raise exception 'La fecha de finalizacion no puede ser anterior al inicio.'; end if;
+  if new.end_date=new.date and new.start_time is not null and new.end_time is not null and new.end_time<=new.start_time then
+    raise exception 'La hora de fin debe ser posterior a la hora de inicio.';
+  end if;
+  return new;
+end;
+$$;
+create trigger activities_validate_date_range
+  before insert or update of trip_id,date,end_date,start_time,end_time on public.activities
+  for each row execute function public.validate_activity_date_range();
+
+create or replace function public.validate_trip_activity_ranges()
+returns trigger language plpgsql set search_path=public as $$
+begin
+  if exists(
+    select 1 from public.activities activity
+    where activity.trip_id=new.id and (activity.date<new.start_date or activity.end_date>new.end_date)
+  ) then raise exception 'Las nuevas fechas del viaje dejarian actividades fuera del rango.'; end if;
+  return new;
+end;
+$$;
+create trigger trips_validate_activity_ranges
+  before update of start_date,end_date on public.trips
+  for each row execute function public.validate_trip_activity_ranges();
+
+create or replace function public.save_trip_item_v3(
+  p_item_id uuid,p_trip_id uuid,p_expected_updated_at timestamptz,
+  p_title text,p_category text,p_place text,p_place_id uuid,p_notes text,p_optional boolean,
+  p_activities jsonb,p_expense jsonb,p_reservation jsonb
+) returns uuid
+language plpgsql security invoker set search_path=public as $$
+declare
+  v_item_id uuid;
+  v_activity jsonb;
+  v_normalized_activities jsonb:='[]'::jsonb;
+  v_position integer;
+  v_date date;
+  v_end_date date;
+  v_start_time time;
+  v_end_time time;
+  v_saved_activity_id uuid;
+begin
+  if p_activities is not null and jsonb_typeof(p_activities)<>'array' then raise exception 'El itinerario no es valido.'; end if;
+  for v_activity,v_position in
+    select value,(ordinality-1)::integer
+    from jsonb_array_elements(coalesce(p_activities,'[]'::jsonb)) with ordinality
+  loop
+    v_date:=nullif(v_activity->>'date','')::date;
+    v_end_date:=coalesce(nullif(v_activity->>'end_date','')::date,v_date);
+    v_start_time:=nullif(v_activity->>'start_time','')::time;
+    v_end_time:=nullif(v_activity->>'end_time','')::time;
+    if v_date is null or v_end_date is null or not exists(
+      select 1 from public.trips trip where trip.id=p_trip_id
+        and v_date between trip.start_date and trip.end_date
+        and v_end_date between trip.start_date and trip.end_date
+    ) then raise exception 'Cada actividad debe comenzar y finalizar dentro de las fechas del viaje.'; end if;
+    if v_end_date<v_date then raise exception 'La fecha de finalizacion no puede ser anterior al inicio.'; end if;
+    if v_end_date=v_date and v_start_time is not null and v_end_time is not null and v_end_time<=v_start_time then
+      raise exception 'La hora de fin debe ser posterior a la hora de inicio.';
+    end if;
+    if v_end_date>v_date and v_start_time is not null and v_end_time is not null and v_end_time<=v_start_time then
+      v_activity:=jsonb_set(v_activity,'{end_time}','null'::jsonb,true);
+    end if;
+    v_normalized_activities:=v_normalized_activities || jsonb_build_array(v_activity);
+  end loop;
+
+  select public.save_trip_item_v2(
+    p_item_id,p_trip_id,p_expected_updated_at,p_title,p_category,p_place,p_place_id,
+    p_notes,p_optional,v_normalized_activities,p_expense,p_reservation
+  ) into v_item_id;
+
+  for v_activity,v_position in
+    select value,(ordinality-1)::integer
+    from jsonb_array_elements(coalesce(p_activities,'[]'::jsonb)) with ordinality
+  loop
+    v_end_date:=coalesce(nullif(v_activity->>'end_date','')::date,nullif(v_activity->>'date','')::date);
+    v_end_time:=nullif(v_activity->>'end_time','')::time;
+    update public.activities set end_date=v_end_date,end_time=v_end_time
+    where item_id=v_item_id and trip_id=p_trip_id and position=v_position
+    returning id into v_saved_activity_id;
+    if not found then raise exception 'No se pudo guardar el rango de una actividad.'; end if;
+    if nullif(v_activity->>'id','') is not null and v_saved_activity_id<>nullif(v_activity->>'id','')::uuid then
+      raise exception 'Una actividad no pertenece a esta aparicion.';
+    end if;
+  end loop;
+  update public.expenses expense set itinerary_end_time=activity.end_time
+  from public.activities activity
+  where expense.item_id=v_item_id and activity.item_id=v_item_id and activity.position=0;
+  return v_item_id;
+end;
+$$;
+
 create or replace function public.delete_trip_item_v1(
   p_item_id uuid,p_trip_id uuid,p_expected_updated_at timestamptz
 ) returns void
@@ -1517,10 +1624,13 @@ revoke all on function public.save_activity_plan_v2(uuid,uuid,timestamptz,text,d
 revoke all on function public.delete_activity_plan(uuid,uuid) from public, anon;
 revoke all on function public.save_trip_item_v1(uuid,uuid,timestamptz,text,text,text,text,boolean,jsonb,jsonb,jsonb) from public, anon;
 revoke all on function public.save_trip_item_v2(uuid,uuid,timestamptz,text,text,text,uuid,text,boolean,jsonb,jsonb,jsonb) from public, anon;
+revoke all on function public.save_trip_item_v3(uuid,uuid,timestamptz,text,text,text,uuid,text,boolean,jsonb,jsonb,jsonb) from public, anon;
 revoke all on function public.delete_trip_item_v1(uuid,uuid,timestamptz) from public, anon;
 revoke all on function public.validate_trip_item_reservation_due_date() from public, anon, authenticated;
 revoke all on function public.use_trip_item_common_fields() from public, anon, authenticated;
 revoke all on function public.ensure_trip_item_place_reference() from public, anon, authenticated;
+revoke all on function public.validate_activity_date_range() from public, anon, authenticated;
+revoke all on function public.validate_trip_activity_ranges() from public, anon, authenticated;
 revoke all on function public.move_reservation(uuid,uuid,integer) from public, anon;
 revoke all on function public.set_trip_base_place(uuid,uuid) from public, anon;
 grant execute on function public.save_expense_plan(uuid,uuid,text,text,numeric,text,boolean,text,date,time,time,text,text,boolean) to authenticated;
@@ -1535,6 +1645,7 @@ grant execute on function public.save_activity_plan_v2(uuid,uuid,timestamptz,tex
 grant execute on function public.delete_activity_plan(uuid,uuid) to authenticated;
 grant execute on function public.save_trip_item_v1(uuid,uuid,timestamptz,text,text,text,text,boolean,jsonb,jsonb,jsonb) to authenticated;
 grant execute on function public.save_trip_item_v2(uuid,uuid,timestamptz,text,text,text,uuid,text,boolean,jsonb,jsonb,jsonb) to authenticated;
+grant execute on function public.save_trip_item_v3(uuid,uuid,timestamptz,text,text,text,uuid,text,boolean,jsonb,jsonb,jsonb) to authenticated;
 grant execute on function public.delete_trip_item_v1(uuid,uuid,timestamptz) to authenticated;
 grant execute on function public.move_reservation(uuid,uuid,integer) to authenticated;
 grant execute on function public.set_trip_base_place(uuid,uuid) to authenticated;
