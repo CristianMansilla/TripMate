@@ -54,11 +54,16 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 - `supabase/v0.8.sql` está aplicada y sus cinco comprobaciones devolvieron `true`.
 - La interfaz pasó la revisión visual focalizada en escritorio y 390 × 844, y el guardado real de una actividad nocturna conservó ambas fechas y horarios.
 
+### Autocompletado verificado
+
+- Geoapify se consulta una sola vez por búsqueda, con sesgo no restrictivo por país y sin convertir aproximaciones en direcciones exactas.
+- La interfaz cancela solicitudes reemplazadas, limpia resultados anteriores al cambiar la consulta y conserva la escritura manual como alternativa.
+- La medición local del 11 de septiembre de 2026 quedó documentada en `docs/AUTOCOMPLETE-BENCHMARK-2026-09-11.md`.
+
 ### Próxima etapa · robustez
 
 - Ampliar pruebas de integración de RPC cuando exista una base de prueba aislada.
 - Mantener una comprobación visual breve en escritorio y móvil ante cada cambio relevante de interfaz.
-- Medir rendimiento y calidad del autocompletado antes de declararlo una función estable.
 
 ### Después de estabilizar
 

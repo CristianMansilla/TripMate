@@ -52,12 +52,15 @@ export default function PlaceAutocomplete({
   useEffect(()=>{
     const query=typedQuery.trim()
     if(query.length<3){setRemoteSuggestions([]);setProviderActive(false);setLoading(false);setStatusMessage('');return}
+    setRemoteSuggestions([])
+    setProviderActive(false)
+    setStatusMessage('')
     const controller=new AbortController()
     let timedOut=false
     const timer=setTimeout(async()=>{
       setLoading(true)
       setStatusMessage('')
-      const requestTimeout=setTimeout(()=>{timedOut=true;controller.abort()},8000)
+      const requestTimeout=setTimeout(()=>{timedOut=true;controller.abort()},6500)
       try{
         const params=new URLSearchParams({q:query,tripId})
         const response=await fetch(`/api/places/autocomplete?${params}`,{signal:controller.signal})
