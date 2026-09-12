@@ -193,7 +193,7 @@ export default function TripItemModal({
         </div>}
       </section>
 
-      <div className="modal-actions split">
+      <div className={`modal-actions split ${!isNew&&onDelete?'has-delete':''}`}>
         {!isNew&&onDelete?<button type="button" className="btn btn-danger trip-item-delete" disabled={loading} onClick={()=>onDelete(draftItem)}><Trash2 size={16}/> Eliminar del viaje</button>:<span/>}
         <span/>
         <button className="btn btn-primary" disabled={loading}>{loading&&<LoaderCircle className="button-spinner" size={16}/>} {loading?'Guardando…':isNew&&initialFacet&&!reviewedTabs.includes(initialFacet)?'Continuar':isNew?'Crear':'Guardar cambios'}</button>

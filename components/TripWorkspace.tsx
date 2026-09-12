@@ -74,9 +74,6 @@ function reservationChip(status:Reservation['status']){
 function expenseStatusLabel(status:Expense['status']){
   return ({estimated:'Estimado',confirmed:'Confirmado',paid:'Pagado'})[status]
 }
-function roleDescription(role:TripMember['role']){
-  return ({owner:'Organizador del viaje',editor:'Puede editar el viaje',viewer:'Sólo puede consultar'})[role]
-}
 function placeStatusLabel(status:Place['status']){
   return ({saved:'Guardado',candidate:'Candidato',confirmed:'Confirmado',discarded:'Descartado',visited:'Visitado'})[status]
 }
@@ -929,10 +926,14 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
           </div>
         </div>
         <div className="list">
-          {members.length?members.map(member=><div className="list-row member-row" key={member.id}>
+          {members.length?members.map(member=>{
+            const username=member.username?.trim().replace(/^@+/, '')
+            const displayLabel=username?`@${username}`:member.name
+            const avatarInitial=(username || member.name).trim().charAt(0).toLocaleUpperCase('es')
+            return <div className="list-row member-row" key={member.id}>
             <div className="member-identity" style={{display:'flex',alignItems:'center',gap:10}}>
-              <div className="avatar">{member.name[0]}</div>
-              <div><strong>{member.name}</strong><small>{member.username?`@${member.username} · `:''}{roleDescription(member.role)}{member.joinedAt?` · desde ${shortDate(member.joinedAt.slice(0,10))}`:''}</small></div>
+              <div className="avatar">{avatarInitial}</div>
+              <strong>{displayLabel}</strong>
             </div>
             <div className={`member-actions ${member.role==='owner'?'member-actions-owner':''}`} style={{display:'flex',alignItems:'center',gap:8}}>
               {isOwner&&member.role!=='owner'?<select className="role-select" value={member.role} onChange={e=>updateMemberRole(member,e.target.value as TripMember['role'])}>
@@ -941,10 +942,11 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
               </select>:<span className={`chip ${member.role==='owner'?'green':''}`}>{tripRoleLabel(member.role)}</span>}
               {isOwner&&member.role!=='owner'&&<button className="icon-btn" title={`Expulsar a ${member.name}`} aria-label={`Expulsar a ${member.name}`} onClick={()=>setMemberToRemove(member)}><UserMinus size={17}/></button>}
             </div>
-          </div>):trip.memberNames.map((name,i)=><div className="list-row member-row" key={`${name}-${i}`}>
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <div className="avatar">{name[0]}</div>
-              <div><strong>{name}</strong><small>Integrante del viaje</small></div>
+          </div>
+          }):trip.memberNames.map((name,i)=><div className="list-row member-row" key={`${name}-${i}`}>
+            <div className="member-identity" style={{display:'flex',alignItems:'center',gap:10}}>
+              <div className="avatar">{name.trim().charAt(0).toLocaleUpperCase('es')}</div>
+              <strong>{name}</strong>
             </div>
           </div>)}
         </div>
