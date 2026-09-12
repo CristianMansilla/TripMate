@@ -4,6 +4,8 @@ import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
+import ModalCloseButton from './ModalCloseButton'
+import { LoaderCircle } from 'lucide-react'
 
 export default function ConfirmDialog({title,children,confirmLabel,confirmIcon,onClose,onConfirm}:{
   title:string
@@ -26,11 +28,11 @@ export default function ConfirmDialog({title,children,confirmLabel,confirmIcon,o
   }
   return <div className="modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)requestClose()}}>
     <div ref={dialogRef} className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+      <ModalCloseButton onClick={requestClose} disabled={loading}/>
       <h2 id={titleId}>{title}</h2>
       <div className="muted">{children}</div>
       <div className="modal-actions">
-        <button type="button" className="btn btn-secondary" onClick={onClose} disabled={loading}>Cancelar</button>
-        <button type="button" className="btn btn-danger" onClick={confirm} disabled={loading}>{confirmIcon}{loading?'Procesando…':confirmLabel}</button>
+        <button type="button" className="btn btn-danger" onClick={confirm} disabled={loading}>{loading?<LoaderCircle className="button-spinner" size={16}/>:confirmIcon}{loading?'Procesando…':confirmLabel}</button>
       </div>
     </div>
   </div>

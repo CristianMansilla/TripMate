@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useMemo, useState } from 'react'
-import { CalendarDays, ClipboardCheck, FilePenLine, Trash2, WalletCards } from 'lucide-react'
+import { CalendarDays, ClipboardCheck, FilePenLine, LoaderCircle, Trash2, WalletCards } from 'lucide-react'
 import type { Activity, Expense, ExpenseOccurrence, Reservation, TripItem, TripItemSaveInput } from '@/lib/types'
 import CategoryPicker from './CategoryPicker'
 import ConfirmDialog from './ConfirmDialog'
@@ -14,6 +14,7 @@ import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
 import { userFacingError } from '@/lib/ui-text'
 import { occurrenceDateError } from '@/lib/activity-dates'
+import ModalCloseButton from './ModalCloseButton'
 
 export type TripItemTab='general'|'itinerary'|'cost'|'reservation'
 type ItemFacet=Exclude<TripItemTab,'general'>
@@ -150,6 +151,7 @@ export default function TripItemModal({
   ]
   return <><div className="modal-backdrop" onMouseDown={event=>{if(event.currentTarget===event.target)discard.requestClose()}}>
     <form ref={dialogRef} className="modal expense-modal trip-item-modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="trip-item-modal-title" tabIndex={-1} onSubmit={submit} noValidate>
+      <ModalCloseButton onClick={discard.requestClose} disabled={loading}/>
       <h2 id="trip-item-modal-title">{isNew?initialFacet==='itinerary'?'Nueva actividad':initialFacet==='cost'?'Nuevo gasto':'Nueva reserva':'Editar detalle del viaje'}</h2>
       <Snackbar message={message} tone={messageTone} onClose={()=>setMessage('')}/>
       <div className="expense-form-tabs trip-item-tabs" role="tablist" aria-label="Secciones del elemento">
@@ -194,8 +196,7 @@ export default function TripItemModal({
       <div className="modal-actions split">
         {!isNew&&onDelete?<button type="button" className="btn btn-danger trip-item-delete" disabled={loading} onClick={()=>onDelete(draftItem)}><Trash2 size={16}/> Eliminar del viaje</button>:<span/>}
         <span/>
-        <button type="button" className="btn btn-secondary" onClick={discard.requestClose}>Cancelar</button>
-        <button className="btn btn-primary" disabled={loading}>{loading?'Guardando…':isNew&&initialFacet&&!reviewedTabs.includes(initialFacet)?'Continuar':isNew?'Crear':'Guardar cambios'}</button>
+        <button className="btn btn-primary" disabled={loading}>{loading&&<LoaderCircle className="button-spinner" size={16}/>} {loading?'Guardando…':isNew&&initialFacet&&!reviewedTabs.includes(initialFacet)?'Continuar':isNew?'Crear':'Guardar cambios'}</button>
       </div>
     </form>
   </div>

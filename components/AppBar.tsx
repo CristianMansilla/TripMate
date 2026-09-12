@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation'
 import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
 import Snackbar from './Snackbar'
+import ConfirmDialog from './ConfirmDialog'
+import ModalCloseButton from './ModalCloseButton'
 
 export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
   const [name,setName]=useState('')
@@ -21,6 +23,7 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
   const [saving,setSaving]=useState(false)
   const [connected,setConnected]=useState(false)
   const [mounted,setMounted]=useState(false)
+  const [logoutOpen,setLogoutOpen]=useState(false)
   const router=useRouter()
   const closeProfile=useCallback(()=>{
     if(saving)return
@@ -95,13 +98,13 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
   const profileModal=profileOpen&&mounted?createPortal(
     <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeProfile()}}>
       <div ref={profileDialogRef} className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" tabIndex={-1}>
+        <ModalCloseButton onClick={closeProfile} disabled={saving}/>
         <h2 id="profile-title">Perfil</h2>
         <p className="muted">Estos datos se muestran a las personas que comparten viajes con vos.</p>
         <div className="field"><label htmlFor="profile-name">Nombre visible</label><input id="profile-name" value={draftName} onChange={e=>setDraftName(e.target.value)} required autoComplete="name"/></div>
         <div className="field" style={{marginTop:12}}><label htmlFor="profile-username">Nombre de usuario</label><input id="profile-username" value={draftUsername} onChange={e=>setDraftUsername(e.target.value.toLowerCase())} required minLength={3} maxLength={24} pattern="[a-z0-9_]{3,24}" autoComplete="username"/></div>
         <div className="field" style={{marginTop:12}}><label htmlFor="profile-email">Email</label><input id="profile-email" value={email} disabled/></div>
         <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={closeProfile} disabled={saving}>Cancelar</button>
           <button className="btn btn-primary" onClick={saveProfile} disabled={saving}><Save size={16}/>{saving?'Guardando…':'Guardar'}</button>
         </div>
       </div>
@@ -118,12 +121,15 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
         <div className="user-menu">
           <button className="avatar avatar-button" title="Editar perfil" aria-label="Editar perfil" onClick={()=>profileLoaded&&openProfile()} disabled={!profileLoaded}>{name[0]?.toUpperCase() || <UserRound size={16}/>}</button>
           {profileLoaded&&name&&<button className="desktop-label user-name user-name-button" onClick={openProfile}>{name}</button>}
-          {connected&&<button className="icon-btn" title="Cerrar sesión" onClick={logout}><LogOut size={16}/></button>}
+          {connected&&<button className="icon-btn" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={()=>setLogoutOpen(true)}><LogOut size={16}/></button>}
         </div>
       </div>
     </div>
   </header>
   {profileModal}
+  {logoutOpen&&<ConfirmDialog title="Cerrar sesión" confirmLabel="Cerrar sesión" confirmIcon={<LogOut size={16}/>} onClose={()=>setLogoutOpen(false)} onConfirm={logout}>
+    ¿Querés cerrar tu sesión en TripMate?
+  </ConfirmDialog>}
   <Snackbar message={profileMessage} tone={profileMessage==='Perfil actualizado.'?'success':'error'} onClose={()=>setProfileMessage('')}/>
   </>
 }

@@ -60,7 +60,7 @@ export default function PlaceAutocomplete({
     const timer=setTimeout(async()=>{
       setLoading(true)
       setStatusMessage('')
-      const requestTimeout=setTimeout(()=>{timedOut=true;controller.abort()},6500)
+      const requestTimeout=setTimeout(()=>{timedOut=true;controller.abort()},10_000)
       try{
         const params=new URLSearchParams({q:query,tripId})
         const response=await fetch(`/api/places/autocomplete?${params}`,{signal:controller.signal})
@@ -134,7 +134,7 @@ export default function PlaceAutocomplete({
     }
   }
 
-  const showMenu=open && (suggestions.length>0 || Boolean(statusMessage))
+  const showMenu=open && (loading || suggestions.length>0 || Boolean(statusMessage))
   return <div className={`field place-autocomplete ${className}`.trim()}>
     <label htmlFor={id}>{label}</label>
     <div className="place-autocomplete-control">
@@ -157,6 +157,7 @@ export default function PlaceAutocomplete({
       {loading&&<LoaderCircle className="place-autocomplete-spinner" size={18} aria-label="Buscando lugares"/>}
     </div>
     {showMenu&&<div id={listId} className="place-suggestions" role="listbox">
+      {loading&&!suggestions.length&&<div className="place-suggestions-status" role="status">Buscando lugares…</div>}
       {suggestions.map((suggestion,index)=><button
         id={`${listId}-${index}`}
         key={`${suggestion.source}-${suggestion.id}`}

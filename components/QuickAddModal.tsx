@@ -9,6 +9,7 @@ import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
 import { userFacingError } from '@/lib/ui-text'
 import PlaceAutocomplete, { PlaceAutocompleteOption } from './PlaceAutocomplete'
+import ModalCloseButton from './ModalCloseButton'
 
 type Kind='packing'|'place'
 
@@ -56,6 +57,7 @@ export default function QuickAddModal({kind,tripId,placeSuggestions=[],onClose,o
 
   return <><div className="modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)discard.requestClose()}}>
     <form ref={dialogRef} className="modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-title" tabIndex={-1} onSubmit={submit} noValidate>
+      <ModalCloseButton onClick={discard.requestClose} disabled={loading}/>
       <h2 id="quick-add-title">{kind==='packing'?'Agregar a valija':'Nuevo lugar'}</h2>
       <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
       <div className="form-grid">
@@ -67,7 +69,7 @@ export default function QuickAddModal({kind,tripId,placeSuggestions=[],onClose,o
           <div className="field full"><label htmlFor="quick-place-notes">Notas</label><textarea id="quick-place-notes" value={notes} onChange={event=>setNotes(event.target.value)} placeholder="Horarios, referencias o recomendaciones"/></div>
         </>}
       </div>
-      <div className="modal-actions"><button type="button" className="btn btn-secondary" onClick={discard.requestClose}>Cancelar</button><button className="btn btn-primary" disabled={loading}>{loading?'Guardando…':'Guardar'}</button></div>
+      <div className="modal-actions"><button className="btn btn-primary" disabled={loading}>{loading?'Guardando…':'Guardar'}</button></div>
     </form>
   </div>{discard.discardOpen&&<DiscardChangesDialog onClose={discard.cancelDiscard} onConfirm={discard.confirmDiscard}/>}</>
 }

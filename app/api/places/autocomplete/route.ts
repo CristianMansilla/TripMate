@@ -102,7 +102,7 @@ export async function GET(request:Request){
 
   try{
     const providerStartedAt=performance.now()
-    const response=await fetch(geoapifyUrl,{cache:'no-store',signal:AbortSignal.timeout(5000)})
+    const response=await fetch(geoapifyUrl,{cache:'no-store',signal:AbortSignal.timeout(8000)})
     timings.provider=performance.now()-providerStartedAt
     if(!response.ok){
       const message=response.status===401 || response.status===403

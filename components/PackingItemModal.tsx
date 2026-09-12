@@ -1,7 +1,7 @@
 'use client'
 import { FormEvent, useState } from 'react'
 import { PackingItem } from '@/lib/types'
-import { Trash2 } from 'lucide-react'
+import { LoaderCircle, Trash2 } from 'lucide-react'
 import CategoryPicker from './CategoryPicker'
 import { useModalBehavior } from './useModalBehavior'
 import { userFacingError } from '@/lib/ui-text'
@@ -9,6 +9,7 @@ import Snackbar from './Snackbar'
 import { useSubmissionGuard } from './useSubmissionGuard'
 import DiscardChangesDialog from './DiscardChangesDialog'
 import { useDiscardConfirmation } from './useDiscardConfirmation'
+import ModalCloseButton from './ModalCloseButton'
 
 export default function PackingItemModal({
   item,
@@ -45,6 +46,7 @@ export default function PackingItemModal({
 
   return <><div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)discard.requestClose()}}>
     <form ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="packing-modal-title" tabIndex={-1} onSubmit={submit}>
+      <ModalCloseButton onClick={discard.requestClose} disabled={loading}/>
       <h2 id="packing-modal-title">Editar ítem</h2>
       <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
       <div className="form-grid">
@@ -54,8 +56,7 @@ export default function PackingItemModal({
       <div className="modal-actions split">
         <button type="button" className="btn btn-danger" disabled={loading} onClick={()=>onDelete(item)}><Trash2 size={16}/> Eliminar</button>
         <span/>
-        <button type="button" className="btn btn-secondary" onClick={discard.requestClose}>Cancelar</button>
-        <button className="btn btn-primary" disabled={loading}>{loading?'Guardando...':'Guardar cambios'}</button>
+        <button className="btn btn-primary" disabled={loading}>{loading&&<LoaderCircle className="button-spinner" size={16}/>} {loading?'Guardando...':'Guardar cambios'}</button>
       </div>
     </form>
   </div>{discard.discardOpen&&<DiscardChangesDialog onClose={discard.cancelDiscard} onConfirm={discard.confirmDiscard}/>}</>

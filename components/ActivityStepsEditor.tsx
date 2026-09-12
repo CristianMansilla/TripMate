@@ -2,6 +2,7 @@
 
 import { ArrowDown, ArrowUp, ChevronDown, Plus, Trash2 } from 'lucide-react'
 import type { ActivityStep } from '@/lib/types'
+import TimeField from './TimeField'
 
 function newStep():ActivityStep{
   return {title:'',amount:0,startTime:'',endTime:'',place:'',notes:'',optional:false}
@@ -31,8 +32,8 @@ export default function ActivityStepsEditor({value,onChange,idPrefix,amountBasis
     {value.map((step,index)=><div className="compact-step" key={step.id || `new-${index}`}>
       <div className="compact-step-main">
         <div className="field step-title"><label htmlFor={`${idPrefix}-title-${index}`}>Parada {index+1}</label><input id={`${idPrefix}-title-${index}`} value={step.title} onChange={event=>patch(index,{title:event.target.value})} placeholder="Museo, plaza, visita..." required/></div>
-        <div className="field"><label htmlFor={`${idPrefix}-start-${index}`}>Desde</label><input id={`${idPrefix}-start-${index}`} type="time" value={step.startTime || ''} onChange={event=>patch(index,{startTime:event.target.value})}/></div>
-        <div className="field"><label htmlFor={`${idPrefix}-end-${index}`}>Hasta</label><input id={`${idPrefix}-end-${index}`} type="time" value={step.endTime || ''} onChange={event=>patch(index,{endTime:event.target.value})}/></div>
+        <TimeField id={`${idPrefix}-start-${index}`} label="Desde" value={step.startTime} onChange={startTime=>patch(index,{startTime})}/>
+        <TimeField id={`${idPrefix}-end-${index}`} label="Hasta" value={step.endTime} onChange={endTime=>patch(index,{endTime})}/>
       </div>
       <div className="compact-step-controls">
         <details className="compact-step-details">

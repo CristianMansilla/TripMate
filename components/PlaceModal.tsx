@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { LoaderCircle, Trash2 } from 'lucide-react'
 import type { Place } from '@/lib/types'
 import { userFacingError } from '@/lib/ui-text'
 import Snackbar from './Snackbar'
@@ -11,6 +11,7 @@ import { useSubmissionGuard } from './useSubmissionGuard'
 import DiscardChangesDialog from './DiscardChangesDialog'
 import { useDiscardConfirmation } from './useDiscardConfirmation'
 import PlaceAutocomplete, { PlaceAutocompleteOption } from './PlaceAutocomplete'
+import ModalCloseButton from './ModalCloseButton'
 
 function validExternalUrl(value:string){
   if(!value)return true
@@ -52,6 +53,7 @@ export default function PlaceModal({place,categoryOptions,placeSuggestions,onClo
 
   return <><div className="modal-backdrop" onMouseDown={event=>{if(event.currentTarget===event.target)discard.requestClose()}}>
     <form ref={dialogRef} className="modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="place-modal-title" tabIndex={-1} onSubmit={submit} noValidate>
+      <ModalCloseButton onClick={discard.requestClose} disabled={loading}/>
       <h2 id="place-modal-title">Editar lugar</h2>
       <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
       <div className="form-grid">
@@ -65,8 +67,7 @@ export default function PlaceModal({place,categoryOptions,placeSuggestions,onClo
       <div className="modal-actions split">
         <button type="button" className="btn btn-danger" disabled={loading} onClick={()=>onDelete(draft)}><Trash2 size={16}/> Eliminar</button>
         <span/>
-        <button type="button" className="btn btn-secondary" onClick={discard.requestClose}>Cancelar</button>
-        <button className="btn btn-primary" disabled={loading}>{loading?'Guardando…':'Guardar cambios'}</button>
+        <button className="btn btn-primary" disabled={loading}>{loading&&<LoaderCircle className="button-spinner" size={16}/>} {loading?'Guardando…':'Guardar cambios'}</button>
       </div>
     </form>
   </div>{discard.discardOpen&&<DiscardChangesDialog onClose={discard.cancelDiscard} onConfirm={discard.confirmDiscard}/>}</>

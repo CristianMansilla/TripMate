@@ -382,10 +382,10 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
   },[exp,acts])
   const expenseById=useMemo(()=>new Map(exp.map(expense=>[expense.id,expense])),[exp])
   const reservationByItemId=useMemo(()=>new Map(res.filter(reservation=>reservation.itemId).map(reservation=>[reservation.itemId!,reservation])),[res])
-  const milestoneActivities=useMemo(()=>visibleActivities.filter(activity=>
+  const summaryActivities=useMemo(()=>[...visibleActivities].filter(activity=>
     Boolean(activity.itemId&&reservationByItemId.get(activity.itemId)) ||
     ['Evento','Alojamiento'].includes(itemCategoryLabel(activity.category))
-  ).slice(0,6),[visibleActivities,reservationByItemId])
+  ).sort(sortActivities).slice(0,6),[visibleActivities,reservationByItemId])
   const recurrenceCountFor=(activity:Activity)=>expenseByActivityId.get(activity.id)?.occurrences?.length || 0
   const recurrenceLabelFor=(activity:Activity)=>{
     const occurrences=expenseByActivityId.get(activity.id)?.occurrences || []
@@ -496,9 +496,9 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       if(String(error.message || '').toLowerCase().includes('cambió mientras'))await loadConnectedData(true)
       throw new Error(userFacingError(error,'No pudimos guardar el elemento. Intentá nuevamente.'))
     }
-    setEditingItem(null)
     await logChange(trip.id,'trip_item',data,editingItem.isNew?'created':'updated',`${editingItem.isNew?'Se agregó':'Se actualizó'} “${item.title}”.`)
     await loadConnectedData(true)
+    setEditingItem(null)
     showSuccess(editingItem.isNew?'Detalle creado.':'Cambios guardados.')
   }
 
@@ -515,9 +515,13 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     }
     const {error}=await supabase.rpc('delete_trip_item_v1',{p_item_id:item.id,p_trip_id:trip.id,p_expected_updated_at:item.updatedAt})
     if(error){setError(userFacingError(error,'No pudimos eliminar el elemento. Intentá nuevamente.'));await loadConnectedData(true);return}
-    setItemToDelete(null);setEditingItem(null)
+    setItems(current=>current.filter(candidate=>candidate.id!==item.id))
+    setActs(current=>current.filter(activity=>activity.itemId!==item.id))
+    setExp(current=>current.filter(expense=>expense.itemId!==item.id))
+    setRes(current=>current.filter(reservation=>reservation.itemId!==item.id))
     await logChange(trip.id,'trip_item',item.id,'deleted',`Se eliminó “${item.title}” y toda su información vinculada.`)
     await loadConnectedData(true)
+    setItemToDelete(null);setEditingItem(null)
     showSuccess('Detalle eliminado.')
   }
 
@@ -624,9 +628,10 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       latitude:next.latitude ?? null,longitude:next.longitude ?? null,notes:next.notes || null,status:next.status,
     }).eq('id',next.id).eq('trip_id',trip.id)
     if(error)throw new Error(userFacingError(error,'No pudimos guardar el lugar. Intentá nuevamente.'))
-    setEditingPlace(null)
+    setPlaces(current=>current.map(item=>item.id===next.id?next:item))
     await logChange(trip.id,'place',next.id,'updated',`Se actualizó el lugar “${next.name}”.`)
     await loadConnectedData(true)
+    setEditingPlace(null)
     showSuccess('Lugar guardado.')
   }
 
@@ -643,10 +648,11 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     }
     const {error}=await supabase.from('places').delete().eq('id',place.id).eq('trip_id',trip.id)
     if(error){setError(userFacingError(error,'No pudimos eliminar el lugar. Intentá nuevamente.'));return}
-    setPlaceToDelete(null)
-    setEditingPlace(null)
+    setPlaces(current=>current.filter(item=>item.id!==place.id))
     await logChange(trip.id,'place',place.id,'deleted',`Se eliminó el lugar “${place.name}”.`)
     await loadConnectedData(true)
+    setPlaceToDelete(null)
+    setEditingPlace(null)
     showSuccess('Lugar eliminado.')
   }
 
@@ -693,9 +699,10 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       .eq('trip_id',trip.id)
       .eq('user_id',member.id)
     if(error){setError(userFacingError(error));return}
-    setMemberToRemove(null)
+    setMembers(current=>current.filter(candidate=>candidate.id!==member.id))
     await logChange(trip.id,'member',null,'removed',`Se expulsó a ${member.name} del viaje.`)
     await loadConnectedData(true)
+    setMemberToRemove(null)
     showSuccess('Integrante eliminado.')
   }
 
@@ -773,13 +780,13 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
 
       {tab==='Resumen' && <div className="two-col">
         <section className="panel">
-          <div className="panel-head"><div><h3>Próximos hitos</h3><div className="muted subcopy">Lo importante del viaje, sin leer todo el itinerario.</div></div><button className="btn btn-ghost" onClick={()=>selectTab('Itinerario')}>Ver todo</button></div>
+          <div className="panel-head"><div><h3>Reservas y eventos</h3><div className="muted subcopy">Alojamientos, eventos y actividades con reserva.</div></div><button className="btn btn-ghost" onClick={()=>selectTab('Itinerario')}>Ver todo</button></div>
           <div className="list">
-            {milestoneActivities.map(a=><div className="list-row" key={a.id}>
+            {summaryActivities.map(a=><div className="list-row" key={a.id}>
               <div><strong>{a.title}</strong><small>{occurrenceEndDate(a)===a.date?shortDate(a.date):`${shortDate(a.date)} a ${shortDate(occurrenceEndDate(a))}`} {a.startTime?`· ${a.startTime}`:''} {a.place?`· ${a.place}`:''}</small></div>
               {a.itemId&&reservationByItemId.get(a.itemId)?<span className={`chip ${reservationChip(reservationByItemId.get(a.itemId)!.status)}`}>Reserva: {reservationLabel(reservationByItemId.get(a.itemId)!.status)}</span>:<span className={`chip ${activityChip(a.status)}`}>Agenda: {activityStateLabel(a.status)}</span>}
             </div>)}
-            {!milestoneActivities.length&&<div className="empty compact">Todavía no hay reservas, eventos ni alojamientos programados.</div>}
+            {!summaryActivities.length&&<div className="empty compact">Todavía no hay reservas, eventos ni alojamientos programados.</div>}
           </div>
         </section>
         <aside style={{display:'grid',gap:18}}>
@@ -902,7 +909,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       </div>}
 
       {tab==='Valija' && <section className="panel">
-        <div className="panel-head"><div><h3>Mi valija</h3><div className="muted subcopy">{packedCount} de {pack.length} listos.</div></div><div style={{display:'flex',gap:8,alignItems:'center'}}>{canManagePacking&&<button className="btn btn-primary" onClick={()=>setAddKind('packing')}><Plus size={16}/> Ítem</button>}<Luggage size={19} className="muted"/></div></div>
+        <div className="panel-head"><div><h3>Mi valija</h3><div className="muted subcopy">{packedCount} de {pack.length} listos.</div></div>{canManagePacking&&<button className="btn btn-primary" onClick={()=>setAddKind('packing')}><Plus size={16}/> Ítem</button>}</div>
         <div className="progress" style={{marginBottom:16}}><i style={{width:`${pctPacked}%`}}/></div>
         <div className="list">{pack.map(p=><div key={p.id} className="list-row packing-row"><div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className="packing-check" disabled={!canManagePacking} onClick={()=>togglePacking(p.id)} aria-label={`${p.packed?'Desmarcar':'Marcar'} ${p.label}`} aria-pressed={p.packed}>{p.packed?<CheckCircle2 size={20} color="var(--green)"/>:<span className="check-empty"/>}</button><div><strong style={{textDecoration:p.packed?'line-through':'none',opacity:p.packed?0.65:1}}>{p.label}</strong><small>{p.category}</small></div></div>{canManagePacking&&<div className="packing-actions"><button className="icon-btn" title={`Editar ${p.label}`} aria-label={`Editar ${p.label}`} onClick={()=>setEditingPacking(p)}><Edit3 size={16}/></button><button className="icon-btn" title={`Eliminar ${p.label}`} aria-label={`Eliminar ${p.label}`} onClick={()=>setPackingToDelete(p)}><Trash2 size={16}/></button></div>}</div>)}</div>
         {!pack.length&&<div className="empty compact">Todavía no cargaste ítems para tu valija.</div>}
@@ -922,19 +929,19 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
           </div>
         </div>
         <div className="list">
-          {members.length?members.map(member=><div className="list-row" key={member.id}>
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
+          {members.length?members.map(member=><div className="list-row member-row" key={member.id}>
+            <div className="member-identity" style={{display:'flex',alignItems:'center',gap:10}}>
               <div className="avatar">{member.name[0]}</div>
               <div><strong>{member.name}</strong><small>{member.username?`@${member.username} · `:''}{roleDescription(member.role)}{member.joinedAt?` · desde ${shortDate(member.joinedAt.slice(0,10))}`:''}</small></div>
             </div>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <div className={`member-actions ${member.role==='owner'?'member-actions-owner':''}`} style={{display:'flex',alignItems:'center',gap:8}}>
               {isOwner&&member.role!=='owner'?<select className="role-select" value={member.role} onChange={e=>updateMemberRole(member,e.target.value as TripMember['role'])}>
                 <option value="editor">Editor</option>
                 <option value="viewer">Lector</option>
               </select>:<span className={`chip ${member.role==='owner'?'green':''}`}>{tripRoleLabel(member.role)}</span>}
               {isOwner&&member.role!=='owner'&&<button className="icon-btn" title={`Expulsar a ${member.name}`} aria-label={`Expulsar a ${member.name}`} onClick={()=>setMemberToRemove(member)}><UserMinus size={17}/></button>}
             </div>
-          </div>):trip.memberNames.map((name,i)=><div className="list-row" key={`${name}-${i}`}>
+          </div>):trip.memberNames.map((name,i)=><div className="list-row member-row" key={`${name}-${i}`}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <div className="avatar">{name[0]}</div>
               <div><strong>{name}</strong><small>Integrante del viaje</small></div>

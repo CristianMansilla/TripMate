@@ -50,7 +50,9 @@ export function useModalBehavior<T extends HTMLElement=HTMLDivElement>(onClose:(
     dialog?.addEventListener('focusin',handleFocusIn)
     requestAnimationFrame(()=>{
       const preferred=dialog?.querySelector<HTMLElement>('[autofocus]')
-      ;(preferred || focusable()[0] || dialog)?.focus()
+      const elements=focusable()
+      const primary=elements.find(element=>!element.hasAttribute('data-modal-close'))
+      ;(preferred || primary || elements[0] || dialog)?.focus()
     })
     return()=>{
       openModalCount=Math.max(0,openModalCount-1)

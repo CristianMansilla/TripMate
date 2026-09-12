@@ -5,6 +5,7 @@ import type { ActivityStatus, ExpenseOccurrence } from '@/lib/types'
 import { Plus, Trash2 } from 'lucide-react'
 import ActivityStepsEditor from './ActivityStepsEditor'
 import ConfirmDialog from './ConfirmDialog'
+import TimeField from './TimeField'
 import { isMultiDayOccurrence } from '@/lib/activity-dates'
 
 function newOccurrence():ExpenseOccurrence{
@@ -42,8 +43,8 @@ export default function ExpenseOccurrencesEditor({value,onChange,minDate,maxDate
           </div>
           <div className="occurrence-row">
             <div className="field occurrence-date"><label htmlFor={`${idPrefix}-date-${index}`}>Día</label><input id={`${idPrefix}-date-${index}`} type="date" min={minDate} max={maxDate} value={occurrence.date} onChange={event=>patch(index,{date:event.target.value,endDate:isMultiDayOccurrence(occurrence)?occurrence.endDate:event.target.value})}/></div>
-            <div className="field"><label htmlFor={`${idPrefix}-start-${index}`}>Desde</label><input id={`${idPrefix}-start-${index}`} type="time" value={occurrence.startTime || ''} onChange={event=>patch(index,{startTime:event.target.value})}/></div>
-            <div className="field"><label htmlFor={`${idPrefix}-end-${index}`}>Hasta</label><input id={`${idPrefix}-end-${index}`} type="time" value={occurrence.endTime || ''} onChange={event=>patch(index,{endTime:event.target.value})}/></div>
+            <TimeField id={`${idPrefix}-start-${index}`} label="Desde" value={occurrence.startTime} onChange={startTime=>patch(index,{startTime})}/>
+            <TimeField id={`${idPrefix}-end-${index}`} label="Hasta" value={occurrence.endTime} onChange={endTime=>patch(index,{endTime})}/>
             <div className="field"><label htmlFor={`${idPrefix}-status-${index}`}>Estado de agenda</label><select id={`${idPrefix}-status-${index}`} value={occurrence.status || 'planned'} onChange={event=>patch(index,{status:event.target.value as ActivityStatus})}><option value="idea">Idea</option><option value="planned">Planificado</option><option value="done">Hecho</option>{occurrence.status==='reserved'&&<option value="reserved">Reservado (estado anterior)</option>}{occurrence.status==='paid'&&<option value="paid">Pagado (estado anterior)</option>}</select></div>
           </div>
           <label className="occurrence-end-date-toggle"><input type="checkbox" disabled={!followingDate(occurrence.date,maxDate)} checked={isMultiDayOccurrence(occurrence)} onChange={event=>patch(index,{endDate:event.target.checked?(occurrence.endDate && occurrence.endDate>occurrence.date?occurrence.endDate:followingDate(occurrence.date,maxDate)):occurrence.date})}/><span>Termina otro día</span></label>

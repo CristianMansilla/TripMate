@@ -1,6 +1,6 @@
 'use client'
 import { FormEvent, Suspense, useMemo, useState } from 'react'
-import { Compass, Eye, EyeOff } from 'lucide-react'
+import { Compass, Eye, EyeOff, LoaderCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -57,7 +57,10 @@ function LoginForm(){
           <button type="button" className="icon-btn" aria-label="Mostrar u ocultar contraseña" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={17}/>:<Eye size={17}/>}</button>
         </div>
       </div>
-      <button className="btn btn-primary" style={{width:'100%',marginTop:18}} disabled={loading}>{loading?'Ingresando…':'Ingresar'}</button>
+      <button className="btn btn-primary" style={{width:'100%',marginTop:18}} disabled={loading} aria-busy={loading}>
+        {loading&&<LoaderCircle className="button-spinner" size={18} aria-hidden="true"/>}
+        {loading?'Ingresando…':'Ingresar'}
+      </button>
       <div className="auth-links">
         <Link href="/signup">Crear cuenta</Link>
         <Link href="/forgot-password">Olvidé mi contraseña</Link>
