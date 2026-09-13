@@ -6,6 +6,7 @@ import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
 import ModalCloseButton from './ModalCloseButton'
 import { LoaderCircle } from 'lucide-react'
+import ModalBusyOverlay from './ModalBusyOverlay'
 
 export default function ConfirmDialog({title,children,confirmLabel,confirmIcon,onClose,onConfirm}:{
   title:string
@@ -27,7 +28,7 @@ export default function ConfirmDialog({title,children,confirmLabel,confirmIcon,o
     })
   }
   return <div className="modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)requestClose()}}>
-    <div ref={dialogRef} className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+    <div ref={dialogRef} className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={loading} tabIndex={-1}>
       <ModalCloseButton onClick={requestClose} disabled={loading}/>
       <h2 id={titleId}>{title}</h2>
       <div className="muted">{children}</div>
@@ -35,5 +36,6 @@ export default function ConfirmDialog({title,children,confirmLabel,confirmIcon,o
         <button type="button" className="btn btn-danger" onClick={confirm} disabled={loading}>{loading?<LoaderCircle className="button-spinner" size={16}/>:confirmIcon}{loading?'Procesando…':confirmLabel}</button>
       </div>
     </div>
+    <ModalBusyOverlay active={loading}/>
   </div>
 }

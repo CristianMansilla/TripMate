@@ -10,6 +10,7 @@ import { useSubmissionGuard } from './useSubmissionGuard'
 import DiscardChangesDialog from './DiscardChangesDialog'
 import { useDiscardConfirmation } from './useDiscardConfirmation'
 import ModalCloseButton from './ModalCloseButton'
+import ModalBusyOverlay from './ModalBusyOverlay'
 
 export default function PackingItemModal({
   item,
@@ -45,7 +46,7 @@ export default function PackingItemModal({
   }
 
   return <><div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)discard.requestClose()}}>
-    <form ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="packing-modal-title" tabIndex={-1} onSubmit={submit}>
+    <form ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="packing-modal-title" aria-busy={loading} tabIndex={-1} onSubmit={submit}>
       <ModalCloseButton onClick={discard.requestClose} disabled={loading}/>
       <h2 id="packing-modal-title">Editar ítem</h2>
       <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
@@ -59,5 +60,6 @@ export default function PackingItemModal({
         <button className="btn btn-primary" disabled={loading}>{loading&&<LoaderCircle className="button-spinner" size={16}/>} {loading?'Guardando...':'Guardar cambios'}</button>
       </div>
     </form>
+    <ModalBusyOverlay active={loading} label="Guardando..."/>
   </div>{discard.discardOpen&&<DiscardChangesDialog onClose={discard.cancelDiscard} onConfirm={discard.confirmDiscard}/>}</>
 }

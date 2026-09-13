@@ -8,6 +8,7 @@ import { userFacingError } from '@/lib/ui-text'
 import Snackbar from './Snackbar'
 import { useSubmissionGuard } from './useSubmissionGuard'
 import ModalCloseButton from './ModalCloseButton'
+import ModalBusyOverlay from './ModalBusyOverlay'
 
 export default function InviteModal({tripId,onClose}:{tripId:string,onClose:()=>void}){
   const dialogRef=useModalBehavior<HTMLDivElement>(onClose)
@@ -44,7 +45,7 @@ export default function InviteModal({tripId,onClose}:{tripId:string,onClose:()=>
   }
 
   return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
-    <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title" tabIndex={-1}>
+    <div ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title" aria-busy={loading} tabIndex={-1}>
       <ModalCloseButton onClick={onClose} disabled={loading}/>
       <h2 id="invite-modal-title">Invitar al viaje</h2>
       <p className="muted">Generá un enlace. La persona deberá crear o iniciar sesión antes de unirse.</p>
@@ -56,5 +57,6 @@ export default function InviteModal({tripId,onClose}:{tripId:string,onClose:()=>
       {!url?<button className="btn btn-primary" style={{marginTop:18,width:'100%'}} onClick={generate} disabled={loading}>{loading?'Generando…':'Generar enlace'}</button>:
       <div className="invite-box"><input readOnly value={url}/><button className="btn btn-secondary" onClick={copy}>{copied?<Check size={16}/>:<Copy size={16}/>} {copied?'Copiado':'Copiar'}</button></div>}
     </div>
+    <ModalBusyOverlay active={loading} label="Generando enlace..."/>
   </div>
 }

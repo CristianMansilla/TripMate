@@ -15,6 +15,7 @@ import { useSubmissionGuard } from './useSubmissionGuard'
 import { userFacingError } from '@/lib/ui-text'
 import { occurrenceDateError } from '@/lib/activity-dates'
 import ModalCloseButton from './ModalCloseButton'
+import ModalBusyOverlay from './ModalBusyOverlay'
 
 export type TripItemTab='general'|'itinerary'|'cost'|'reservation'
 type ItemFacet=Exclude<TripItemTab,'general'>
@@ -150,7 +151,7 @@ export default function TripItemModal({
     ['general','Datos',FilePenLine],['itinerary','Itinerario',CalendarDays],['cost','Costo',WalletCards],['reservation','Reserva',ClipboardCheck],
   ]
   return <><div className="modal-backdrop" onMouseDown={event=>{if(event.currentTarget===event.target)discard.requestClose()}}>
-    <form ref={dialogRef} className="modal expense-modal trip-item-modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="trip-item-modal-title" tabIndex={-1} onSubmit={submit} noValidate>
+    <form ref={dialogRef} className="modal expense-modal trip-item-modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="trip-item-modal-title" aria-busy={loading} tabIndex={-1} onSubmit={submit} noValidate>
       <ModalCloseButton onClick={discard.requestClose} disabled={loading}/>
       <h2 id="trip-item-modal-title">{isNew?initialFacet==='itinerary'?'Nueva actividad':initialFacet==='cost'?'Nuevo gasto':'Nueva reserva':'Editar detalle del viaje'}</h2>
       <Snackbar message={message} tone={messageTone} onClose={()=>setMessage('')}/>
@@ -199,6 +200,7 @@ export default function TripItemModal({
         <button className="btn btn-primary" disabled={loading}>{loading&&<LoaderCircle className="button-spinner" size={16}/>} {loading?'Guardando…':isNew&&initialFacet&&!reviewedTabs.includes(initialFacet)?'Continuar':isNew?'Crear':'Guardar cambios'}</button>
       </div>
     </form>
+    <ModalBusyOverlay active={loading} label="Guardando..."/>
   </div>
   {facetToRemove&&<ConfirmDialog title={facetToRemove==='itinerary'?'Quitar del itinerario':facetToRemove==='cost'?'Quitar costo':'Quitar reserva'} confirmLabel="Quitar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setFacetToRemove(null)} onConfirm={confirmFacetRemoval}>
     {facetToRemove==='itinerary'?'Se eliminarán todas las apariciones y sus paradas al guardar. El costo y la reserva se conservarán.':facetToRemove==='cost'?'El elemento dejará de aparecer en Presupuesto al guardar. Su itinerario y reserva se conservarán.':'El seguimiento de la reserva se eliminará al guardar. Su itinerario y costo se conservarán.'}

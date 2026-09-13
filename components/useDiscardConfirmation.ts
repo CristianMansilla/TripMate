@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export function useDiscardConfirmation(isDirty:boolean,onClose:()=>void,blocked=false){
   const [discardOpen,setDiscardOpen]=useState(false)
@@ -10,6 +10,16 @@ export function useDiscardConfirmation(isDirty:boolean,onClose:()=>void,blocked=
   isDirtyRef.current=isDirty
   onCloseRef.current=onClose
   blockedRef.current=blocked
+
+  useEffect(()=>{
+    if(!isDirty && !blocked)return
+    const preventUnload=(event:BeforeUnloadEvent)=>{
+      event.preventDefault()
+      event.returnValue=true
+    }
+    window.addEventListener('beforeunload',preventUnload)
+    return()=>window.removeEventListener('beforeunload',preventUnload)
+  },[isDirty,blocked])
 
   const requestClose=useCallback(()=>{
     if(blockedRef.current)return

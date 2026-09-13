@@ -9,6 +9,7 @@ import DiscardChangesDialog from './DiscardChangesDialog'
 import { useDiscardConfirmation } from './useDiscardConfirmation'
 import { localDateValue,newTripDateError } from '@/lib/trip-dates'
 import ModalCloseButton from './ModalCloseButton'
+import ModalBusyOverlay from './ModalBusyOverlay'
 
 export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCreate:(input:Omit<Trip,'id'|'status'|'memberNames'>)=>Promise<void>}){
   const [name,setName]=useState('')
@@ -42,7 +43,7 @@ export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCrea
   }
 
   return <><div className="modal-backdrop" onMouseDown={e=>{if(e.currentTarget===e.target)discard.requestClose()}}>
-    <form ref={dialogRef} className="modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="new-trip-title" tabIndex={-1} onSubmit={submit}>
+    <form ref={dialogRef} className="modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="new-trip-title" aria-busy={loading} tabIndex={-1} onSubmit={submit}>
       <ModalCloseButton onClick={discard.requestClose} disabled={loading}/>
       <h2 id="new-trip-title">Nuevo viaje</h2>
       <p className="muted" style={{marginTop:-8}}>Podés invitar gente después y editar todo en conjunto.</p>
@@ -58,5 +59,6 @@ export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCrea
       </div>
       <div className="modal-actions"><button className="btn btn-primary" disabled={loading}>{loading?'Creando…':'Crear viaje'}</button></div>
     </form>
+    <ModalBusyOverlay active={loading} label="Creando viaje..."/>
   </div>{discard.discardOpen&&<DiscardChangesDialog onClose={discard.cancelDiscard} onConfirm={discard.confirmDiscard}/>}</>
 }

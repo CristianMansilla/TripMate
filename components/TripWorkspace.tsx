@@ -779,9 +779,9 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
         <section className="panel">
           <div className="panel-head"><div><h3>Reservas y eventos</h3><div className="muted subcopy">Alojamientos, eventos y actividades con reserva.</div></div><button className="btn btn-ghost" onClick={()=>selectTab('Itinerario')}>Ver todo</button></div>
           <div className="list">
-            {summaryActivities.map(a=><div className="list-row" key={a.id}>
+            {summaryActivities.map(a=><div className="list-row summary-event-row" key={a.id}>
               <div><strong>{a.title}</strong><small>{occurrenceEndDate(a)===a.date?shortDate(a.date):`${shortDate(a.date)} a ${shortDate(occurrenceEndDate(a))}`} {a.startTime?`· ${a.startTime}`:''} {a.place?`· ${a.place}`:''}</small></div>
-              {a.itemId&&reservationByItemId.get(a.itemId)?<span className={`chip ${reservationChip(reservationByItemId.get(a.itemId)!.status)}`}>Reserva: {reservationLabel(reservationByItemId.get(a.itemId)!.status)}</span>:<span className={`chip ${activityChip(a.status)}`}>Agenda: {activityStateLabel(a.status)}</span>}
+              {a.itemId&&reservationByItemId.get(a.itemId)?<span className={`chip summary-event-badge ${reservationChip(reservationByItemId.get(a.itemId)!.status)}`}>Reserva: {reservationLabel(reservationByItemId.get(a.itemId)!.status)}</span>:<span className={`chip summary-event-badge ${activityChip(a.status)}`}>Agenda: {activityStateLabel(a.status)}</span>}
             </div>)}
             {!summaryActivities.length&&<div className="empty compact">Todavía no hay reservas, eventos ni alojamientos programados.</div>}
           </div>

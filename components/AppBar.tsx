@@ -10,6 +10,7 @@ import { useSubmissionGuard } from './useSubmissionGuard'
 import Snackbar from './Snackbar'
 import ConfirmDialog from './ConfirmDialog'
 import ModalCloseButton from './ModalCloseButton'
+import ModalBusyOverlay from './ModalBusyOverlay'
 
 export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
   const [name,setName]=useState('')
@@ -97,7 +98,7 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
 
   const profileModal=profileOpen&&mounted?createPortal(
     <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)closeProfile()}}>
-      <div ref={profileDialogRef} className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" tabIndex={-1}>
+      <div ref={profileDialogRef} className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title" aria-busy={saving} tabIndex={-1}>
         <ModalCloseButton onClick={closeProfile} disabled={saving}/>
         <h2 id="profile-title">Perfil</h2>
         <p className="muted">Estos datos se muestran a las personas que comparten viajes con vos.</p>
@@ -108,6 +109,7 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
           <button className="btn btn-primary" onClick={saveProfile} disabled={saving}><Save size={16}/>{saving?'Guardando…':'Guardar'}</button>
         </div>
       </div>
+      <ModalBusyOverlay active={saving} label="Guardando perfil..."/>
     </div>,
     document.body
   ):null

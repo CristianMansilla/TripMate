@@ -47,7 +47,9 @@ export async function GET(request:Request){
   const startedAt=performance.now()
   const timings:Record<string,number>={}
   const apiKey=process.env.GEOAPIFY_API_KEY
-  if(!apiKey)return NextResponse.json({provider:null,suggestions:[]})
+  if(!apiKey){
+    return NextResponse.json({provider:null,suggestions:[],message:'La búsqueda de lugares no está configurada.'},{status:503})
+  }
 
   const requestUrl=new URL(request.url)
   const query=normalizePlaceQuery(requestUrl.searchParams.get('q') || '')

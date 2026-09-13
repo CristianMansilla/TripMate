@@ -12,6 +12,7 @@ import DiscardChangesDialog from './DiscardChangesDialog'
 import { useDiscardConfirmation } from './useDiscardConfirmation'
 import PlaceAutocomplete, { PlaceAutocompleteOption } from './PlaceAutocomplete'
 import ModalCloseButton from './ModalCloseButton'
+import ModalBusyOverlay from './ModalBusyOverlay'
 
 function validExternalUrl(value:string){
   if(!value)return true
@@ -52,7 +53,7 @@ export default function PlaceModal({place,categoryOptions,placeSuggestions,onClo
   }
 
   return <><div className="modal-backdrop" onMouseDown={event=>{if(event.currentTarget===event.target)discard.requestClose()}}>
-    <form ref={dialogRef} className="modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="place-modal-title" tabIndex={-1} onSubmit={submit} noValidate>
+    <form ref={dialogRef} className="modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="place-modal-title" aria-busy={loading} tabIndex={-1} onSubmit={submit} noValidate>
       <ModalCloseButton onClick={discard.requestClose} disabled={loading}/>
       <h2 id="place-modal-title">Editar lugar</h2>
       <Snackbar message={message} tone="error" onClose={()=>setMessage('')}/>
@@ -70,5 +71,6 @@ export default function PlaceModal({place,categoryOptions,placeSuggestions,onClo
         <button className="btn btn-primary" disabled={loading}>{loading&&<LoaderCircle className="button-spinner" size={16}/>} {loading?'Guardando…':'Guardar cambios'}</button>
       </div>
     </form>
+    <ModalBusyOverlay active={loading} label="Guardando..."/>
   </div>{discard.discardOpen&&<DiscardChangesDialog onClose={discard.cancelDiscard} onConfirm={discard.confirmDiscard}/>}</>
 }
