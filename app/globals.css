@@ -59,7 +59,7 @@ button { cursor: pointer; }
 .hero h1 { margin:8px 0 4px; font-size:38px; letter-spacing:-.045em; }
 .hero p { margin:0; opacity:.78; }
 .hero-actions { display:flex; gap:8px; align-items:center; }
-.hero-actions .btn { height:40px; min-height:40px; padding-top:0; padding-bottom:0; appearance:none; -webkit-appearance:none; border-style:solid; background-color:rgba(255,255,255,.12); background-image:none; box-shadow:none; filter:none; line-height:1; -webkit-tap-highlight-color:transparent; }
+.hero-actions .btn { height:40px; min-height:40px; padding-top:0; padding-bottom:0; appearance:none; -webkit-appearance:none; border:0; background-color:rgba(255,255,255,.12); background-image:none; box-shadow:none; filter:none; line-height:1; -webkit-tap-highlight-color:transparent; }
 .hero-actions .btn:hover,.hero-actions .btn:active { transform:none; background-color:rgba(255,255,255,.12); background-image:none; box-shadow:none; filter:none; }
 .hero-actions .btn:focus { background-color:rgba(255,255,255,.12); background-image:none; box-shadow:none; }
 .hero-actions .btn:focus-visible { outline:2px solid rgba(255,255,255,.8); outline-offset:2px; }
