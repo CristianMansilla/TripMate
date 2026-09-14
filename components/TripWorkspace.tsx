@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AppBar } from './AppBar'
 import ConfirmDialog from './ConfirmDialog'
 import Snackbar from './Snackbar'
@@ -147,6 +147,8 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
   const [expenseCategoryFilter,setExpenseCategoryFilter]=useState<string|null>(null)
   const [expenseAmountDrafts,setExpenseAmountDrafts]=useState<Record<string,string>>({})
   const [mobileMoreOpen,setMobileMoreOpen]=useState(false)
+  const mobileMoreButtonRef=useRef<HTMLButtonElement>(null)
+  const mobileMoreMenuRef=useRef<HTMLDivElement>(null)
   const [currentUserId,setCurrentUserId]=useState<string|null>(null)
   const [hydrated,setHydrated]=useState(false)
   const [connected,setConnected]=useState(false)
@@ -169,6 +171,27 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     setTab(initialTab)
     setMobileMoreOpen(false)
   },[initialTab])
+
+  useEffect(()=>{
+    if(!mobileMoreOpen)return
+    const closeOutside=(event:PointerEvent)=>{
+      const target=event.target
+      if(!(target instanceof Node))return
+      if(mobileMoreButtonRef.current?.contains(target) || mobileMoreMenuRef.current?.contains(target))return
+      setMobileMoreOpen(false)
+    }
+    const closeWithEscape=(event:KeyboardEvent)=>{
+      if(event.key!=='Escape')return
+      setMobileMoreOpen(false)
+      mobileMoreButtonRef.current?.focus()
+    }
+    document.addEventListener('pointerdown',closeOutside)
+    document.addEventListener('keydown',closeWithEscape)
+    return()=>{
+      document.removeEventListener('pointerdown',closeOutside)
+      document.removeEventListener('keydown',closeWithEscape)
+    }
+  },[mobileMoreOpen])
 
   function selectTab(nextTab:TripTab){
     setMobileMoreOpen(false)
@@ -956,9 +979,9 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
 
       <div className="bottom-nav">
         {(['Resumen','Itinerario','Presupuesto','Valija'] as TripTab[]).map((t,i)=>{const Icon=[CalendarDays,Clock3,DollarSign,Luggage][i];return <button key={t} className={tab===t?'active':''} onClick={()=>selectTab(t)}><Icon size={18}/>{t}</button>})}
-        <button className={(['Reservas','Lugares','Integrantes'] as TripTab[]).includes(tab)||mobileMoreOpen?'active':''} onClick={()=>setMobileMoreOpen(value=>!value)} aria-expanded={mobileMoreOpen}><Menu size={18}/>Más</button>
+        <button ref={mobileMoreButtonRef} className={(['Reservas','Lugares','Integrantes'] as TripTab[]).includes(tab)||mobileMoreOpen?'active':''} onClick={()=>setMobileMoreOpen(value=>!value)} aria-expanded={mobileMoreOpen} aria-haspopup="menu" aria-controls="mobile-more-menu"><Menu size={18}/>Más</button>
       </div>
-      {mobileMoreOpen&&<div className="mobile-more-menu" role="menu">
+      {mobileMoreOpen&&<div ref={mobileMoreMenuRef} id="mobile-more-menu" className="mobile-more-menu" role="menu">
         {([['Reservas',ClipboardCheck],['Lugares',MapIcon],['Integrantes',Users]] as const).map(([target,Icon])=><button key={target} role="menuitem" className={tab===target?'active':''} onClick={()=>selectTab(target)}><Icon size={18}/>{target}</button>)}
       </div>}
 
