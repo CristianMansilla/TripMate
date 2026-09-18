@@ -13,7 +13,7 @@ import { useDiscardConfirmation } from './useDiscardConfirmation'
 import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
 import { userFacingError } from '@/lib/ui-text'
-import { occurrenceDateError } from '@/lib/activity-dates'
+import { normalizeOccurrenceDateRange, occurrenceDateError } from '@/lib/activity-dates'
 import ModalCloseButton from './ModalCloseButton'
 import ModalBusyOverlay from './ModalBusyOverlay'
 
@@ -121,7 +121,8 @@ export default function TripItemModal({
     }
     if(!hasItinerary && !hasCost && !hasReservation){setMessage('Activá Itinerario, Costo o Reserva para guardar el elemento.');return}
     if(hasItinerary && !occurrences.length){setActiveTab('itinerary');setMessage('Agregá al menos un día o desactivá Itinerario.');return}
-    const occurrenceError=hasItinerary?occurrences.map(occurrence=>occurrenceDateError(occurrence,minDate,maxDate)).find(Boolean):null
+    const normalizedOccurrences=occurrences.map(normalizeOccurrenceDateRange)
+    const occurrenceError=hasItinerary?normalizedOccurrences.map(occurrence=>occurrenceDateError(occurrence,minDate,maxDate)).find(Boolean):null
     if(occurrenceError){setActiveTab('itinerary');setMessage(occurrenceError);return}
     if(hasItinerary && occurrences.some(occurrence=>(occurrence.steps || []).some(step=>!step.title.trim()))){
       setActiveTab('itinerary');setMessage('Completá o quitá las paradas sin nombre.');return
@@ -138,7 +139,7 @@ export default function TripItemModal({
         const common={...draftItem,title,category,place:draftItem.place?.trim() || undefined,notes:draftItem.notes?.trim() || undefined}
         await onSave({
           item:common,
-          activities:hasItinerary?occurrences.map(occurrence=>({...occurrence,endDate:occurrence.endDate || occurrence.date})):[],
+          activities:hasItinerary?normalizedOccurrences:[],
           expense:hasCost?{...draftExpense,title,category,place:common.place,notes:common.notes,optional:common.optional}:null,
           reservation:hasReservation?{...draftReservation,title,notes:common.notes}:null,
         })

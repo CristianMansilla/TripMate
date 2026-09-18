@@ -33,6 +33,11 @@ export function moveOccurrenceToDate(
   return {date:nextDate,endDate:maxDate && endDate>maxDate?maxDate:endDate}
 }
 
+export function normalizeOccurrenceDateRange<T extends Pick<ExpenseOccurrence,'date'|'endDate'>>(occurrence:T){
+  const endDate=occurrenceEndDate(occurrence)
+  return {...occurrence,endDate:occurrence.date && endDate<occurrence.date?occurrence.date:endDate}
+}
+
 export function occurrenceDateError(
   occurrence:Pick<ExpenseOccurrence,'date'|'endDate'|'startTime'|'endTime'>,
   minDate:string,
