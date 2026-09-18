@@ -140,6 +140,8 @@ button { cursor: pointer; }
 .filter-notice button { border:0; background:white; color:var(--brand); border-radius:999px; padding:6px 9px; font-weight:800; }
 .list { display:flex; flex-direction:column; gap:10px; }
 .list-row { border:1px solid var(--line); border-radius:16px; padding:13px 14px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
+.focus-card { scroll-margin-block:90px; outline:none; transition:outline-color .18s ease,box-shadow .18s ease; }
+.focus-card:focus { outline:3px solid rgba(91,76,240,.38); outline-offset:3px; box-shadow:0 8px 22px rgba(28,39,68,.1); }
 .list-row > * { min-width:0; }
 .list-row strong { display:block; font-size:14px; }
 .list-row strong,.list-row small,.activity-title,.activity-sub { overflow-wrap:anywhere; }
@@ -150,6 +152,7 @@ button { cursor: pointer; }
 .status-dot.done { background:var(--green); }
 .bottom-nav { display:none; }
 .mobile-more-menu { display:none; }
+.mobile-primary-action { display:none; }
 .trip-print-view { display:none; }
 .skeleton-block,.skeleton-line { background:#e8ebf2; overflow:hidden; position:relative; }
 .skeleton-block::after,.skeleton-line::after { content:""; position:absolute; inset:0; transform:translateX(-100%); background:linear-gradient(90deg,transparent,rgba(255,255,255,.72),transparent); animation:skeleton-sweep 1.35s ease-in-out infinite; }
@@ -353,6 +356,7 @@ button { cursor: pointer; }
   .bottom-nav button { border:0; background:transparent; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10px; font-weight:700; }
   .bottom-nav button.active { color:var(--brand); }
   .bottom-nav button { min-width:0; flex:1; }
+  .mobile-primary-action { display:inline-flex; position:fixed; z-index:69; right:16px; bottom:calc(82px + env(safe-area-inset-bottom)); min-height:48px; padding:0 18px; border-radius:999px; box-shadow:0 10px 26px rgba(91,76,240,.32); }
   .mobile-more-menu { display:grid; position:fixed; z-index:71; right:10px; bottom:76px; width:min(220px,calc(100vw - 20px)); padding:8px; gap:4px; border:1px solid var(--line); border-radius:16px; background:white; box-shadow:var(--shadow); }
   .mobile-more-menu button { min-height:44px; border:0; border-radius:10px; background:transparent; color:var(--ink); display:flex; align-items:center; gap:10px; padding:10px 12px; font-weight:750; }
   .mobile-more-menu button.active { background:var(--brand-soft); color:var(--brand); }

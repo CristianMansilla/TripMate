@@ -8,6 +8,31 @@ export function isMultiDayOccurrence(occurrence:Pick<ExpenseOccurrence,'date'|'e
   return Boolean(occurrence.date && occurrenceEndDate(occurrence)!==occurrence.date)
 }
 
+function dateFromValue(value:string){
+  const [year,month,day]=value.split('-').map(Number)
+  return new Date(Date.UTC(year,month-1,day))
+}
+
+function dateValue(date:Date){
+  return date.toISOString().slice(0,10)
+}
+
+export function moveOccurrenceToDate(
+  occurrence:Pick<ExpenseOccurrence,'date'|'endDate'>,
+  nextDate:string,
+  maxDate?:string,
+){
+  if(!nextDate)return {date:'',endDate:''}
+  const currentEnd=occurrenceEndDate(occurrence)
+  const duration=occurrence.date && currentEnd>=occurrence.date
+    ?Math.round((dateFromValue(currentEnd).getTime()-dateFromValue(occurrence.date).getTime())/86_400_000)
+    :0
+  const shiftedEnd=dateFromValue(nextDate)
+  shiftedEnd.setUTCDate(shiftedEnd.getUTCDate()+duration)
+  const endDate=dateValue(shiftedEnd)
+  return {date:nextDate,endDate:maxDate && endDate>maxDate?maxDate:endDate}
+}
+
 export function occurrenceDateError(
   occurrence:Pick<ExpenseOccurrence,'date'|'endDate'|'startTime'|'endTime'>,
   minDate:string,

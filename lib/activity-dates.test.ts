@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isMultiDayOccurrence, occurrenceDateError, occurrenceEndDate, occurrencesOverlap } from './activity-dates'
+import { isMultiDayOccurrence, moveOccurrenceToDate, occurrenceDateError, occurrenceEndDate, occurrencesOverlap } from './activity-dates'
 
 const tripStart='2026-09-10'
 const tripEnd='2026-09-20'
@@ -14,6 +14,18 @@ describe('activity dates',()=>{
     const occurrence={date:'2026-09-12',endDate:'2026-09-13',startTime:'23:30',endTime:'06:15'}
     expect(occurrenceDateError(occurrence,tripStart,tripEnd)).toBeNull()
     expect(isMultiDayOccurrence(occurrence)).toBe(true)
+  })
+
+  it('moves the end date together with the activity date',()=>{
+    expect(moveOccurrenceToDate({date:'2026-11-09',endDate:'2026-11-10'},'2026-11-12','2026-11-15'))
+      .toEqual({date:'2026-11-12',endDate:'2026-11-13'})
+    expect(moveOccurrenceToDate({date:'2026-11-09',endDate:'2026-11-09'},'2026-11-12','2026-11-15'))
+      .toEqual({date:'2026-11-12',endDate:'2026-11-12'})
+  })
+
+  it('keeps a moved occurrence inside the trip range',()=>{
+    expect(moveOccurrenceToDate({date:'2026-11-09',endDate:'2026-11-11'},'2026-11-14','2026-11-15'))
+      .toEqual({date:'2026-11-14',endDate:'2026-11-15'})
   })
 
   it('rejects a backwards time on the same day',()=>{
