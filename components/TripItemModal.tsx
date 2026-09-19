@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useMemo, useState } from 'react'
-import { CalendarDays, ClipboardCheck, FilePenLine, LoaderCircle, Trash2, WalletCards } from 'lucide-react'
+import { CalendarDays, ClipboardCheck, FilePenLine, Trash2, WalletCards } from 'lucide-react'
 import type { Activity, Expense, ExpenseOccurrence, Reservation, TripItem, TripItemSaveInput } from '@/lib/types'
 import CategoryPicker from './CategoryPicker'
 import ConfirmDialog from './ConfirmDialog'
@@ -198,7 +198,7 @@ export default function TripItemModal({
       <div className={`modal-actions split ${!isNew&&onDelete?'has-delete':''}`}>
         {!isNew&&onDelete?<button type="button" className="btn btn-danger trip-item-delete" disabled={loading} onClick={()=>onDelete(draftItem)}><Trash2 size={16}/> Eliminar del viaje</button>:<span/>}
         <span/>
-        <button className="btn btn-primary" disabled={loading}>{loading&&<LoaderCircle className="button-spinner" size={16}/>} {loading?'Guardando…':isNew&&initialFacet&&!reviewedTabs.includes(initialFacet)?'Continuar':isNew?'Crear':'Guardar cambios'}</button>
+        <button className="btn btn-primary" disabled={loading}>{isNew&&initialFacet&&!reviewedTabs.includes(initialFacet)?'Continuar':isNew?'Crear':'Guardar cambios'}</button>
       </div>
     </form>
     <ModalBusyOverlay active={loading} label="Guardando..."/>

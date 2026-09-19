@@ -57,7 +57,7 @@ export default function NewTripModal({onClose,onCreate}:{onClose:()=>void,onCrea
         <div className="field"><label htmlFor="trip-start">Salida</label><input id="trip-start" type="date" min={today} max={endDate || undefined} value={startDate} onChange={e=>{const next=e.target.value;setStartDate(next);if(endDate&&endDate<next)setEndDate(next)}} required/></div>
         <div className="field"><label htmlFor="trip-end">Vuelta</label><input id="trip-end" type="date" min={startDate || today} value={endDate} onChange={e=>setEndDate(e.target.value)} required/></div>
       </div>
-      <div className="modal-actions"><button className="btn btn-primary" disabled={loading}>{loading?'Creando…':'Crear viaje'}</button></div>
+      <div className="modal-actions"><button className="btn btn-primary" disabled={loading}>Crear viaje</button></div>
     </form>
     <ModalBusyOverlay active={loading} label="Creando viaje..."/>
   </div>{discard.discardOpen&&<DiscardChangesDialog onClose={discard.cancelDiscard} onConfirm={discard.confirmDiscard}/>}</>

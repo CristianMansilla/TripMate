@@ -1,7 +1,7 @@
 'use client'
 import { FormEvent, useState } from 'react'
 import { PackingItem } from '@/lib/types'
-import { LoaderCircle, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import CategoryPicker from './CategoryPicker'
 import { useModalBehavior } from './useModalBehavior'
 import { userFacingError } from '@/lib/ui-text'
@@ -57,7 +57,7 @@ export default function PackingItemModal({
       <div className="modal-actions split">
         <button type="button" className="btn btn-danger" disabled={loading} onClick={()=>onDelete(item)}><Trash2 size={16}/> Eliminar</button>
         <span/>
-        <button className="btn btn-primary" disabled={loading}>{loading&&<LoaderCircle className="button-spinner" size={16}/>} {loading?'Guardando...':'Guardar cambios'}</button>
+        <button className="btn btn-primary" disabled={loading}>Guardar cambios</button>
       </div>
     </form>
     <ModalBusyOverlay active={loading} label="Guardando..."/>

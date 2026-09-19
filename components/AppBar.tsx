@@ -106,7 +106,7 @@ export function AppBar({onNewTrip}:{onNewTrip?:()=>void}) {
         <div className="field" style={{marginTop:12}}><label htmlFor="profile-username">Nombre de usuario</label><input id="profile-username" value={draftUsername} onChange={e=>setDraftUsername(e.target.value.toLowerCase())} required minLength={3} maxLength={24} pattern="[a-z0-9_]{3,24}" autoComplete="username"/></div>
         <div className="field" style={{marginTop:12}}><label htmlFor="profile-email">Email</label><input id="profile-email" value={email} disabled/></div>
         <div className="modal-actions">
-          <button className="btn btn-primary" onClick={saveProfile} disabled={saving}><Save size={16}/>{saving?'Guardando…':'Guardar'}</button>
+          <button className="btn btn-primary" onClick={saveProfile} disabled={saving}><Save size={16}/>Guardar</button>
         </div>
       </div>
       <ModalBusyOverlay active={saving} label="Guardando perfil..."/>

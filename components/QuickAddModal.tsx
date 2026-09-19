@@ -70,7 +70,7 @@ export default function QuickAddModal({kind,tripId,placeSuggestions=[],onClose,o
           <div className="field full"><label htmlFor="quick-place-notes">Notas</label><textarea id="quick-place-notes" value={notes} onChange={event=>setNotes(event.target.value)} placeholder="Horarios, referencias o recomendaciones"/></div>
         </>}
       </div>
-      <div className="modal-actions"><button className="btn btn-primary" disabled={loading}>{loading?'Guardando…':'Guardar'}</button></div>
+      <div className="modal-actions"><button className="btn btn-primary" disabled={loading}>Guardar</button></div>
     </form>
     <ModalBusyOverlay active={loading} label="Guardando..."/>
   </div>{discard.discardOpen&&<DiscardChangesDialog onClose={discard.cancelDiscard} onConfirm={discard.confirmDiscard}/>}</>

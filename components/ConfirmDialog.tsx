@@ -5,7 +5,6 @@ import { useState } from 'react'
 import { useModalBehavior } from './useModalBehavior'
 import { useSubmissionGuard } from './useSubmissionGuard'
 import ModalCloseButton from './ModalCloseButton'
-import { LoaderCircle } from 'lucide-react'
 import ModalBusyOverlay from './ModalBusyOverlay'
 
 export default function ConfirmDialog({title,children,confirmLabel,confirmIcon,onClose,onConfirm}:{
@@ -33,7 +32,7 @@ export default function ConfirmDialog({title,children,confirmLabel,confirmIcon,o
       <h2 id={titleId}>{title}</h2>
       <div className="muted">{children}</div>
       <div className="modal-actions">
-        <button type="button" className="btn btn-danger" onClick={confirm} disabled={loading}>{loading?<LoaderCircle className="button-spinner" size={16}/>:confirmIcon}{loading?'Procesando…':confirmLabel}</button>
+        <button type="button" className="btn btn-danger" onClick={confirm} disabled={loading}>{confirmIcon}{confirmLabel}</button>
       </div>
     </div>
     <ModalBusyOverlay active={loading}/>

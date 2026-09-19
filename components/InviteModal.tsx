@@ -54,7 +54,7 @@ export default function InviteModal({tripId,onClose}:{tripId:string,onClose:()=>
         <option value="editor">Editor · puede modificar</option>
         <option value="viewer">Lector · sólo consulta</option>
       </select></div>
-      {!url?<button className="btn btn-primary" style={{marginTop:18,width:'100%'}} onClick={generate} disabled={loading}>{loading?'Generando…':'Generar enlace'}</button>:
+      {!url?<button className="btn btn-primary" style={{marginTop:18,width:'100%'}} onClick={generate} disabled={loading}>Generar enlace</button>:
       <div className="invite-box"><input readOnly value={url}/><button className="btn btn-secondary" onClick={copy}>{copied?<Check size={16}/>:<Copy size={16}/>} {copied?'Copiado':'Copiar'}</button></div>}
     </div>
     <ModalBusyOverlay active={loading} label="Generando enlace..."/>
