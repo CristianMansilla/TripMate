@@ -214,7 +214,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
 
   useEffect(()=>{
     if(!createdCardTarget || editingItem || editingPacking || editingPlace || addKind)return
-    const frame=requestAnimationFrame(()=>{
+    const timer=window.setTimeout(()=>{
       const targetKey=`${createdCardTarget.section}:${createdCardTarget.id}`
       const card=[...document.querySelectorAll<HTMLElement>('[data-focus-card]')]
         .find(element=>element.dataset.focusCard===targetKey || element.dataset.focusEntity===targetKey)
@@ -222,8 +222,8 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       card.focus({preventScroll:true})
       card.scrollIntoView({behavior:'smooth',block:'center'})
       setCreatedCardTarget(null)
-    })
-    return()=>cancelAnimationFrame(frame)
+    },80)
+    return()=>window.clearTimeout(timer)
   },[createdCardTarget,editingItem,editingPacking,editingPlace,addKind,acts,exp,res,places,pack,expenseCategoryFilter])
 
   function selectTab(nextTab:TripTab){
@@ -885,7 +885,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
               <span className="time-start">{a.startTime||'—'}</span>
               {a.endTime&&<><span className="time-to">a</span><span className="time-end">{a.endTime}</span></>}
             </div>
-            <div><div className="activity-title">{a.title} {a.optional?<span className="chip optional">Opcional</span>:null}</div><div className="activity-sub">{[occurrenceEndDate(a)!==a.date?`Finaliza ${occurrenceDateLabel(occurrenceEndDate(a))}`:'',a.place,a.notes].filter(Boolean).join(' · ')}</div><div className="chips"><span className={`chip ${activityChip(a.status)}`}>Agenda: {activityStateLabel(a.status)}</span>{a.itemId&&reservationByItemId.get(a.itemId)&&<span className={`chip ${reservationChip(reservationByItemId.get(a.itemId)!.status)}`}>Reserva: {reservationLabel(reservationByItemId.get(a.itemId)!.status)}</span>}{expenseByActivityId.get(a.id)&&<span className={`chip status-${expenseByActivityId.get(a.id)!.status}`}>Costo: {expenseStatusLabel(expenseByActivityId.get(a.id)!.status)}</span>}{a.status==='reserved'&&!(a.itemId&&reservationByItemId.get(a.itemId))&&<span className="chip">Reserva anterior: Reservado</span>}{a.status==='paid'&&!expenseByActivityId.get(a.id)&&<span className="chip">Costo anterior: Pagado</span>}<span className="chip category-chip">{activityCategoryLabel(a.category)}</span>{recurrenceCountFor(a)>1&&<span className="chip recurrence-chip" title={`Esta actividad tiene ${recurrenceCountFor(a)} apariciones en el itinerario`}><Repeat2 size={12}/>{recurrenceLabelFor(a)}</span>}{Boolean(a.steps?.length)&&<span className="chip category-chip">{a.steps!.length} {a.steps!.length===1?'parada':'paradas'}</span>}</div>
+            <div><div className="activity-title">{a.title} {a.optional?<span className="chip optional">Opcional</span>:null}</div><div className="activity-details">{occurrenceEndDate(a)!==a.date&&<div className="activity-end-date">Finaliza {occurrenceDateLabel(occurrenceEndDate(a))}</div>}{a.place&&<div className="activity-place"><MapPin size={13} aria-hidden="true"/><span>{a.place}</span></div>}{a.notes&&<div className="activity-notes">{a.notes}</div>}</div><div className="chips"><span className={`chip ${activityChip(a.status)}`}>Agenda: {activityStateLabel(a.status)}</span>{a.itemId&&reservationByItemId.get(a.itemId)&&<span className={`chip ${reservationChip(reservationByItemId.get(a.itemId)!.status)}`}>Reserva: {reservationLabel(reservationByItemId.get(a.itemId)!.status)}</span>}{expenseByActivityId.get(a.id)&&<span className={`chip status-${expenseByActivityId.get(a.id)!.status}`}>Costo: {expenseStatusLabel(expenseByActivityId.get(a.id)!.status)}</span>}{a.status==='reserved'&&!(a.itemId&&reservationByItemId.get(a.itemId))&&<span className="chip">Reserva anterior: Reservado</span>}{a.status==='paid'&&!expenseByActivityId.get(a.id)&&<span className="chip">Costo anterior: Pagado</span>}<span className="chip category-chip">{activityCategoryLabel(a.category)}</span>{recurrenceCountFor(a)>1&&<span className="chip recurrence-chip" title={`Esta actividad tiene ${recurrenceCountFor(a)} apariciones en el itinerario`}><Repeat2 size={12}/>{recurrenceLabelFor(a)}</span>}{Boolean(a.steps?.length)&&<span className="chip category-chip">{a.steps!.length} {a.steps!.length===1?'parada':'paradas'}</span>}</div>
               {Boolean(a.steps?.length)&&<div className="activity-steps" aria-label={`Paradas de ${a.title}`}>
                 {a.steps!.map((step,stepIndex)=><div className="activity-step" key={step.id || `${a.id}-step-${stepIndex}`}>
                   <div className="activity-step-time">{step.startTime || 'Sin hora'}{step.endTime?` a ${step.endTime}`:''}</div>
