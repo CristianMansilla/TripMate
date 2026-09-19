@@ -1029,10 +1029,10 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
 
       <div className="bottom-nav">
         {(['Resumen','Itinerario','Presupuesto','Valija'] as TripTab[]).map((t,i)=>{const Icon=[CalendarDays,Clock3,DollarSign,Luggage][i];return <button key={t} className={tab===t?'active':''} onClick={()=>selectTab(t)}><Icon size={18}/>{t}</button>})}
-        <button ref={mobileMoreButtonRef} className={(['Reservas','Lugares','Integrantes'] as TripTab[]).includes(tab)||mobileMoreOpen?'active':''} onClick={()=>setMobileMoreOpen(value=>!value)} aria-expanded={mobileMoreOpen} aria-haspopup="menu" aria-controls="mobile-more-menu"><Menu size={18}/>Más</button>
+        <button ref={mobileMoreButtonRef} className={(['Reservas','Integrantes'] as TripTab[]).includes(tab)||mobileMoreOpen?'active':''} onClick={()=>setMobileMoreOpen(value=>!value)} aria-expanded={mobileMoreOpen} aria-haspopup="menu" aria-controls="mobile-more-menu"><Menu size={18}/>Más</button>
       </div>
       {mobileMoreOpen&&<div ref={mobileMoreMenuRef} id="mobile-more-menu" className="mobile-more-menu" role="menu">
-        {([['Reservas',ClipboardCheck],['Lugares',MapIcon],['Integrantes',Users]] as const).map(([target,Icon])=><button key={target} role="menuitem" className={tab===target?'active':''} onClick={()=>selectTab(target)}><Icon size={18}/>{target}</button>)}
+        {([['Reservas',ClipboardCheck],['Integrantes',Users]] as const).map(([target,Icon])=><button key={target} role="menuitem" className={tab===target?'active':''} onClick={()=>selectTab(target)}><Icon size={18}/>{target}</button>)}
       </div>}
 
       {editingItem&&<TripItemModal

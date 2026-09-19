@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { tripSectionPath, tripTabFromParam, tripTabSlug } from './trip-navigation'
+import { tripSectionPath, tripTabFromParam, tripTabSlug, tripTabs } from './trip-navigation'
 
 describe('trip navigation',()=>{
   it('maps valid URL sections to interface tabs',()=>{
     expect(tripTabFromParam('itinerario')).toBe('Itinerario')
     expect(tripTabFromParam('RESERVAS')).toBe('Reservas')
-    expect(tripTabFromParam(['lugares','resumen'])).toBe('Lugares')
+    expect(tripTabFromParam(['lugares','resumen'])).toBe('Resumen')
+    expect(tripTabs).not.toContain('Lugares')
   })
 
   it('falls back to the summary for missing or invalid sections',()=>{

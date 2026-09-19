@@ -1,6 +1,8 @@
-export const tripTabs = ['Resumen','Itinerario','Presupuesto','Reservas','Lugares','Valija','Integrantes'] as const
+const allTripTabs = ['Resumen','Itinerario','Presupuesto','Reservas','Lugares','Valija','Integrantes'] as const
 
-export type TripTab = typeof tripTabs[number]
+export type TripTab = typeof allTripTabs[number]
+
+export const tripTabs:readonly TripTab[]=allTripTabs.filter(tab=>tab!=='Lugares')
 
 const tabBySlug:Record<string,TripTab>={
   resumen:'Resumen',
@@ -18,7 +20,8 @@ const slugByTab:Record<TripTab,string>=Object.fromEntries(
 
 export function tripTabFromParam(value:string|string[]|undefined):TripTab{
   const slug=Array.isArray(value)?value[0]:value
-  return slug?tabBySlug[slug.toLowerCase()] || 'Resumen':'Resumen'
+  const tab=slug?tabBySlug[slug.toLowerCase()]:undefined
+  return tab&&tab!=='Lugares'?tab:'Resumen'
 }
 
 export function tripTabSlug(tab:TripTab){
