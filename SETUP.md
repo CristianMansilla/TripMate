@@ -14,6 +14,8 @@ Para actualizar una base existente, ejecutar en orden sólo los archivos posteri
 v0.2 → v0.3 → v0.4 → v0.4.1 → v0.4.2 → v0.4.3
 → v0.4.4 → v0.4.5 → v0.5 → v0.6 → v0.6.1 → v0.7 → v0.7.1
 → v0.8 → migrations/20260911010000_v0_8_1_retire_legacy_item_rpcs.sql
+→ migrations/20260918000000_fix_activity_date_move.sql
+→ migrations/20260918010000_restore_trip_item_v3_delegation.sql
 ```
 
 Cada script termina con una consulta de comprobación. No continuar si arroja una excepción o un indicador esperado devuelve `false`.
@@ -32,7 +34,7 @@ GEOAPIFY_API_KEY=TU_CLAVE_OPCIONAL
 - `SUPABASE_SERVICE_ROLE_KEY` permite el login por nombre de usuario.
 - `GEOAPIFY_API_KEY` habilita autocompletado de lugares desde una ruta protegida del servidor.
 - Ninguna de las dos claves secretas debe usar `NEXT_PUBLIC_`, enviarse al navegador ni subirse a Git.
-- Geoapify es opcional: sin clave, los lugares siguen admitiendo escritura manual y registros guardados.
+- Geoapify es opcional: sin clave, los campos de ubicación siguen admitiendo escritura manual y sugerencias guardadas existentes.
 
 ## 4. Auth
 

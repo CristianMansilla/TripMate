@@ -1,5 +1,7 @@
 # Auditoría breve de TripMate v0.8.1
 
+> Documento histórico del 11 de septiembre de 2026. Desde el 19 de septiembre, la sección Lugares está oculta, se corrigió el cambio de fecha de actividades existentes y se aplicaron ajustes de interacción móvil. El estado funcional vigente se documenta en [PRODUCT.md](../PRODUCT.md).
+
 Fecha: 11 de septiembre de 2026.
 
 ## Dictamen

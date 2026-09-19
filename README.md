@@ -1,6 +1,6 @@
 # TripMate · v0.9
 
-TripMate es una aplicación web colaborativa y mobile-first para planificar viajes. Cada usuario puede crear varios viajes, invitar acompañantes y compartir itinerario, presupuesto, reservas y lugares. La valija es personal para cada cuenta.
+TripMate es una aplicación web colaborativa y mobile-first para planificar viajes. Cada usuario puede crear varios viajes, invitar acompañantes y compartir itinerario, presupuesto y reservas. La valija es personal para cada cuenta.
 
 ## Funciones principales
 
@@ -14,9 +14,9 @@ TripMate es una aplicación web colaborativa y mobile-first para planificar viaj
 - Presupuesto por persona y grupo, con categorías normalizadas y filtros.
 - Reservas con estado y fecha límite independientes del estado de pago.
 - Estados separados por responsabilidad: agenda, reserva y costo.
-- Pruebas automatizadas para categorías, estados, costos repetidos y Lugares.
+- Pruebas automatizadas para categorías, estados, costos repetidos, fechas, navegación y autocompletado.
 - Paradas opcionales; sus importes son referencias y no se suman al presupuesto.
-- Lugares guardados, base del viaje, enlaces a Google Maps y autocompletado opcional mediante Geoapify.
+- Ubicación de texto libre o con autocompletado opcional mediante Geoapify dentro del editor unificado.
 - Guardado del plan compartido como PDF, sin exponer la valija personal ni los accesos de integrantes.
 - Valija personal, invitaciones, historial básico, Realtime, PWA y RLS por viaje.
 - Modo demo sin Supabase, persistido en `localStorage`.
@@ -76,8 +76,10 @@ Para una base existente, aplicar en orden sólo las versiones posteriores a la i
 13. `supabase/v0.7.1.sql`
 14. `supabase/v0.8.sql`
 15. `supabase/migrations/20260911010000_v0_8_1_retire_legacy_item_rpcs.sql`
+16. `supabase/migrations/20260918000000_fix_activity_date_move.sql`
+17. `supabase/migrations/20260918010000_restore_trip_item_v3_delegation.sql`
 
-Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base. `v0.7` establece `trip_items` como fuente canónica de nombre, tipo, lugar, notas y condición opcional. `v0.7.1` permite vincular una ficha con un Lugar guardado sin impedir el texto libre. `v0.8` agrega la fecha de finalización de cada aparición sin modificar el significado de los horarios históricos. `v0.8.1` deja `save_trip_item_v3` como única RPC de guardado de fichas disponible para clientes autenticados.
+Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base. `v0.7` establece `trip_items` como fuente canónica de nombre, tipo, lugar, notas y condición opcional. `v0.7.1` permite vincular una ficha con un Lugar guardado sin impedir el texto libre. `v0.8` agrega la fecha de finalización de cada aparición sin modificar el significado de los horarios históricos. `v0.8.1` deja `save_trip_item_v3` como única RPC pública de guardado de fichas. Las migraciones del 18 de septiembre corrigen el cambio de fecha de actividades existentes y restauran la delegación interna de esa RPC sin volver a exponer las funciones heredadas.
 
 ## Seguridad
 
@@ -93,6 +95,7 @@ Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` 
 - `profiles`, `trips`, `trip_members`
 - `trip_items` como identidad estable
 - `activities`, `activity_steps`, `expenses`, `reservations` como facetas
-- `places`, `packing_items`, `trip_invites`, `change_log`
+- `places` se conserva por compatibilidad con datos existentes, aunque su sección independiente está oculta.
+- `packing_items`, `trip_invites`, `change_log`
 
 La dirección vigente y los próximos pasos están en [PRODUCT.md](PRODUCT.md). La instalación y el despliegue están detallados en [SETUP.md](SETUP.md).

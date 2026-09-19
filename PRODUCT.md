@@ -6,7 +6,7 @@ Una sola fuente de verdad para un viaje compartido. La ficha de un elemento conc
 
 ## Estado
 
-Revisado el 12 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas. `v0.7` consolidó `trip_items` como fuente canónica y `v0.7.1` vinculó cada ficha con un lugar guardado opcional. `v0.8` agregó la fecha de finalización explícita y `v0.8.1` retiró el acceso cliente a las RPC antiguas. Todas están aplicadas en la base remota y sus comprobaciones posteriores devolvieron `true`.
+Revisado el 19 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas. `v0.7` consolidó `trip_items` como fuente canónica y `v0.7.1` vinculó cada ficha con un lugar guardado opcional. `v0.8` agregó la fecha de finalización explícita y `v0.8.1` retiró el acceso cliente a las RPC antiguas. Los ajustes del 18 de septiembre corrigieron el cambio de fecha de actividades existentes y conservaron `save_trip_item_v3` como única RPC pública de guardado.
 
 Los botones “Agregar actividad”, “Agregar gasto” y “Agregar reserva” se conservan dentro de sus secciones porque representan la intención inicial, no fuentes de datos distintas. Los tres abren el mismo editor, guardan mediante la misma RPC y permiten añadir las demás facetas.
 
@@ -30,11 +30,19 @@ Los botones “Agregar actividad”, “Agregar gasto” y “Agregar reserva”
 - Itinerario
 - Presupuesto
 - Reservas
-- Lugares
 - Valija
 - Integrantes
 
-No agregar pestañas para resolver problemas internos de una ficha. Las altas contextuales permanecen visibles en Itinerario, Presupuesto y Reservas.
+No agregar pestañas para resolver problemas internos de una ficha. Las altas contextuales permanecen visibles en Itinerario, Presupuesto y Reservas. La sección independiente de Lugares está oculta; los registros existentes se conservan por compatibilidad y la ubicación continúa disponible como dato de la ficha.
+
+## Interacción vigente
+
+- En móvil, la acción principal reaparece como botón flotante después de desplazar el encabezado de la sección.
+- Al crear o editar, la vista vuelve a la tarjeta afectada y la resalta, incluso cuando cambió de día.
+- Lugar y notas se presentan en bloques separados; las notas respetan sus saltos de línea.
+- Los diálogos se cierran con la X o al pulsar fuera, y advierten antes de descartar cambios.
+- Guardar o eliminar bloquea el diálogo con un único indicador central; los botones conservan su etiqueta normal.
+- Los horarios se editan y muestran en formato de 24 horas.
 
 ## Próximas etapas
 
@@ -72,7 +80,12 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 ### v0.9 cerrada
 
 - El plan compartido se puede guardar como PDF desde el navegador.
-- La salida reúne itinerario, presupuesto, reservas y lugares, pero excluye la valija personal y los datos de acceso de integrantes.
+- La salida reúne itinerario, presupuesto y reservas. También conserva en el documento los registros históricos de Lugares cuando existen, pero excluye la valija personal y los datos de acceso de integrantes.
+
+### Decisiones posteriores a v0.9
+
+- La sección independiente de Lugares se retiró temporalmente de la navegación por no aportar suficiente valor frente al campo de ubicación del itinerario.
+- Queda como mejora futura abrir Google Maps directamente desde una actividad o parada que tenga ubicación, usando coordenadas cuando estén disponibles y texto completo como alternativa.
 
 ### Ideas futuras no comprometidas
 
