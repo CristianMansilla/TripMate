@@ -9,7 +9,7 @@ const trip:Trip={
 
 describe('trip PDF',()=>{
   it('creates a non-empty PDF with a safe filename',async()=>{
-    const blob=await generateTripPdf({trip,activities:[],expenses:[],reservations:[],places:[]})
+    const blob=await generateTripPdf({trip,activities:[],expenses:[],reservations:[]})
     await expect(assertValidPdfBlob(blob)).resolves.toBeUndefined()
     expect(blob.size).toBeGreaterThan(1024)
     expect(tripPdfFilename(trip.name)).toBe('tripmate-cordoba-noviembre-2026.pdf')

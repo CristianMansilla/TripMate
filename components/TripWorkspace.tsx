@@ -177,7 +177,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     setError('')
     try{
       const {assertValidPdfBlob,generateTripPdf,tripPdfFilename}=await import('@/lib/trip-pdf')
-      const blob=await generateTripPdf({trip,activities:acts,expenses:exp,reservations:res,places})
+      const blob=await generateTripPdf({trip,activities:acts,expenses:exp,reservations:res})
       await assertValidPdfBlob(blob)
       const url=URL.createObjectURL(blob)
       const anchor=document.createElement('a')
@@ -1054,7 +1054,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
         </div>
       </section>}
 
-      <TripPrintView trip={trip} activities={acts} expenses={exp} reservations={res} places={places}/>
+      <TripPrintView trip={trip} activities={acts} expenses={exp} reservations={res}/>
 
       {primaryAction&&showPrimaryAction&&!mobileMoreOpen&&<button className="btn btn-primary floating-primary-action" onClick={primaryAction.run} aria-label={primaryAction.label==='Invitar'?'Invitar integrantes':`Agregar ${primaryAction.label.toLocaleLowerCase('es')}`}><primaryAction.Icon size={18}/>{primaryAction.label}</button>}
 

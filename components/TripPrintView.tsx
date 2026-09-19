@@ -1,14 +1,13 @@
 import { occurrenceEndDate } from '@/lib/activity-dates'
 import { money } from '@/lib/money'
 import { canonicalItemCategory, expenseGroupTotal, sortReservationsForDisplay } from '@/lib/trip-item-rules'
-import type { Activity, Expense, Place, Reservation, Trip } from '@/lib/types'
+import type { Activity, Expense, Reservation, Trip } from '@/lib/types'
 
 type Props = {
   trip: Trip
   activities: Activity[]
   expenses: Expense[]
   reservations: Reservation[]
-  places: Place[]
 }
 
 const activityStatuses:Record<Activity['status'],string>={
@@ -32,7 +31,7 @@ function activityTime(activity:Activity){
   return activity.endTime?`${activity.startTime} a ${activity.endTime}`:activity.startTime
 }
 
-export default function TripPrintView({trip,activities,expenses,reservations,places}:Props){
+export default function TripPrintView({trip,activities,expenses,reservations}:Props){
   const travelers=Math.max(1,trip.travelerCount || 1)
   const sortedActivities=[...activities].sort((a,b)=>
     a.date.localeCompare(b.date) || (a.startTime || '99:99').localeCompare(b.startTime || '99:99') ||
@@ -44,7 +43,6 @@ export default function TripPrintView({trip,activities,expenses,reservations,pla
     return expenseGroupTotal(expense,travelers,linkedCount)
   }
   const groupBudget=expenses.filter(expense=>expense.included!==false).reduce((sum,expense)=>sum+expenseTotal(expense),0)
-  const visiblePlaces=places.filter(place=>place.status!=='discarded')
   const sortedReservations=[...reservations].sort(sortReservationsForDisplay)
 
   return <article className="trip-print-view" aria-label="Plan de viaje para imprimir">
@@ -103,14 +101,6 @@ export default function TripPrintView({trip,activities,expenses,reservations,pla
         <strong>{reservation.title}</strong>
         <p>{[reservationStatuses[reservation.status],reservation.dueDate?`Fecha límite: ${dateLabel(reservation.dueDate)}`:'',reservation.notes].filter(Boolean).join(' · ')}</p>
       </div>)}</div>:<p className="print-empty">No hay reservas cargadas.</p>}
-    </section>
-
-    <section className="print-section">
-      <h2>Lugares</h2>
-      {visiblePlaces.length?<div className="print-list print-places">{visiblePlaces.map(place=><div key={place.id}>
-        <strong>{place.name}{place.isBase?' · Base del viaje':''}</strong>
-        <p>{[place.address,canonicalItemCategory(place.category),place.notes].filter(Boolean).join(' · ')}</p>
-      </div>)}</div>:<p className="print-empty">No hay lugares guardados.</p>}
     </section>
 
     <footer className="print-footer">La valija personal y los datos de acceso de los integrantes no forman parte de este documento.</footer>

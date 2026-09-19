@@ -2,14 +2,13 @@ import { jsPDF } from 'jspdf'
 import { occurrenceEndDate } from './activity-dates'
 import { money } from './money'
 import { canonicalItemCategory, expenseGroupTotal, sortReservationsForDisplay } from './trip-item-rules'
-import type { Activity, Expense, Place, Reservation, Trip } from './types'
+import type { Activity, Expense, Reservation, Trip } from './types'
 
 export type TripPdfInput={
   trip:Trip
   activities:Activity[]
   expenses:Expense[]
   reservations:Reservation[]
-  places:Place[]
 }
 
 const activityStatuses:Record<Activity['status'],string>={
@@ -33,6 +32,16 @@ function activityTime(activity:Activity){
   return activity.endTime?`${activity.startTime} a ${activity.endTime}`:activity.startTime
 }
 
+function pdfText(value:string){
+  return value
+    .replace(/\u00a0/g,' ')
+    .replace(/[·•]/g,' - ')
+    .replace(/[→➜]/g,' a ')
+    .replace(/[“”]/g,'"')
+    .replace(/[‘’]/g,"'")
+    .replace(/\s+-\s+-\s+/g,' - ')
+}
+
 export function tripPdfFilename(name:string){
   const clean=name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'').toLowerCase()
   return `tripmate-${clean || 'viaje'}.pdf`
@@ -44,7 +53,7 @@ export async function assertValidPdfBlob(blob:Blob){
   if(signature!=='%PDF-')throw new Error('El archivo generado no es un PDF válido.')
 }
 
-export async function generateTripPdf({trip,activities,expenses,reservations,places}:TripPdfInput){
+export async function generateTripPdf({trip,activities,expenses,reservations}:TripPdfInput){
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true})
   const pageWidth=doc.internal.pageSize.getWidth()
   const pageHeight=doc.internal.pageSize.getHeight()
@@ -58,7 +67,7 @@ export async function generateTripPdf({trip,activities,expenses,reservations,pla
     doc.addPage()
     y=18
   }
-  const lines=(value:string,width=contentWidth)=>doc.splitTextToSize(value,width) as string[]
+  const lines=(value:string,width=contentWidth)=>doc.splitTextToSize(pdfText(value),width) as string[]
   const write=(value:string,x=margin,width=contentWidth,size=10,style:'normal'|'bold'='normal',color:[number,number,number]=[55,65,81])=>{
     const wrapped=lines(value,width)
     const lineHeight=size*.43
@@ -81,6 +90,18 @@ export async function generateTripPdf({trip,activities,expenses,reservations,pla
     doc.setDrawColor(220,224,233)
     doc.line(margin,y,pageWidth-margin,y)
     y+=4
+  }
+  const dayHeading=(title:string)=>{
+    ensure(14)
+    doc.setFillColor(244,242,255)
+    doc.roundedRect(margin,y,contentWidth,10,2,2,'F')
+    doc.setFillColor(91,76,240)
+    doc.rect(margin,y,3,10,'F')
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(11)
+    doc.setTextColor(20,28,48)
+    doc.text(pdfText(title),margin+7,y+6.5)
+    y+=15
   }
 
   const travelers=Math.max(1,trip.travelerCount || 1)
@@ -105,7 +126,7 @@ export async function generateTripPdf({trip,activities,expenses,reservations,pla
   doc.text(lines(trip.name,contentWidth).slice(0,2),margin,25)
   doc.setFont('helvetica','normal')
   doc.setFontSize(10)
-  doc.text([trip.destination,trip.country].filter(Boolean).join(' - '),margin,42)
+  doc.text(pdfText([trip.destination,trip.country].filter(Boolean).join(' - ')),margin,42)
   y=58
 
   write(`Fechas: ${dateLabel(trip.startDate)} al ${dateLabel(trip.endDate)}`,margin,contentWidth,10,'bold',[20,28,48])
@@ -114,8 +135,7 @@ export async function generateTripPdf({trip,activities,expenses,reservations,pla
   section('Itinerario')
   if(!dates.length)write('No hay actividades cargadas.')
   for(const date of dates){
-    ensure(12)
-    write(dateLabel(date,true),margin,contentWidth,11,'bold',[20,28,48])
+    dayHeading(dateLabel(date,true))
     for(const activity of sortedActivities.filter(item=>item.date===date)){
       const textWidth=contentWidth-34
       const title=`${activity.title}${activity.optional?' - Opcional':''}`
@@ -126,9 +146,10 @@ export async function generateTripPdf({trip,activities,expenses,reservations,pla
       const estimated=8+lines(title,textWidth).length*4.7+lines(metadata,textWidth).length*4.1+(activity.notes?lines(activity.notes,textWidth).length*4.1:0)+(activity.steps?.length || 0)*8
       ensure(Math.min(estimated,bottom-18))
       doc.setDrawColor(226,229,236)
-      doc.line(margin,y-2,pageWidth-margin,y-2)
+      doc.line(margin,y,pageWidth-margin,y)
+      y+=5
       doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(55,65,81)
-      doc.text(activityTime(activity),margin,y)
+      doc.text(pdfText(activityTime(activity)),margin,y)
       const startY=y
       write(title,margin+34,textWidth,11,'bold',[20,28,48])
       if(metadata)write(metadata,margin+34,textWidth,9,'normal')
@@ -152,16 +173,18 @@ export async function generateTripPdf({trip,activities,expenses,reservations,pla
     const titleWidth=contentWidth-amountWidth-4
     const rowHeight=Math.max(10,(lines(expense.title,titleWidth).length+lines(detail,titleWidth).length)*4.2+2)
     ensure(rowHeight)
-    doc.setDrawColor(226,229,236);doc.line(margin,y-2,pageWidth-margin,y-2)
+    doc.setDrawColor(226,229,236);doc.line(margin,y,pageWidth-margin,y)
+    y+=5
     const rowY=y
     write(expense.title,margin,titleWidth,10,'bold',[20,28,48])
     write(detail,margin,titleWidth,8,'normal')
     doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,28,48)
-    doc.text(total,pageWidth-margin,rowY,{align:'right'})
+    doc.text(pdfText(total),pageWidth-margin,rowY,{align:'right'})
     y=Math.max(y,rowY+rowHeight)
   }
   ensure(10)
-  doc.setDrawColor(91,76,240);doc.line(margin,y-2,pageWidth-margin,y-2)
+  doc.setDrawColor(91,76,240);doc.line(margin,y,pageWidth-margin,y)
+  y+=5
   write(`Total incluido: ${money(groupBudget,trip.currency)}`,margin,contentWidth,11,'bold',[20,28,48])
 
   section('Reservas')
@@ -174,19 +197,6 @@ export async function generateTripPdf({trip,activities,expenses,reservations,pla
     if(detail)write(detail,margin,contentWidth,9,'normal')
     if(reservation.notes)write(reservation.notes,margin,contentWidth,9,'normal')
     y+=2
-  }
-
-  const visiblePlaces=places.filter(place=>place.status!=='discarded')
-  if(visiblePlaces.length){
-    section('Lugares guardados')
-    for(const place of visiblePlaces){
-      ensure(12)
-      write(`${place.name}${place.isBase?' - Base del viaje':''}`,margin,contentWidth,10,'bold',[20,28,48])
-      const detail=[place.address,canonicalItemCategory(place.category)].filter(Boolean).join(' - ')
-      if(detail)write(detail,margin,contentWidth,9,'normal')
-      if(place.notes)write(place.notes,margin,contentWidth,9,'normal')
-      y+=2
-    }
   }
 
   const pageCount=doc.getNumberOfPages()
