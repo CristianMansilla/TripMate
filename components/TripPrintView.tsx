@@ -1,5 +1,6 @@
 import { Fragment } from 'react'
 import { occurrenceEndDate } from '@/lib/activity-dates'
+import { longDateLabel, tripDateRangeLabel } from '@/lib/date-labels'
 import { activitiesForExpense, expenseDates, groupExpensesByDate, MULTI_DATE_EXPENSES, UNDATED_EXPENSES } from '@/lib/expense-dates'
 import { money } from '@/lib/money'
 import { canonicalItemCategory, expenseGroupTotal, sortReservationsForDisplay } from '@/lib/trip-item-rules'
@@ -20,12 +21,6 @@ const expenseStatuses:Record<Expense['status'],string>={
 }
 const reservationStatuses:Record<Reservation['status'],string>={
   pending:'Pendiente',watching:'En seguimiento',reserved:'Reservada',paid:'Pagada',
-}
-
-function dateLabel(value:string,weekday=false){
-  return new Intl.DateTimeFormat('es-AR',{
-    day:'numeric',month:'long',year:'numeric',weekday:weekday?'long':undefined,timeZone:'UTC',
-  }).format(new Date(`${value}T00:00:00Z`))
 }
 
 function activityTime(activity:Activity){
@@ -50,27 +45,26 @@ export default function TripPrintView({trip,activities,expenses,reservations}:Pr
 
   return <article className="trip-print-view" aria-label="Plan de viaje para imprimir">
     <header className="print-header">
-      <div className="print-brand">TripMate · Plan de viaje</div>
+      <div className="print-brand"><strong>TripMate</strong><span>Plan de viaje</span></div>
       <h1>{trip.name}</h1>
       <p>{trip.destination}{trip.country?` · ${trip.country}`:''}</p>
       <div className="print-summary">
-        <div><span>Fechas</span><strong>{dateLabel(trip.startDate)} al {dateLabel(trip.endDate)}</strong></div>
+        <div><span>Fechas del viaje</span><strong>{tripDateRangeLabel(trip.startDate,trip.endDate)}</strong></div>
         <div><span>Viajeros</span><strong>{travelers}</strong></div>
-        <div><span>Total grupo</span><strong>{money(groupBudget,trip.currency)}</strong></div>
-        <div><span>Por persona</span><strong>{money(groupBudget/travelers,trip.currency)}</strong></div>
+        <div><span>Presupuesto individual</span><strong>{money(groupBudget/travelers,trip.currency)}</strong></div>
       </div>
     </header>
 
     <section className="print-section">
       <h2>Itinerario</h2>
       {dates.map(date=><div className="print-day" key={date}>
-        <h3>{dateLabel(date,true)}</h3>
+        <h3>{longDateLabel(date,true)}</h3>
         {sortedActivities.filter(activity=>activity.date===date).map(activity=><div className="print-activity" key={activity.id}>
           <div className="print-time">{activityTime(activity)}</div>
           <div>
             <strong>{activity.title}{activity.optional?' · Opcional':''}</strong>
             <p>{[
-              occurrenceEndDate(activity)!==activity.date?`Finaliza ${dateLabel(occurrenceEndDate(activity))}`:'',
+              occurrenceEndDate(activity)!==activity.date?`Finaliza ${longDateLabel(occurrenceEndDate(activity))}`:'',
               activity.place,activity.notes,activityStatuses[activity.status],canonicalItemCategory(activity.category),
             ].filter(Boolean).join(' · ')}</p>
             {Boolean(activity.steps?.length)&&<ol className="print-steps">
@@ -90,9 +84,9 @@ export default function TripPrintView({trip,activities,expenses,reservations}:Pr
       {expenses.length?<table className="print-table">
         <thead><tr><th>Concepto</th><th>Estado</th><th className="print-number">Por persona</th></tr></thead>
         <tbody>{expenseGroups.map(group=><Fragment key={group.key}>
-          <tr className="print-budget-day"><th colSpan={3}>{group.key===MULTI_DATE_EXPENSES?'Varias fechas':group.key===UNDATED_EXPENSES?'Sin día en el itinerario':dateLabel(group.key,true)}</th></tr>
+          <tr className="print-budget-day"><th colSpan={3}>{group.key===MULTI_DATE_EXPENSES?'Varias fechas':group.key===UNDATED_EXPENSES?'Sin día en el itinerario':longDateLabel(group.key,true)}</th></tr>
           {group.expenses.map(expense=><tr key={expense.id}>
-            <td><strong>{expense.title}</strong><small>{group.key===MULTI_DATE_EXPENSES?`${expenseDates(expense,activities).map(date=>dateLabel(date)).join(' · ')} · `:''}{canonicalItemCategory(expense.category)}{expense.included===false?' · Fuera del total':''}</small></td>
+            <td><strong>{expense.title}</strong><small>{group.key===MULTI_DATE_EXPENSES?`${expenseDates(expense,activities).map(date=>longDateLabel(date)).join(' · ')} · `:''}{canonicalItemCategory(expense.category)}{expense.included===false?' · Fuera del total':''}</small></td>
             <td>{expenseStatuses[expense.status]}</td>
             <td className="print-number">{money(expenseTotal(expense)/travelers,trip.currency)}</td>
           </tr>)}
@@ -105,7 +99,7 @@ export default function TripPrintView({trip,activities,expenses,reservations}:Pr
       <h2>Reservas</h2>
       {sortedReservations.length?<div className="print-list">{sortedReservations.map(reservation=><div key={reservation.id}>
         <strong>{reservation.title}</strong>
-        <p>{[reservationStatuses[reservation.status],reservation.dueDate?`Fecha límite: ${dateLabel(reservation.dueDate)}`:'',reservation.notes].filter(Boolean).join(' · ')}</p>
+        <p>{[reservationStatuses[reservation.status],reservation.dueDate?`Fecha límite: ${longDateLabel(reservation.dueDate)}`:'',reservation.notes].filter(Boolean).join(' · ')}</p>
       </div>)}</div>:<p className="print-empty">No hay reservas cargadas.</p>}
     </section>
 

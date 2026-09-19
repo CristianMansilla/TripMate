@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { occurrenceEndDate } from './activity-dates'
+import { longDateLabel, tripDateRangeLabel } from './date-labels'
 import { activitiesForExpense, expenseDates, groupExpensesByDate, MULTI_DATE_EXPENSES, UNDATED_EXPENSES } from './expense-dates'
 import { money } from './money'
 import { canonicalItemCategory, expenseGroupTotal, sortReservationsForDisplay } from './trip-item-rules'
@@ -20,12 +21,6 @@ const expenseStatuses:Record<Expense['status'],string>={
 }
 const reservationStatuses:Record<Reservation['status'],string>={
   pending:'Pendiente',watching:'En seguimiento',reserved:'Reservada',paid:'Pagada',
-}
-
-function dateLabel(value:string,weekday=false){
-  return new Intl.DateTimeFormat('es-AR',{
-    day:'numeric',month:'long',year:'numeric',weekday:weekday?'long':undefined,timeZone:'UTC',
-  }).format(new Date(`${value}T00:00:00Z`))
 }
 
 function activityTime(activity:Activity){
@@ -82,27 +77,36 @@ export async function generateTripPdf({trip,activities,expenses,reservations}:Tr
     }
     y+=1
   }
+  let sectionNumber=0
   const section=(title:string)=>{
-    ensure(15)
+    ensure(22)
+    y+=8
+    sectionNumber+=1
+    doc.setFont('helvetica','bold')
+    doc.setFontSize(8)
+    doc.setTextColor(91,76,240)
+    doc.text(`0${sectionNumber}`,margin,y)
+    doc.setFontSize(16)
+    doc.setTextColor(20,28,48)
+    doc.text(pdfText(title),margin+11,y)
     y+=4
-    doc.setFillColor(91,76,240)
-    doc.rect(margin,y-4,3,9,'F')
-    write(title,margin+6,contentWidth-6,15,'bold',[20,28,48])
-    doc.setDrawColor(220,224,233)
+    doc.setDrawColor(91,76,240)
+    doc.setLineWidth(.7)
     doc.line(margin,y,pageWidth-margin,y)
-    y+=4
+    doc.setLineWidth(.2)
+    y+=7
   }
   const dayHeading=(title:string)=>{
-    ensure(14)
-    doc.setFillColor(244,242,255)
-    doc.roundedRect(margin,y,contentWidth,10,2,2,'F')
+    ensure(13)
+    doc.setFillColor(246,247,251)
+    doc.roundedRect(margin,y,contentWidth,9,1.5,1.5,'F')
     doc.setFillColor(91,76,240)
-    doc.rect(margin,y,3,10,'F')
+    doc.roundedRect(margin,y,2.5,9,1,1,'F')
     doc.setFont('helvetica','bold')
-    doc.setFontSize(11)
-    doc.setTextColor(20,28,48)
-    doc.text(pdfText(title),margin+7,y+6.5)
-    y+=15
+    doc.setFontSize(9.5)
+    doc.setTextColor(55,65,81)
+    doc.text(pdfText(title),margin+7,y+5.9)
+    y+=13
   }
 
   const travelers=Math.max(1,trip.travelerCount || 1)
@@ -118,31 +122,52 @@ export async function generateTripPdf({trip,activities,expenses,reservations}:Tr
   const groupBudget=expenses.filter(expense=>expense.included!==false).reduce((sum,expense)=>sum+expenseTotal(expense),0)
   const expenseGroups=groupExpensesByDate(expenses,activities)
 
-  doc.setFillColor(34,30,92)
-  doc.rect(0,0,pageWidth,48,'F')
+  doc.setFillColor(25,28,54)
+  doc.rect(0,0,pageWidth,55,'F')
+  doc.setFillColor(91,76,240)
+  doc.rect(0,52,pageWidth,3,'F')
   doc.setTextColor(255,255,255)
   doc.setFont('helvetica','bold')
-  doc.setFontSize(10)
-  doc.text('TRIPMATE - PLAN DE VIAJE',margin,14)
-  doc.setFontSize(22)
+  doc.setFontSize(8)
+  doc.text('TRIPMATE',margin,12)
+  doc.setFont('helvetica','normal')
+  doc.setTextColor(190,194,215)
+  doc.text('PLAN DE VIAJE',margin+22,12)
+  doc.setFont('helvetica','bold')
+  doc.setTextColor(255,255,255)
+  doc.setFontSize(23)
   doc.text(lines(trip.name,contentWidth).slice(0,2),margin,25)
   doc.setFont('helvetica','normal')
+  doc.setTextColor(208,211,226)
   doc.setFontSize(10)
-  doc.text(pdfText([trip.destination,trip.country].filter(Boolean).join(' - ')),margin,42)
-  y=58
+  doc.text(pdfText([trip.destination,trip.country].filter(Boolean).join(' - ')),margin,45)
+  y=67
 
-  write(`Fechas: ${dateLabel(trip.startDate)} al ${dateLabel(trip.endDate)}`,margin,contentWidth,10,'bold',[20,28,48])
-  write(`Viajeros: ${travelers}    Total grupo: ${money(groupBudget,trip.currency)}    Por persona: ${money(groupBudget/travelers,trip.currency)}`,margin,contentWidth,10,'normal')
+  const metadata=[
+    {label:'FECHAS DEL VIAJE',value:tripDateRangeLabel(trip.startDate,trip.endDate),width:91},
+    {label:'VIAJEROS',value:String(travelers),width:29},
+    {label:'PRESUPUESTO INDIVIDUAL',value:money(groupBudget/travelers,trip.currency),width:58},
+  ]
+  let metadataX=margin
+  for(const item of metadata){
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(105,114,132)
+    doc.text(item.label,metadataX,y)
+    doc.setFontSize(10);doc.setTextColor(20,28,48)
+    doc.text(lines(item.value,item.width-5).slice(0,2),metadataX,y+6)
+    metadataX+=item.width
+    if(metadataX<pageWidth-margin){doc.setDrawColor(220,224,233);doc.line(metadataX-5,y-2,metadataX-5,y+11)}
+  }
+  y+=18
 
   section('Itinerario')
   if(!dates.length)write('No hay actividades cargadas.')
   for(const date of dates){
-    dayHeading(dateLabel(date,true))
+    dayHeading(longDateLabel(date,true))
     for(const activity of sortedActivities.filter(item=>item.date===date)){
       const textWidth=contentWidth-34
       const title=`${activity.title}${activity.optional?' - Opcional':''}`
       const metadata=[
-        occurrenceEndDate(activity)!==activity.date?`Finaliza ${dateLabel(occurrenceEndDate(activity))}`:'',
+        occurrenceEndDate(activity)!==activity.date?`Finaliza ${longDateLabel(occurrenceEndDate(activity))}`:'',
         activity.place,activityStatuses[activity.status],canonicalItemCategory(activity.category),
       ].filter(Boolean).join(' - ')
       const estimated=8+lines(title,textWidth).length*4.7+lines(metadata,textWidth).length*4.1+(activity.notes?lines(activity.notes,textWidth).length*4.1:0)+(activity.steps?.length || 0)*8
@@ -169,11 +194,11 @@ export async function generateTripPdf({trip,activities,expenses,reservations}:Tr
   section('Presupuesto individual')
   if(!expenses.length)write('No hay gastos cargados.')
   for(const group of expenseGroups){
-    const heading=group.key===MULTI_DATE_EXPENSES?'Varias fechas':group.key===UNDATED_EXPENSES?'Sin día en el itinerario':dateLabel(group.key,true)
+    const heading=group.key===MULTI_DATE_EXPENSES?'Varias fechas':group.key===UNDATED_EXPENSES?'Sin día en el itinerario':longDateLabel(group.key,true)
     dayHeading(heading)
     for(const expense of group.expenses){
       const individualAmount=money(expenseTotal(expense)/travelers,trip.currency)
-      const dateDetail=group.key===MULTI_DATE_EXPENSES?expenseDates(expense,activities).map(date=>dateLabel(date)).join(', '):''
+      const dateDetail=group.key===MULTI_DATE_EXPENSES?expenseDates(expense,activities).map(date=>longDateLabel(date)).join(', '):''
       const detail=[dateDetail,canonicalItemCategory(expense.category),expenseStatuses[expense.status],expense.included===false?'Fuera del total':''].filter(Boolean).join(' - ')
       const amountWidth=38
       const titleWidth=contentWidth-amountWidth-4
@@ -198,7 +223,7 @@ export async function generateTripPdf({trip,activities,expenses,reservations}:Tr
   const sortedReservations=[...reservations].sort(sortReservationsForDisplay)
   if(!sortedReservations.length)write('No hay reservas cargadas.')
   for(const reservation of sortedReservations){
-    const detail=[reservationStatuses[reservation.status],reservation.dueDate?`Fecha límite: ${dateLabel(reservation.dueDate)}`:''].filter(Boolean).join(' - ')
+    const detail=[reservationStatuses[reservation.status],reservation.dueDate?`Fecha límite: ${longDateLabel(reservation.dueDate)}`:''].filter(Boolean).join(' - ')
     ensure(14)
     write(reservation.title,margin,contentWidth,10,'bold',[20,28,48])
     if(detail)write(detail,margin,contentWidth,9,'normal')
