@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { occurrenceEndDate } from './activity-dates'
+import { activitiesForExpense, expenseDates, groupExpensesByDate, MULTI_DATE_EXPENSES, UNDATED_EXPENSES } from './expense-dates'
 import { money } from './money'
 import { canonicalItemCategory, expenseGroupTotal, sortReservationsForDisplay } from './trip-item-rules'
 import type { Activity, Expense, Reservation, Trip } from './types'
@@ -111,10 +112,11 @@ export async function generateTripPdf({trip,activities,expenses,reservations}:Tr
   )
   const dates=[...new Set(sortedActivities.map(activity=>activity.date))]
   const expenseTotal=(expense:Expense)=>{
-    const linkedCount=activities.filter(activity=>activity.expenseId===expense.id || activity.id===expense.activityId).length
+    const linkedCount=activitiesForExpense(expense,activities).length
     return expenseGroupTotal(expense,travelers,linkedCount)
   }
   const groupBudget=expenses.filter(expense=>expense.included!==false).reduce((sum,expense)=>sum+expenseTotal(expense),0)
+  const expenseGroups=groupExpensesByDate(expenses,activities)
 
   doc.setFillColor(34,30,92)
   doc.rect(0,0,pageWidth,48,'F')
@@ -166,21 +168,26 @@ export async function generateTripPdf({trip,activities,expenses,reservations}:Tr
 
   section('Presupuesto individual')
   if(!expenses.length)write('No hay gastos cargados.')
-  for(const expense of expenses){
-    const individualAmount=money(expenseTotal(expense)/travelers,trip.currency)
-    const detail=[canonicalItemCategory(expense.category),expenseStatuses[expense.status],expense.included===false?'Fuera del total':''].filter(Boolean).join(' - ')
-    const amountWidth=38
-    const titleWidth=contentWidth-amountWidth-4
-    const rowHeight=Math.max(10,(lines(expense.title,titleWidth).length+lines(detail,titleWidth).length)*4.2+2)
-    ensure(rowHeight)
-    doc.setDrawColor(226,229,236);doc.line(margin,y,pageWidth-margin,y)
-    y+=5
-    const rowY=y
-    write(expense.title,margin,titleWidth,10,'bold',[20,28,48])
-    write(detail,margin,titleWidth,8,'normal')
-    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,28,48)
-    doc.text(pdfText(individualAmount),pageWidth-margin,rowY,{align:'right'})
-    y=Math.max(y,rowY+rowHeight)
+  for(const group of expenseGroups){
+    const heading=group.key===MULTI_DATE_EXPENSES?'Varias fechas':group.key===UNDATED_EXPENSES?'Sin día en el itinerario':dateLabel(group.key,true)
+    dayHeading(heading)
+    for(const expense of group.expenses){
+      const individualAmount=money(expenseTotal(expense)/travelers,trip.currency)
+      const dateDetail=group.key===MULTI_DATE_EXPENSES?expenseDates(expense,activities).map(date=>dateLabel(date)).join(', '):''
+      const detail=[dateDetail,canonicalItemCategory(expense.category),expenseStatuses[expense.status],expense.included===false?'Fuera del total':''].filter(Boolean).join(' - ')
+      const amountWidth=38
+      const titleWidth=contentWidth-amountWidth-4
+      const rowHeight=Math.max(10,(lines(expense.title,titleWidth).length+lines(detail,titleWidth).length)*4.2+2)
+      ensure(rowHeight)
+      doc.setDrawColor(226,229,236);doc.line(margin,y,pageWidth-margin,y)
+      y+=5
+      const rowY=y
+      write(expense.title,margin,titleWidth,10,'bold',[20,28,48])
+      write(detail,margin,titleWidth,8,'normal')
+      doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,28,48)
+      doc.text(pdfText(individualAmount),pageWidth-margin,rowY,{align:'right'})
+      y=Math.max(y,rowY+rowHeight)
+    }
   }
   ensure(10)
   doc.setDrawColor(91,76,240);doc.line(margin,y,pageWidth-margin,y)

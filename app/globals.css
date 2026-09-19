@@ -413,6 +413,7 @@ button { cursor: pointer; }
   .print-table { width:100%; border-collapse:collapse; }
   .print-table th,.print-table td { border-bottom:1px solid #d1d5db; padding:2.5mm 2mm; text-align:left; }
   .print-table th { color:#374151; font-size:8pt; text-transform:uppercase; }
+  .print-table .print-budget-day th { background:#f4f2ff; border-left:2mm solid #5b4cf0; color:#141c30; font-size:9pt; text-transform:none; }
   .print-table td small { display:block; margin-top:1mm; color:#6b7280; }
   .print-table tfoot th { border-top:2px solid #111827; border-bottom:0; font-size:10pt; }
   .print-table .print-number { text-align:right; white-space:nowrap; }

@@ -1,4 +1,6 @@
+import { Fragment } from 'react'
 import { occurrenceEndDate } from '@/lib/activity-dates'
+import { activitiesForExpense, expenseDates, groupExpensesByDate, MULTI_DATE_EXPENSES, UNDATED_EXPENSES } from '@/lib/expense-dates'
 import { money } from '@/lib/money'
 import { canonicalItemCategory, expenseGroupTotal, sortReservationsForDisplay } from '@/lib/trip-item-rules'
 import type { Activity, Expense, Reservation, Trip } from '@/lib/types'
@@ -39,10 +41,11 @@ export default function TripPrintView({trip,activities,expenses,reservations}:Pr
   )
   const dates=[...new Set(sortedActivities.map(activity=>activity.date))]
   const expenseTotal=(expense:Expense)=>{
-    const linkedCount=activities.filter(activity=>activity.expenseId===expense.id || activity.id===expense.activityId).length
+    const linkedCount=activitiesForExpense(expense,activities).length
     return expenseGroupTotal(expense,travelers,linkedCount)
   }
   const groupBudget=expenses.filter(expense=>expense.included!==false).reduce((sum,expense)=>sum+expenseTotal(expense),0)
+  const expenseGroups=groupExpensesByDate(expenses,activities)
   const sortedReservations=[...reservations].sort(sortReservationsForDisplay)
 
   return <article className="trip-print-view" aria-label="Plan de viaje para imprimir">
@@ -86,11 +89,14 @@ export default function TripPrintView({trip,activities,expenses,reservations}:Pr
       <h2>Presupuesto individual</h2>
       {expenses.length?<table className="print-table">
         <thead><tr><th>Concepto</th><th>Estado</th><th className="print-number">Por persona</th></tr></thead>
-        <tbody>{expenses.map(expense=><tr key={expense.id}>
-          <td><strong>{expense.title}</strong><small>{canonicalItemCategory(expense.category)}{expense.included===false?' · Fuera del total':''}</small></td>
-          <td>{expenseStatuses[expense.status]}</td>
-          <td className="print-number">{money(expenseTotal(expense)/travelers,trip.currency)}</td>
-        </tr>)}</tbody>
+        <tbody>{expenseGroups.map(group=><Fragment key={group.key}>
+          <tr className="print-budget-day"><th colSpan={3}>{group.key===MULTI_DATE_EXPENSES?'Varias fechas':group.key===UNDATED_EXPENSES?'Sin día en el itinerario':dateLabel(group.key,true)}</th></tr>
+          {group.expenses.map(expense=><tr key={expense.id}>
+            <td><strong>{expense.title}</strong><small>{group.key===MULTI_DATE_EXPENSES?`${expenseDates(expense,activities).map(date=>dateLabel(date)).join(' · ')} · `:''}{canonicalItemCategory(expense.category)}{expense.included===false?' · Fuera del total':''}</small></td>
+            <td>{expenseStatuses[expense.status]}</td>
+            <td className="print-number">{money(expenseTotal(expense)/travelers,trip.currency)}</td>
+          </tr>)}
+        </Fragment>)}</tbody>
         <tfoot><tr><th colSpan={2}>Presupuesto individual</th><th className="print-number">{money(groupBudget/travelers,trip.currency)}</th></tr></tfoot>
       </table>:<p className="print-empty">No hay gastos cargados.</p>}
     </section>
