@@ -332,7 +332,7 @@ button { cursor: pointer; }
   .compact-step-main .step-title,.compact-step-extra .full,.compact-step-extra .step-optional { grid-column:1/-1; }
   .activity-step { grid-template-columns:1fr auto; gap:3px 8px; }
   .activity-step-time { grid-column:1/-1; }
-  .container { padding:18px 14px 94px; }
+  .container { padding:18px 14px calc(156px + env(safe-area-inset-bottom)); }
   .appbar { height:60px; }
   .appbar-inner { padding:0 14px; }
   .topline { align-items:flex-start; }
