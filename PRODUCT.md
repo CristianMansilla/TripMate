@@ -37,7 +37,7 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 
 ## Interacción vigente
 
-- En móvil, la acción principal reaparece como botón flotante después de desplazar el encabezado de la sección.
+- Al desplazar el encabezado de una sección, la acción principal reaparece en la barra fija de escritorio y como botón flotante en móvil.
 - Al crear o editar, la vista vuelve a la tarjeta afectada y la resalta, incluso cuando cambió de día.
 - Lugar y notas se presentan en bloques separados; las notas respetan sus saltos de línea.
 - Los diálogos se cierran con la X o al pulsar fuera, y advierten antes de descartar cambios.
