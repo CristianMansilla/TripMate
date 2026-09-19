@@ -79,7 +79,7 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 
 ### v0.9 cerrada
 
-- El plan compartido se puede guardar como PDF desde el navegador.
+- El plan compartido se genera en el navegador, se valida en memoria y se descarga como PDF sin depender del servicio de impresión del dispositivo.
 - La salida reúne itinerario, presupuesto y reservas. También conserva en el documento los registros históricos de Lugares cuando existen, pero excluye la valija personal y los datos de acceso de integrantes.
 
 ### Decisiones posteriores a v0.9

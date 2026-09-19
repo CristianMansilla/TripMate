@@ -9,6 +9,7 @@ import PlaceModal from './PlaceModal'
 import QuickAddModal from './QuickAddModal'
 import TripItemModal, { TripItemTab } from './TripItemModal'
 import TripPrintView from './TripPrintView'
+import ModalBusyOverlay from './ModalBusyOverlay'
 import { activities as seedActivities, expenses as seedExpenses, packing as seedPacking, reservations as seedReservations, trips as demoTrips } from '@/lib/demo-data'
 import { Activity, Expense, PackingItem, Place, Reservation, Trip, ChangeLogItem, TripItem, TripItemSaveInput } from '@/lib/types'
 import { money } from '@/lib/money'
@@ -158,6 +159,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
   const [connected,setConnected]=useState(false)
   const [syncStatus,setSyncStatus]=useState<SyncStatus>('demo')
   const [savingTravelerCount,setSavingTravelerCount]=useState(false)
+  const [generatingPdf,setGeneratingPdf]=useState(false)
   const [loading,setLoading]=useState(true)
   const [error,setError]=useState('')
   const [success,setSuccess]=useState('')
@@ -167,6 +169,31 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     setError('')
     setSuccess(message)
     setSuccessNotificationId(current=>current+1)
+  }
+
+  async function downloadTripPdf(){
+    if(generatingPdf)return
+    setGeneratingPdf(true)
+    setError('')
+    try{
+      const {assertValidPdfBlob,generateTripPdf,tripPdfFilename}=await import('@/lib/trip-pdf')
+      const blob=await generateTripPdf({trip,activities:acts,expenses:exp,reservations:res,places})
+      await assertValidPdfBlob(blob)
+      const url=URL.createObjectURL(blob)
+      const anchor=document.createElement('a')
+      anchor.href=url
+      anchor.download=tripPdfFilename(trip.name)
+      anchor.style.display='none'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.setTimeout(()=>URL.revokeObjectURL(url),60_000)
+      showSuccess('PDF generado correctamente.')
+    }catch(error){
+      setError(userFacingError(error,'No pudimos generar el PDF. Intentá nuevamente.'))
+    }finally{
+      setGeneratingPdf(false)
+    }
   }
 
   const storageKey=`tripmate-demo:${tripId}`
@@ -837,7 +864,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
             <p><MapPin size={14} style={{verticalAlign:'-2px'}}/> {trip.destination} · {shortDate(trip.startDate)} — {shortDate(trip.endDate)}</p>
           </div>
           <div className="hero-actions">
-            <button className="btn btn-secondary trip-print-button" onClick={()=>window.print()} title="Guardar el plan como PDF" aria-label="Guardar el plan como PDF"><Download size={16}/><span>Guardar PDF</span></button>
+            <button className="btn btn-secondary trip-print-button" onClick={downloadTripPdf} disabled={generatingPdf} title="Descargar el plan como PDF" aria-label="Descargar el plan como PDF"><Download size={16}/><span>Guardar PDF</span></button>
             {isOwner&&<button className="btn btn-secondary" onClick={()=>setInviteOpen(true)}><Share2 size={16}/> Invitar</button>}
             <div className={`sync-badge ${syncStatus==='synced'?'online':'demo'}`} title={syncStatus==='error'?'No se pudieron sincronizar todos los cambios':undefined}>{syncStatus==='synced'?<><Wifi size={13}/> Sincronizado</>:syncStatus==='syncing'?<><Wifi size={13}/> Sincronizando…</>:syncStatus==='error'?<><WifiOff size={13}/> Sin conexión</>:<><WifiOff size={13}/> Demo</>}</div>
             <div style={{display:'flex',marginLeft:2}}>{trip.memberNames.map((n,i)=><div key={`${n}-${i}`} className="avatar" title={n} style={{marginLeft:i?-8:0,border:'2px solid rgba(255,255,255,.6)',background:i?'#f1d9e8':'#dfe8ff'}}>{n[0]}</div>)}</div>
@@ -1060,6 +1087,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       {editingPlace&&<PlaceModal place={editingPlace} categoryOptions={placeCategories} placeSuggestions={itemPlaceSuggestions} onClose={()=>setEditingPlace(null)} onSave={savePlace} onDelete={setPlaceToDelete}/>}
       {inviteOpen&&<InviteModal tripId={trip.id} onClose={()=>setInviteOpen(false)}/>}
       {addKind&&<QuickAddModal kind={addKind} tripId={trip.id} placeSuggestions={itemPlaceSuggestions} categoryOptions={addKind==='packing'?packingCategories:placeCategories} onClose={()=>setAddKind(null)} onSave={addQuick}/>}
+      <ModalBusyOverlay active={generatingPdf} label="Generando PDF..."/>
       {memberToRemove&&<ConfirmDialog title="Expulsar integrante" confirmLabel="Expulsar" confirmIcon={<UserMinus size={16}/>} onClose={()=>setMemberToRemove(null)} onConfirm={confirmRemoveMember}>Vas a quitar a <b>{memberToRemove.name}</b> de este viaje. Ya no podrá ver ni editar la planificación compartida.</ConfirmDialog>}
       {itemToDelete&&<ConfirmDialog title="Eliminar del viaje" confirmLabel="Eliminar todo" confirmIcon={<Trash2 size={16}/>} onClose={()=>setItemToDelete(null)} onConfirm={confirmDeleteItem}>Vas a eliminar <b>{itemToDelete.title}</b> del viaje junto con su itinerario, costo, reserva y paradas. Esta acción no se puede deshacer desde la app.</ConfirmDialog>}
       {packingToDelete&&<ConfirmDialog title="Eliminar ítem" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setPackingToDelete(null)} onConfirm={confirmDeletePacking}>Vas a eliminar <b>{packingToDelete.label}</b> de tu valija. Esta acción no se puede deshacer desde la app.</ConfirmDialog>}

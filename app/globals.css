@@ -387,7 +387,7 @@ button { cursor: pointer; }
   @page { margin:14mm; }
   html,body { background:#fff !important; color:#111827 !important; }
   body { font-family:Arial,sans-serif; font-size:10pt; }
-  .appbar,.container > :not(.trip-print-view),.bottom-nav,.mobile-more-menu,.modal-backdrop { display:none !important; }
+  .appbar,.container > :not(.trip-print-view),.bottom-nav,.mobile-more-menu,.floating-primary-action,.modal-backdrop,.modal-busy-overlay,.snackbar-region { display:none !important; }
   .shell,.container { display:block !important; width:100% !important; max-width:none !important; margin:0 !important; padding:0 !important; background:#fff !important; }
   .trip-print-view { display:block !important; }
   .print-header { border-bottom:2px solid #111827; padding-bottom:8mm; margin-bottom:8mm; }
