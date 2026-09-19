@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(26);
 
 insert into auth.users(id,email,raw_user_meta_data)
 values
@@ -147,6 +147,28 @@ select is(
   (select count(*) from public.trip_items where trip_id='00000000-0000-0000-0000-000000000201'),
   1::bigint,
   'la identidad permanece'
+);
+
+select lives_ok(
+  $$
+    select public.save_trip_item_v3(
+      item.id,item.trip_id,item.updated_at,item.title,item.category,item.place,item.place_id,item.notes,item.optional,
+      jsonb_build_array(jsonb_build_object(
+        'id',activity.id,'date','2026-11-12','end_date','2026-11-12',
+        'start_time','10:45','end_time','12:15','status',activity.status,'steps','[]'::jsonb
+      )),
+      null,null
+    )
+    from public.trip_items item
+    join public.activities activity on activity.item_id=item.id
+    where item.trip_id='00000000-0000-0000-0000-000000000201'
+  $$,
+  'una actividad existente se puede mover completa a otro dia'
+);
+select is(
+  (select date::text||'/'||end_date::text from public.activities where trip_id='00000000-0000-0000-0000-000000000201'),
+  '2026-11-12/2026-11-12',
+  'el inicio y la finalizacion se actualizan juntos'
 );
 
 select throws_ok(

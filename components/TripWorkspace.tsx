@@ -40,6 +40,7 @@ type EditingTripItem = {
   item:TripItem
   initialTab:TripItemTab
   initialFacet?: Exclude<TripItemTab,'general'>
+  focusCardId?:string
   isNew:boolean
 }
 
@@ -212,18 +213,18 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
   },[tab,trip.role,loading])
 
   useEffect(()=>{
-    if(!createdCardTarget || editingItem || addKind)return
+    if(!createdCardTarget || editingItem || editingPacking || editingPlace || addKind)return
     const frame=requestAnimationFrame(()=>{
       const targetKey=`${createdCardTarget.section}:${createdCardTarget.id}`
       const card=[...document.querySelectorAll<HTMLElement>('[data-focus-card]')]
-        .find(element=>element.dataset.focusCard===targetKey)
+        .find(element=>element.dataset.focusCard===targetKey || element.dataset.focusEntity===targetKey)
       if(!card)return
       card.focus({preventScroll:true})
       card.scrollIntoView({behavior:'smooth',block:'center'})
       setCreatedCardTarget(null)
     })
     return()=>cancelAnimationFrame(frame)
-  },[createdCardTarget,editingItem,addKind,acts,exp,res,places,pack,expenseCategoryFilter])
+  },[createdCardTarget,editingItem,editingPacking,editingPlace,addKind,acts,exp,res,places,pack,expenseCategoryFilter])
 
   function selectTab(nextTab:TripTab){
     setMobileMoreOpen(false)
@@ -496,6 +497,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     setEditingItem({
       isNew:false,
       initialTab,
+      focusCardId:facet.id,
       item:existing?{...existing,category:itemCategoryLabel(existing.category) || 'Actividad'}:{
         id:itemId || facet.id,tripId:trip.id,title:facet.title,category:itemCategoryLabel(category) || 'Actividad',
         place:'place' in facet?facet.place:undefined,notes:facet.notes,optional:'optional' in facet?Boolean(facet.optional):false,
@@ -506,9 +508,11 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
 
   async function saveTripItem(input:TripItemSaveInput){
     if(!canEdit || !editingItem)return
-    const wasNew=editingItem.isNew
-    const createdSection=editingItem.initialFacet
     const {item:inputItem,activities,expense,reservation}=input
+    const requestedSection=editingItem.initialFacet || (editingItem.initialTab==='general'?null:editingItem.initialTab)
+    const savedSection=requestedSection==='itinerary'&&activities.length?requestedSection:
+      requestedSection==='cost'&&expense?requestedSection:
+      requestedSection==='reservation'&&reservation?requestedSection:null
     const item={...inputItem,category:itemCategoryLabel(inputItem.category)}
     const supabase=createClient()
     if(!supabase){
@@ -527,7 +531,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       setActs(current=>[...current.filter(activity=>activity.itemId!==item.id),...savedActivities])
       setExp(current=>[...current.filter(candidate=>candidate.itemId!==item.id),...(savedExpense?[savedExpense]:[])])
       setRes(current=>[...current.filter(candidate=>candidate.itemId!==item.id),...(savedReservation?[savedReservation]:[])])
-      if(wasNew && createdSection)setCreatedCardTarget({section:createdSection,id:itemId})
+      if(savedSection)setCreatedCardTarget({section:savedSection,id:editingItem.focusCardId || itemId})
       setEditingItem(null)
       showSuccess(editingItem.isNew?'Detalle creado.':'Cambios guardados.')
       return
@@ -561,7 +565,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     }
     await logChange(trip.id,'trip_item',data,editingItem.isNew?'created':'updated',`${editingItem.isNew?'Se agregó':'Se actualizó'} “${item.title}”.`)
     await loadConnectedData(true)
-    if(wasNew && createdSection)setCreatedCardTarget({section:createdSection,id:String(data)})
+    if(savedSection)setCreatedCardTarget({section:savedSection,id:editingItem.focusCardId || String(data)})
     setEditingItem(null)
     showSuccess(editingItem.isNew?'Detalle creado.':'Cambios guardados.')
   }
@@ -640,6 +644,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     const supabase=createClient()
     if(!supabase){
       setPack(current=>current.map(p=>p.id===next.id?next:p))
+      setCreatedCardTarget({section:'packing',id:next.id})
       setEditingPacking(null)
       showSuccess('Ítem guardado.')
       return
@@ -647,6 +652,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     const {error}=await supabase.from('packing_items').update({label:next.label,category:next.category}).eq('id',next.id)
     if(error)throw new Error(userFacingError(error,'No pudimos guardar el ítem. Intentá nuevamente.'))
     setPack(current=>current.map(p=>p.id===next.id?next:p))
+    setCreatedCardTarget({section:'packing',id:next.id})
     setEditingPacking(null)
     showSuccess('Ítem guardado.')
   }
@@ -683,6 +689,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     const supabase=createClient()
     if(!supabase){
       setPlaces(current=>current.map(item=>item.id===next.id?next:item))
+      setCreatedCardTarget({section:'place',id:next.id})
       setEditingPlace(null)
       showSuccess('Lugar guardado.')
       return
@@ -695,6 +702,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     setPlaces(current=>current.map(item=>item.id===next.id?next:item))
     await logChange(trip.id,'place',next.id,'updated',`Se actualizó el lugar “${next.name}”.`)
     await loadConnectedData(true)
+    setCreatedCardTarget({section:'place',id:next.id})
     setEditingPlace(null)
     showSuccess('Lugar guardado.')
   }
@@ -872,7 +880,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
         <div className="panel-head"><div><h3>Itinerario</h3><div className="muted subcopy">Organizá los días del viaje. El costo es opcional.</div></div>{canEdit&&<button data-mobile-primary-action className="btn btn-primary" onClick={()=>openNewItem('itinerary')}><Plus size={16}/> Actividad</button>}</div>
         {dates.map(date=><div className="timeline-day" key={date}>
           <div className="day-heading"><strong style={{textTransform:'capitalize'}}>{dayLabel(date)}</strong><span>{visibleActivities.filter(a=>a.date===date).length} actividades</span></div>
-          {visibleActivities.filter(a=>a.date===date).sort(sortActivities).map((a,index,dayActs)=><div key={a.id} className="activity focus-card" data-focus-card={`itinerary:${a.itemId || a.id}`} tabIndex={-1} style={{width:'100%',background:'transparent',borderLeft:0,borderRight:0,borderBottom:0,textAlign:'left',color:'inherit'}}>
+          {visibleActivities.filter(a=>a.date===date).sort(sortActivities).map((a,index,dayActs)=><div key={a.id} className="activity focus-card" data-focus-card={`itinerary:${a.itemId || a.id}`} data-focus-entity={`itinerary:${a.id}`} tabIndex={-1} style={{width:'100%',background:'transparent',borderLeft:0,borderRight:0,borderBottom:0,textAlign:'left',color:'inherit'}}>
             <div className="activity-time">
               <span className="time-start">{a.startTime||'—'}</span>
               {a.endTime&&<><span className="time-to">a</span><span className="time-end">{a.endTime}</span></>}
@@ -914,7 +922,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
               const hasSteps=stepCount>0
               const occurrenceLabel=linkedActivities.length>1?`${linkedActivities.length} apariciones · ${e.occurrencePricing==='per_occurrence'?'importe por aparición':'importe total'}`:''
               const occurrenceDates=linkedActivities.length>1 || (linkedActivities.length===1 && occurrenceEndDate(linkedActivities[0])!==linkedActivities[0].date)?linkedActivities.map(occurrenceRangeLabel).join(', '):''
-              return <div className={`list-row budget-line focus-card ${!included?'excluded':''}`} data-focus-card={`cost:${e.itemId || e.id}`} tabIndex={-1} key={e.id} style={{alignItems:'center'}}>
+              return <div className={`list-row budget-line focus-card ${!included?'excluded':''}`} data-focus-card={`cost:${e.itemId || e.id}`} data-focus-entity={`cost:${e.id}`} tabIndex={-1} key={e.id} style={{alignItems:'center'}}>
                 <div style={{display:'flex',alignItems:'center',gap:10}}><button type="button" className={`budget-check ${included?'on':''}`} disabled={!canEdit} onClick={()=>toggleExpenseIncluded(e.id)} aria-label={`${included?'Excluir':'Incluir'} ${e.title}`} aria-pressed={included}>{included?'✓':''}</button><div><div className="budget-title-row"><strong>{e.title}</strong>{linkedReservation&&<span className="budget-structure-badge" title="Este gasto está vinculado a una reserva"><ClipboardCheck size={13}/>Reserva: {reservationLabel(linkedReservation.status)}</span>}{hasSteps&&<span className="budget-structure-badge" title="Esta actividad incluye paradas"><ListTree size={13}/>{stepCount} {stepCount===1?'parada':'paradas'}</span>}</div><small>{[occurrenceDates,linkedActivities.length===1?activity?.startTime:'',e.place||activity?.place,itemCategoryLabel(e.category),e.amountBasis==='group'?'total grupo':'',occurrenceLabel,status,!linked?'sin día en itinerario':!included?'fuera del total':''].filter(Boolean).join(' · ')}</small></div></div>
                 <div className="budget-actions"><div className="money-input"><span>{trip.currency}</span><input aria-label={`Costo ${e.title}`} disabled={!canEdit} min="0" step="0.01" type="number" value={expenseAmountDrafts[e.id] ?? String(e.amount)} onChange={ev=>setExpenseAmountDrafts(current=>({...current,[e.id]:ev.target.value}))} onBlur={()=>commitExpenseAmount(e)}/></div>{canEdit&&<>{linkedReservation&&<button className="icon-btn" title={`Editar reserva ${linkedReservation.title}`} aria-label={`Editar la reserva vinculada a ${e.title}`} onClick={()=>openItemForFacet('reservation',linkedReservation)}><ClipboardCheck size={16}/></button>}<button className="icon-btn" title={`Editar ${e.title}`} aria-label={`Editar ${e.title}`} onClick={()=>openItemForFacet('cost',e)}><Edit3 size={16}/></button></>}</div>
               </div>
@@ -937,7 +945,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
             : r.amount!==undefined
               ? `${money(r.amount,trip.currency)} · no incluido en Presupuesto`
               : ''
-          return <div key={r.id} className="list-row reservation-row focus-card" data-focus-card={`reservation:${r.itemId || r.id}`} tabIndex={-1}><div><strong><span className={`status-dot ${r.status==='reserved'||r.status==='paid'?'done':''}`}/>{r.title}</strong><small>{[r.dueDate?`vence ${shortDate(r.dueDate)}`:'',costLabel,r.notes].filter(Boolean).join(' · ')}</small></div><div className="reservation-actions"><select className={`chip status-select ${reservationChip(r.status)}`} aria-label={`Estado de ${r.title}`} disabled={!canEdit} value={r.status} onChange={event=>setReservationStatus(r.id,event.target.value as Reservation['status'])}><option value="watching">Esperando</option><option value="pending">Pendiente</option><option value="reserved">Reservado</option>{r.status==='paid'&&<option value="paid">Pagado (estado anterior)</option>}</select>{canEdit&&<>{linkedExpense&&<button className="icon-btn" title={`Editar costo de ${r.title}`} aria-label={`Editar el costo de ${r.title}`} onClick={()=>openItemForFacet('cost',r)}><ReceiptText size={16}/></button>}<button className="icon-btn" title={`Editar ${r.title}`} aria-label={`Editar ${r.title}`} onClick={()=>openItemForFacet('reservation',r)}><Edit3 size={16}/></button></>}</div></div>
+          return <div key={r.id} className="list-row reservation-row focus-card" data-focus-card={`reservation:${r.itemId || r.id}`} data-focus-entity={`reservation:${r.id}`} tabIndex={-1}><div><strong><span className={`status-dot ${r.status==='reserved'||r.status==='paid'?'done':''}`}/>{r.title}</strong><small>{[r.dueDate?`vence ${shortDate(r.dueDate)}`:'',costLabel,r.notes].filter(Boolean).join(' · ')}</small></div><div className="reservation-actions"><select className={`chip status-select ${reservationChip(r.status)}`} aria-label={`Estado de ${r.title}`} disabled={!canEdit} value={r.status} onChange={event=>setReservationStatus(r.id,event.target.value as Reservation['status'])}><option value="watching">Esperando</option><option value="pending">Pendiente</option><option value="reserved">Reservado</option>{r.status==='paid'&&<option value="paid">Pagado (estado anterior)</option>}</select>{canEdit&&<>{linkedExpense&&<button className="icon-btn" title={`Editar costo de ${r.title}`} aria-label={`Editar el costo de ${r.title}`} onClick={()=>openItemForFacet('cost',r)}><ReceiptText size={16}/></button>}<button className="icon-btn" title={`Editar ${r.title}`} aria-label={`Editar ${r.title}`} onClick={()=>openItemForFacet('reservation',r)}><Edit3 size={16}/></button></>}</div></div>
         })}</div>
         {!res.length&&<div className="empty compact">No hay reservas cargadas.</div>}
       </section>}
