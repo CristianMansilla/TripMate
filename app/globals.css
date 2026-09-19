@@ -93,6 +93,10 @@ button { cursor: pointer; }
 .activity-place { display:flex; align-items:flex-start; gap:5px; }
 .activity-place svg { flex:0 0 auto; margin-top:3px; }
 .activity-notes { white-space:pre-wrap; }
+.card-details { display:grid; gap:4px; margin-top:4px; color:var(--muted); font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+.card-place { display:flex; align-items:flex-start; gap:5px; }
+.card-place svg { flex:0 0 auto; margin-top:3px; }
+.card-notes { white-space:pre-wrap; }
 .activity-steps { margin-top:12px; border-left:2px solid #d9d4ff; }
 .activity-step { display:grid; grid-template-columns:90px minmax(0,1fr) auto; gap:10px; padding:9px 0 9px 12px; border-top:1px solid var(--line); }
 .activity-step:first-child { border-top:0; }
@@ -455,6 +459,8 @@ button { cursor: pointer; }
 .money-input input { width:140px; border:1px solid var(--line); border-radius:11px; padding:9px 10px; font-weight:800; text-align:right; color:var(--ink); background:white; }
 .money-input input:disabled { background:var(--surface-2); color:var(--muted); }
 .budget-actions { display:flex; align-items:center; justify-content:flex-end; gap:4px; }
+.budget-main { display:flex; align-items:flex-start; gap:10px; min-width:0; }
+.budget-main > div { min-width:0; }
 .budget-title-row { display:flex; align-items:center; flex-wrap:wrap; gap:6px 8px; }
 .budget-structure-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 6px; border-radius:6px; background:var(--brand-soft); color:#4f46c8; font-size:11px; font-weight:800; line-height:1.1; white-space:nowrap; }
 .reservation-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; flex-wrap:wrap; }
