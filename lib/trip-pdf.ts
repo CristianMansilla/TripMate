@@ -164,10 +164,10 @@ export async function generateTripPdf({trip,activities,expenses,reservations}:Tr
     y+=2
   }
 
-  section('Presupuesto')
+  section('Presupuesto individual')
   if(!expenses.length)write('No hay gastos cargados.')
   for(const expense of expenses){
-    const total=money(expenseTotal(expense),trip.currency)
+    const individualAmount=money(expenseTotal(expense)/travelers,trip.currency)
     const detail=[canonicalItemCategory(expense.category),expenseStatuses[expense.status],expense.included===false?'Fuera del total':''].filter(Boolean).join(' - ')
     const amountWidth=38
     const titleWidth=contentWidth-amountWidth-4
@@ -179,13 +179,13 @@ export async function generateTripPdf({trip,activities,expenses,reservations}:Tr
     write(expense.title,margin,titleWidth,10,'bold',[20,28,48])
     write(detail,margin,titleWidth,8,'normal')
     doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,28,48)
-    doc.text(pdfText(total),pageWidth-margin,rowY,{align:'right'})
+    doc.text(pdfText(individualAmount),pageWidth-margin,rowY,{align:'right'})
     y=Math.max(y,rowY+rowHeight)
   }
   ensure(10)
   doc.setDrawColor(91,76,240);doc.line(margin,y,pageWidth-margin,y)
   y+=5
-  write(`Total incluido: ${money(groupBudget,trip.currency)}`,margin,contentWidth,11,'bold',[20,28,48])
+  write(`Presupuesto individual: ${money(groupBudget/travelers,trip.currency)}`,margin,contentWidth,11,'bold',[20,28,48])
 
   section('Reservas')
   const sortedReservations=[...reservations].sort(sortReservationsForDisplay)

@@ -83,15 +83,15 @@ export default function TripPrintView({trip,activities,expenses,reservations}:Pr
     </section>
 
     <section className="print-section">
-      <h2>Presupuesto</h2>
+      <h2>Presupuesto individual</h2>
       {expenses.length?<table className="print-table">
-        <thead><tr><th>Concepto</th><th>Estado</th><th className="print-number">Total grupo</th></tr></thead>
+        <thead><tr><th>Concepto</th><th>Estado</th><th className="print-number">Por persona</th></tr></thead>
         <tbody>{expenses.map(expense=><tr key={expense.id}>
           <td><strong>{expense.title}</strong><small>{canonicalItemCategory(expense.category)}{expense.included===false?' · Fuera del total':''}</small></td>
           <td>{expenseStatuses[expense.status]}</td>
-          <td className="print-number">{money(expenseTotal(expense),trip.currency)}</td>
+          <td className="print-number">{money(expenseTotal(expense)/travelers,trip.currency)}</td>
         </tr>)}</tbody>
-        <tfoot><tr><th colSpan={2}>Total incluido</th><th className="print-number">{money(groupBudget,trip.currency)}</th></tr></tfoot>
+        <tfoot><tr><th colSpan={2}>Presupuesto individual</th><th className="print-number">{money(groupBudget/travelers,trip.currency)}</th></tr></tfoot>
       </table>:<p className="print-empty">No hay gastos cargados.</p>}
     </section>
 
