@@ -224,7 +224,11 @@ export async function generateTripPdf({trip,activities,expenses,reservations}:Tr
   if(!sortedReservations.length)write('No hay reservas cargadas.')
   for(const reservation of sortedReservations){
     const detail=[reservationStatuses[reservation.status],reservation.dueDate?`Fecha límite: ${longDateLabel(reservation.dueDate)}`:''].filter(Boolean).join(' - ')
-    ensure(14)
+    const estimated=7+lines(reservation.title).length*4.3+(detail?lines(detail).length*4:0)+(reservation.notes?lines(reservation.notes).length*4:0)
+    ensure(Math.min(estimated,bottom-18))
+    doc.setDrawColor(226,229,236)
+    doc.line(margin,y,pageWidth-margin,y)
+    y+=5
     write(reservation.title,margin,contentWidth,10,'bold',[20,28,48])
     if(detail)write(detail,margin,contentWidth,9,'normal')
     if(reservation.notes)write(reservation.notes,margin,contentWidth,9,'normal')
