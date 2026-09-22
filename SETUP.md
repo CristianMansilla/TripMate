@@ -16,9 +16,13 @@ v0.2 → v0.3 → v0.4 → v0.4.1 → v0.4.2 → v0.4.3
 → v0.8 → migrations/20260911010000_v0_8_1_retire_legacy_item_rpcs.sql
 → migrations/20260918000000_fix_activity_date_move.sql
 → migrations/20260918010000_restore_trip_item_v3_delegation.sql
+→ migrations/20260922000000_reservation_documents.sql
+→ migrations/20260922010000_reservation_document_passenger.sql
 ```
 
 Cada script termina con una consulta de comprobación. No continuar si arroja una excepción o un indicador esperado devuelve `false`.
+
+La última migración también crea el bucket privado `reservation-documents`. Admite únicamente PDF de hasta 10 MB. No debe cambiarse a público: las políticas de Storage permiten lectura a integrantes del viaje y escritura a owners o editores.
 
 ## 3. Variables locales
 

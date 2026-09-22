@@ -1,4 +1,4 @@
-import { Activity, ActivityStep, Expense, PackingItem, Place, Reservation, Trip, TripItem } from './types'
+import { Activity, ActivityStep, Expense, PackingItem, Place, Reservation, ReservationDocument, Trip, TripItem } from './types'
 
 export function mapTrip(row: any, memberNames: string[] = [], role?: Trip['role']): Trip {
   return {
@@ -134,6 +134,21 @@ export function mapReservation(row: any): Reservation {
     notes: row.notes || undefined,
     amount: row.amount == null ? undefined : Number(row.amount),
     position: Number(row.position || 0),
+  }
+}
+
+export function mapReservationDocument(row: any): ReservationDocument {
+  return {
+    id: row.id,
+    tripId: row.trip_id,
+    reservationId: row.reservation_id,
+    storagePath: row.storage_path,
+    fileName: row.file_name,
+    passengerLabel: row.passenger_label || 'Sin asignar',
+    mimeType: 'application/pdf',
+    sizeBytes: Number(row.size_bytes),
+    createdBy: row.created_by,
+    createdAt: row.created_at,
   }
 }
 

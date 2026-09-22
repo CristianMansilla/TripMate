@@ -13,6 +13,7 @@ TripMate es una aplicación web colaborativa y mobile-first para planificar viaj
 - Transporte nocturno y estancias con fecha de finalización explícita.
 - Presupuesto por persona y grupo, con categorías normalizadas y filtros.
 - Reservas con estado y fecha límite independientes del estado de pago.
+- Pasajes y comprobantes PDF privados vinculados a cada reserva, accesibles sólo para integrantes del viaje.
 - Estados separados por responsabilidad: agenda, reserva y costo.
 - Pruebas automatizadas para categorías, estados, costos repetidos, fechas, navegación y autocompletado.
 - Paradas opcionales; sus importes son referencias y no se suman al presupuesto.
@@ -78,23 +79,26 @@ Para una base existente, aplicar en orden sólo las versiones posteriores a la i
 15. `supabase/migrations/20260911010000_v0_8_1_retire_legacy_item_rpcs.sql`
 16. `supabase/migrations/20260918000000_fix_activity_date_move.sql`
 17. `supabase/migrations/20260918010000_restore_trip_item_v3_delegation.sql`
+18. `supabase/migrations/20260922000000_reservation_documents.sql`
+19. `supabase/migrations/20260922010000_reservation_document_passenger.sql`
 
-Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base. `v0.7` establece `trip_items` como fuente canónica de nombre, tipo, lugar, notas y condición opcional. `v0.7.1` permite vincular una ficha con un Lugar guardado sin impedir el texto libre. `v0.8` agrega la fecha de finalización de cada aparición sin modificar el significado de los horarios históricos. `v0.8.1` deja `save_trip_item_v3` como única RPC pública de guardado de fichas. Las migraciones del 18 de septiembre corrigen el cambio de fecha de actividades existentes y restauran la delegación interna de esa RPC sin volver a exponer las funciones heredadas.
+Las migraciones `v0.5` y `v0.6` introducen la identidad compartida `trip_items` y el guardado transaccional de la ficha única. `v0.6.1` impide reservas duplicadas por elemento y valida su fecha límite también en la base. `v0.7` establece `trip_items` como fuente canónica de nombre, tipo, lugar, notas y condición opcional. `v0.7.1` permite vincular una ficha con un Lugar guardado sin impedir el texto libre. `v0.8` agrega la fecha de finalización de cada aparición sin modificar el significado de los horarios históricos. `v0.8.1` deja `save_trip_item_v3` como única RPC pública de guardado de fichas. Las migraciones del 18 de septiembre corrigen el cambio de fecha de actividades existentes y restauran la delegación interna de esa RPC sin volver a exponer las funciones heredadas. Las migraciones del 22 de septiembre crean el bucket privado, los metadatos de documentos y la identificación del pasajero.
 
 ## Seguridad
 
 - La publishable/anon key puede estar en el frontend.
 - `service_role` y `GEOAPIFY_API_KEY` son secretos de servidor.
 - RLS limita los datos a integrantes del viaje.
+- Los pasajes se guardan en un bucket privado; se validan como PDF, tienen un límite de 10 MB y se abren mediante enlaces temporales.
 - Los perfiles sólo son visibles para personas que comparten un viaje.
 - El login limita intentos repetidos por dirección e identificador y devuelve errores de credenciales genéricos.
-- Los futuros comprobantes deben almacenarse en un bucket privado.
 
 ## Modelo principal
 
 - `profiles`, `trips`, `trip_members`
 - `trip_items` como identidad estable
 - `activities`, `activity_steps`, `expenses`, `reservations` como facetas
+- `reservation_documents` como metadatos de pasajes privados almacenados en Supabase Storage
 - `places` se conserva por compatibilidad con datos existentes, aunque su sección independiente está oculta.
 - `packing_items`, `trip_invites`, `change_log`
 

@@ -21,7 +21,7 @@ export type TripItemTab='general'|'itinerary'|'cost'|'reservation'
 type ItemFacet=Exclude<TripItemTab,'general'>
 
 export default function TripItemModal({
-  item,activities,expense,reservation,currency,minDate,maxDate,categoryOptions,placeSuggestions,
+  item,activities,expense,reservation,reservationDocumentCount=0,currency,minDate,maxDate,categoryOptions,placeSuggestions,
   initialTab='general',initialFacet,isNew=false,
   onClose,onSave,onDelete,
 }:{
@@ -29,6 +29,7 @@ export default function TripItemModal({
   activities:Activity[]
   expense?:Expense
   reservation?:Reservation
+  reservationDocumentCount?:number
   currency:string
   minDate:string
   maxDate:string
@@ -87,6 +88,11 @@ export default function TripItemModal({
   function toggleFacet(facet:ItemFacet,enabled:boolean){
     if(facet==='itinerary'){toggleItinerary(enabled);return}
     const persisted=facet==='cost'?Boolean(expense):Boolean(reservation)
+    if(facet==='reservation' && !enabled && reservationDocumentCount>0){
+      setActiveTab('reservation')
+      setMessage(`Eliminá ${reservationDocumentCount===1?'el documento adjunto':`los ${reservationDocumentCount} documentos adjuntos`} antes de quitar la reserva.`)
+      return
+    }
     if(!enabled && persisted){setFacetToRemove(facet);return}
     if(facet==='cost')setHasCost(enabled)
     else setHasReservation(enabled)

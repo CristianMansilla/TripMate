@@ -101,6 +101,19 @@ export type Reservation = {
   position?: number
 }
 
+export type ReservationDocument = {
+  id: string
+  tripId: string
+  reservationId: string
+  storagePath: string
+  fileName: string
+  passengerLabel: string
+  mimeType: 'application/pdf'
+  sizeBytes: number
+  createdBy: string
+  createdAt: string
+}
+
 export type Expense = {
   id: string
   tripId: string
