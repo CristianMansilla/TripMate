@@ -191,7 +191,7 @@ button { cursor: pointer; }
 .expense-form-tabs button { min-width:0; min-height:42px; display:flex; align-items:center; justify-content:center; gap:8px; padding:8px 12px; border:0; border-radius:6px; background:transparent; color:var(--muted); font-size:13px; font-weight:800; }
 .expense-form-tabs button:hover { color:var(--ink); }
 .expense-form-tabs button.active { background:white; color:var(--brand); box-shadow:0 1px 4px rgba(20,26,60,.12); }
-.trip-item-tabs { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.trip-item-tabs { grid-template-columns:repeat(5,minmax(0,1fr)); }
 .facet-toggle { margin-bottom:14px; }
 .expense-form-section { display:grid; gap:12px; padding:18px 0 6px; border-top:1px solid var(--line); }
 .expense-form-section[hidden] { display:none; }
@@ -491,6 +491,15 @@ button { cursor: pointer; }
 .document-file-summary > div { min-width:0; }
 .document-file-summary strong,.document-file-summary small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .document-file-summary small { margin-top:3px; color:var(--muted); font-size:11px; }
+.attachment-actions { display:flex; align-items:center; gap:10px; }
+.attachment-upload { position:relative; overflow:hidden; }
+.attachment-upload input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.item-attachments { display:grid; gap:8px; }
+.item-attachments .reservation-document { width:100%; max-width:none; }
+.item-attachments .reservation-document-open { flex:1 1 auto; }
+.attachment-empty { min-height:90px; }
+.attachment-chip { border:0; cursor:pointer; }
+.attachment-chip:hover { color:var(--brand); }
 .field-error { margin-top:10px; color:var(--red); font-size:12px; font-weight:750; }
 .packing-row { align-items:center; }
 .packing-check { border:0; background:transparent; padding:0; display:grid; place-items:center; color:inherit; }

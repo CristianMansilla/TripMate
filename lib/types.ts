@@ -101,15 +101,17 @@ export type Reservation = {
   position?: number
 }
 
-export type ReservationDocument = {
+export type TripItemAttachment = {
   id: string
   tripId: string
-  reservationId: string
-  storagePath: string
+  itemId: string
+  kind: 'pdf' | 'link'
+  storagePath?: string
+  externalUrl?: string
   fileName: string
-  passengerLabel: string
-  mimeType: 'application/pdf'
-  sizeBytes: number
+  passengerLabel?: string
+  mimeType?: 'application/pdf'
+  sizeBytes?: number
   createdBy: string
   createdAt: string
 }

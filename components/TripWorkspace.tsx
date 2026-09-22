@@ -7,17 +7,18 @@ import InviteModal from './InviteModal'
 import PackingItemModal from './PackingItemModal'
 import PlaceModal from './PlaceModal'
 import QuickAddModal from './QuickAddModal'
-import TripItemModal, { TripItemTab } from './TripItemModal'
+import TripItemModal, { TripItemFacet, TripItemTab } from './TripItemModal'
 import TripPrintView from './TripPrintView'
 import ModalBusyOverlay from './ModalBusyOverlay'
-import ReservationDocumentUploadModal from './ReservationDocumentUploadModal'
+import TripItemAttachmentUploadModal from './TripItemAttachmentUploadModal'
+import TripItemAttachmentLinkModal from './TripItemAttachmentLinkModal'
 import { activities as seedActivities, expenses as seedExpenses, packing as seedPacking, reservations as seedReservations, trips as demoTrips } from '@/lib/demo-data'
-import { Activity, Expense, PackingItem, Place, Reservation, ReservationDocument, Trip, ChangeLogItem, TripItem, TripItemSaveInput } from '@/lib/types'
+import { Activity, Expense, PackingItem, Place, Reservation, Trip, ChangeLogItem, TripItem, TripItemAttachment, TripItemSaveInput } from '@/lib/types'
 import { money } from '@/lib/money'
 import { createClient } from '@/lib/supabase-client'
-import { mapActivity, mapActivityStep, mapExpense, mapPacking, mapPlace, mapReservation, mapReservationDocument, mapTrip, mapTripItem } from '@/lib/db-mappers'
+import { mapActivity, mapActivityStep, mapExpense, mapPacking, mapPlace, mapReservation, mapTrip, mapTripItem, mapTripItemAttachment } from '@/lib/db-mappers'
 import { logChange } from '@/lib/change-log'
-import { CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Download, Edit3, ExternalLink, FileText, History, Link2, ListTree, Luggage, Map as MapIcon, MapPin, Menu, Minus, Navigation, Plus, ReceiptText, Repeat2, Share2, Star, Trash2, Upload, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ClipboardCheck, Clock3, DollarSign, Download, Edit3, ExternalLink, FileText, History, Link2, ListTree, Luggage, Map as MapIcon, MapPin, Menu, Minus, Navigation, Paperclip, Plus, ReceiptText, Repeat2, Share2, Star, Trash2, UserMinus, Users, Wifi, WifiOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { changeActionLabel, tripRoleLabel, userFacingError } from '@/lib/ui-text'
 import type { PlaceAutocompleteOption } from './PlaceAutocomplete'
@@ -33,7 +34,7 @@ import {
 } from '@/lib/trip-item-rules'
 import { tripSectionPath, tripTabs, type TripTab } from '@/lib/trip-navigation'
 import { occurrenceEndDate, occurrencesOverlap } from '@/lib/activity-dates'
-import { RESERVATION_DOCUMENTS_BUCKET, reservationDocumentPath, reservationPdfError } from '@/lib/reservation-documents'
+import { TRIP_ITEM_ATTACHMENTS_BUCKET, attachmentPdfError, tripItemAttachmentPath } from '@/lib/trip-item-attachments'
 
 type AddKind = 'packing'|'place'|null
 type SyncStatus = 'demo'|'syncing'|'synced'|'error'
@@ -42,11 +43,11 @@ type TripMember = { id:string; name:string; username?:string; role:'owner'|'edit
 type EditingTripItem = {
   item:TripItem
   initialTab:TripItemTab
-  initialFacet?: Exclude<TripItemTab,'general'>
+  initialFacet?:TripItemFacet
   focusCardId?:string
   isNew:boolean
 }
-type PendingDocumentUpload = { reservation:Reservation; file:File }
+type PendingAttachmentUpload = { item:TripItem; file:File }
 
 function dayLabel(date:string){
   return new Date(date+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})
@@ -140,7 +141,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
   const [acts,setActs]=useState<Activity[]>(seedActivities.filter(x=>x.tripId===tripId))
   const [exp,setExp]=useState<Expense[]>(seedExpenses.filter(x=>x.tripId===tripId))
   const [res,setRes]=useState<Reservation[]>(seedReservations.filter(x=>x.tripId===tripId))
-  const [reservationDocuments,setReservationDocuments]=useState<ReservationDocument[]>([])
+  const [itemAttachments,setItemAttachments]=useState<TripItemAttachment[]>([])
   const [items,setItems]=useState<TripItem[]>([])
   const [pack,setPack]=useState<PackingItem[]>(seedPacking.filter(x=>x.tripId===tripId))
   const [places,setPlaces]=useState<Place[]>([])
@@ -152,8 +153,9 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
   const [editingPlace,setEditingPlace]=useState<Place|null>(null)
   const [packingToDelete,setPackingToDelete]=useState<PackingItem|null>(null)
   const [placeToDelete,setPlaceToDelete]=useState<Place|null>(null)
-  const [documentToDelete,setDocumentToDelete]=useState<ReservationDocument|null>(null)
-  const [pendingDocumentUpload,setPendingDocumentUpload]=useState<PendingDocumentUpload|null>(null)
+  const [attachmentToDelete,setAttachmentToDelete]=useState<TripItemAttachment|null>(null)
+  const [pendingAttachmentUpload,setPendingAttachmentUpload]=useState<PendingAttachmentUpload|null>(null)
+  const [linkAttachmentItem,setLinkAttachmentItem]=useState<TripItem|null>(null)
   const [inviteOpen,setInviteOpen]=useState(false)
   const [memberToRemove,setMemberToRemove]=useState<TripMember|null>(null)
   const [addKind,setAddKind]=useState<AddKind>(null)
@@ -170,7 +172,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
   const [syncStatus,setSyncStatus]=useState<SyncStatus>('demo')
   const [savingTravelerCount,setSavingTravelerCount]=useState(false)
   const [generatingPdf,setGeneratingPdf]=useState(false)
-  const [documentBusyLabel,setDocumentBusyLabel]=useState('')
+  const [attachmentBusyLabel,setAttachmentBusyLabel]=useState('')
   const [loading,setLoading]=useState(true)
   const [error,setError]=useState('')
   const [success,setSuccess]=useState('')
@@ -306,7 +308,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       supabase.from('activity_steps').select('*').eq('trip_id',tripId).order('position'),
       supabase.from('expenses').select('*').eq('trip_id',tripId).order('created_at'),
       supabase.from('reservations').select('*').eq('trip_id',tripId).order('position').order('created_at'),
-      supabase.from('reservation_documents').select('*').eq('trip_id',tripId).order('created_at'),
+      supabase.from('trip_item_attachments').select('*').eq('trip_id',tripId).order('created_at'),
       supabase.from('places').select('*').eq('trip_id',tripId).order('is_base',{ascending:false}).order('created_at'),
       supabase.from('packing_items').select('*').eq('trip_id',tripId).eq('assigned_to',user.id).order('position').order('created_at'),
       supabase.from('change_log').select('*').eq('trip_id',tripId).order('created_at',{ascending:false}).limit(8),
@@ -360,7 +362,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     setActs(mappedActivities)
     setExp(mappedExpenses)
     setRes(mappedReservations)
-    setReservationDocuments((documentsQ.data||[]).map(mapReservationDocument))
+    setItemAttachments((documentsQ.data||[]).map(mapTripItemAttachment))
     setItems(mappedItems)
     setPlaces(mappedPlaces)
     setPack((packQ.data||[]).map(mapPacking))
@@ -415,7 +417,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       .on('postgres_changes',{event:'*',schema:'public',table:'activity_steps',filter:`trip_id=eq.${tripId}`},refresh)
       .on('postgres_changes',{event:'*',schema:'public',table:'expenses',filter:`trip_id=eq.${tripId}`},refresh)
       .on('postgres_changes',{event:'*',schema:'public',table:'reservations',filter:`trip_id=eq.${tripId}`},refresh)
-      .on('postgres_changes',{event:'*',schema:'public',table:'reservation_documents',filter:`trip_id=eq.${tripId}`},refresh)
+      .on('postgres_changes',{event:'*',schema:'public',table:'trip_item_attachments',filter:`trip_id=eq.${tripId}`},refresh)
       .on('postgres_changes',{event:'*',schema:'public',table:'places',filter:`trip_id=eq.${tripId}`},refresh)
       .on('postgres_changes',{event:'*',schema:'public',table:'packing_items',filter:`trip_id=eq.${tripId}`},refresh)
       .subscribe(status=>{
@@ -486,11 +488,11 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
   },[exp,acts])
   const expenseById=useMemo(()=>new Map(exp.map(expense=>[expense.id,expense])),[exp])
   const reservationByItemId=useMemo(()=>new Map(res.filter(reservation=>reservation.itemId).map(reservation=>[reservation.itemId!,reservation])),[res])
-  const documentsByReservation=useMemo(()=>{
-    const result=new Map<string,ReservationDocument[]>()
-    reservationDocuments.forEach(document=>result.set(document.reservationId,[...(result.get(document.reservationId)||[]),document]))
+  const attachmentsByItem=useMemo(()=>{
+    const result=new Map<string,TripItemAttachment[]>()
+    itemAttachments.forEach(attachment=>result.set(attachment.itemId,[...(result.get(attachment.itemId)||[]),attachment]))
     return result
-  },[reservationDocuments])
+  },[itemAttachments])
   const summaryActivities=useMemo(()=>[...visibleActivities].filter(activity=>
     Boolean(activity.itemId&&reservationByItemId.get(activity.itemId)) ||
     ['Evento','Alojamiento'].includes(itemCategoryLabel(activity.category))
@@ -528,7 +530,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     })
   },[visibleExpenses,acts])
 
-  function openNewItem(initialFacet:Exclude<TripItemTab,'general'>){
+  function openNewItem(initialFacet:TripItemFacet){
     if(initialFacet==='cost')setExpenseCategoryFilter(null)
     const id=`item-new-${Date.now()}`
     setEditingItem({
@@ -630,11 +632,11 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
       setRes(current=>current.filter(reservation=>reservation.itemId!==item.id))
       setItemToDelete(null);setEditingItem(null);showSuccess('Detalle eliminado.');return
     }
-    const linkedReservation=res.find(reservation=>reservation.itemId===item.id)
-    const linkedDocuments=linkedReservation?documentsByReservation.get(linkedReservation.id)||[]:[]
-    if(linkedDocuments.length){
-      const {error:storageError}=await supabase.storage.from(RESERVATION_DOCUMENTS_BUCKET).remove(linkedDocuments.map(document=>document.storagePath))
-      if(storageError){setError(userFacingError(storageError,'No pudimos eliminar los documentos de la reserva. Intentá nuevamente.'));return}
+    const linkedAttachments=attachmentsByItem.get(item.id)||[]
+    const storagePaths=linkedAttachments.flatMap(attachment=>attachment.storagePath?[attachment.storagePath]:[])
+    if(storagePaths.length){
+      const {error:storageError}=await supabase.storage.from(TRIP_ITEM_ATTACHMENTS_BUCKET).remove(storagePaths)
+      if(storageError){setError(userFacingError(storageError,'No pudimos eliminar los archivos adjuntos. Intentá nuevamente.'));return}
     }
     const {error}=await supabase.rpc('delete_trip_item_v1',{p_item_id:item.id,p_trip_id:trip.id,p_expected_updated_at:item.updatedAt})
     if(error){setError(userFacingError(error,'No pudimos eliminar el elemento. Intentá nuevamente.'));await loadConnectedData(true);return}
@@ -642,7 +644,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     setActs(current=>current.filter(activity=>activity.itemId!==item.id))
     setExp(current=>current.filter(expense=>expense.itemId!==item.id))
     setRes(current=>current.filter(reservation=>reservation.itemId!==item.id))
-    if(linkedReservation)setReservationDocuments(current=>current.filter(document=>document.reservationId!==linkedReservation.id))
+    setItemAttachments(current=>current.filter(attachment=>attachment.itemId!==item.id))
     await logChange(trip.id,'trip_item',item.id,'deleted',`Se eliminó “${item.title}” y toda su información vinculada.`)
     await loadConnectedData(true)
     setItemToDelete(null);setEditingItem(null)
@@ -736,76 +738,103 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
     await logChange(trip.id,'reservation',id,'updated',`“${current.title}” pasó a ${reservationLabel(status)}.`)
   }
 
-  async function prepareReservationDocument(reservation:Reservation,file:File){
-    const validationError=await reservationPdfError(file)
+  async function prepareItemAttachment(item:TripItem,file:File){
+    const validationError=await attachmentPdfError(file)
     if(validationError){setError(validationError);return}
     setError('')
-    setPendingDocumentUpload({reservation,file})
+    setPendingAttachmentUpload({item,file})
   }
 
-  async function uploadReservationDocument(reservation:Reservation,file:File,passengerLabel:string):Promise<boolean>{
-    if(!canEdit || documentBusyLabel)return false
+  async function uploadItemAttachment(item:TripItem,file:File,passengerLabel:string):Promise<boolean>{
+    if(!canEdit || attachmentBusyLabel)return false
     const supabase=createClient()
     if(!supabase){setError('Los documentos privados requieren conexión con Supabase.');return false}
-    setDocumentBusyLabel('Subiendo pasaje...')
+    setAttachmentBusyLabel('Subiendo PDF...')
     setError('')
-    const documentId=crypto.randomUUID()
-    const storagePath=reservationDocumentPath(trip.id,reservation.id,documentId)
+    const attachmentId=crypto.randomUUID()
+    const storagePath=tripItemAttachmentPath(trip.id,item.id,attachmentId)
     try{
-      const {error:uploadError}=await supabase.storage.from(RESERVATION_DOCUMENTS_BUCKET).upload(storagePath,file,{
+      const {error:uploadError}=await supabase.storage.from(TRIP_ITEM_ATTACHMENTS_BUCKET).upload(storagePath,file,{
         cacheControl:'3600',contentType:'application/pdf',upsert:false,
       })
       if(uploadError)throw uploadError
-      const {data,error:metadataError}=await supabase.from('reservation_documents').insert({
-        id:documentId,trip_id:trip.id,reservation_id:reservation.id,storage_path:storagePath,
-        file_name:file.name.slice(0,255),passenger_label:passengerLabel,mime_type:'application/pdf',size_bytes:file.size,
+      const {data,error:metadataError}=await supabase.from('trip_item_attachments').insert({
+        id:attachmentId,trip_id:trip.id,item_id:item.id,attachment_type:'pdf',storage_path:storagePath,
+        external_url:null,file_name:file.name.slice(0,255),passenger_label:passengerLabel,mime_type:'application/pdf',size_bytes:file.size,
       }).select('*').single()
       if(metadataError){
-        await supabase.storage.from(RESERVATION_DOCUMENTS_BUCKET).remove([storagePath])
+        await supabase.storage.from(TRIP_ITEM_ATTACHMENTS_BUCKET).remove([storagePath])
         throw metadataError
       }
-      setReservationDocuments(current=>[...current,mapReservationDocument(data)])
-      await logChange(trip.id,'reservation_document',documentId,'created',`Se adjuntó el pasaje de ${passengerLabel} a “${reservation.title}”.`)
-      showSuccess('Pasaje adjuntado.')
+      setItemAttachments(current=>[...current,mapTripItemAttachment(data)])
+      await logChange(trip.id,'trip_item_attachment',attachmentId,'created',`Se adjuntó un PDF de ${passengerLabel} a “${item.title}”.`)
+      showSuccess('PDF adjuntado.')
       return true
     }catch(error){
-      setError(userFacingError(error,'No pudimos subir el pasaje. Intentá nuevamente.'))
+      setError(userFacingError(error,'No pudimos subir el PDF. Intentá nuevamente.'))
       return false
-    }finally{setDocumentBusyLabel('')}
+    }finally{setAttachmentBusyLabel('')}
   }
 
-  async function openReservationDocument(document:ReservationDocument){
-    if(documentBusyLabel)return
+  async function addItemAttachmentLink(input:{fileName:string;externalUrl:string}):Promise<boolean>{
+    const item=linkAttachmentItem
+    if(!item || !canEdit || attachmentBusyLabel)return false
+    const supabase=createClient()
+    if(!supabase){setError('Los adjuntos requieren conexión con Supabase.');return false}
+    setAttachmentBusyLabel('Agregando enlace...')
+    setError('')
+    const attachmentId=crypto.randomUUID()
+    try{
+      const {data,error}=await supabase.from('trip_item_attachments').insert({
+        id:attachmentId,trip_id:trip.id,item_id:item.id,attachment_type:'link',storage_path:null,
+        external_url:input.externalUrl,file_name:input.fileName,passenger_label:null,mime_type:null,size_bytes:null,
+      }).select('*').single()
+      if(error)throw error
+      setItemAttachments(current=>[...current,mapTripItemAttachment(data)])
+      await logChange(trip.id,'trip_item_attachment',attachmentId,'created',`Se agregó un enlace a “${item.title}”.`)
+      showSuccess('Enlace agregado.')
+      return true
+    }catch(error){
+      setError(userFacingError(error,'No pudimos agregar el enlace. Intentá nuevamente.'))
+      return false
+    }finally{setAttachmentBusyLabel('')}
+  }
+
+  async function openItemAttachment(attachment:TripItemAttachment){
+    if(attachment.kind==='link' && attachment.externalUrl){window.open(attachment.externalUrl,'_blank','noopener,noreferrer');return}
+    if(attachmentBusyLabel || !attachment.storagePath)return
     const supabase=createClient()
     if(!supabase){setError('Los documentos privados requieren conexión con Supabase.');return}
     const preview=window.open('about:blank','_blank')
     if(preview)preview.opener=null
-    setDocumentBusyLabel('Abriendo pasaje...')
+    setAttachmentBusyLabel('Abriendo PDF...')
     setError('')
     try{
-      const {data,error}=await supabase.storage.from(RESERVATION_DOCUMENTS_BUCKET).createSignedUrl(document.storagePath,60)
+      const {data,error}=await supabase.storage.from(TRIP_ITEM_ATTACHMENTS_BUCKET).createSignedUrl(attachment.storagePath,60)
       if(error)throw error
       if(preview)preview.location.replace(data.signedUrl)
       else window.location.assign(data.signedUrl)
     }catch(error){
       preview?.close()
-      setError(userFacingError(error,'No pudimos abrir el pasaje. Intentá nuevamente.'))
-    }finally{setDocumentBusyLabel('')}
+      setError(userFacingError(error,'No pudimos abrir el PDF. Intentá nuevamente.'))
+    }finally{setAttachmentBusyLabel('')}
   }
 
-  async function confirmDeleteReservationDocument(){
-    const document=documentToDelete
-    if(!document || !canEdit)return
+  async function confirmDeleteItemAttachment(){
+    const attachment=attachmentToDelete
+    if(!attachment || !canEdit)return
     const supabase=createClient()
-    if(!supabase){setDocumentToDelete(null);setError('Los documentos privados requieren conexión con Supabase.');return}
-    const {error:storageError}=await supabase.storage.from(RESERVATION_DOCUMENTS_BUCKET).remove([document.storagePath])
-    if(storageError){setError(userFacingError(storageError,'No pudimos eliminar el pasaje. Intentá nuevamente.'));return}
-    const {error:metadataError}=await supabase.from('reservation_documents').delete().eq('id',document.id).eq('trip_id',trip.id)
-    if(metadataError){setError(userFacingError(metadataError,'El archivo fue eliminado, pero no pudimos actualizar la reserva. Recargá e intentá nuevamente.'));return}
-    setReservationDocuments(current=>current.filter(candidate=>candidate.id!==document.id))
-    setDocumentToDelete(null)
-    await logChange(trip.id,'reservation_document',document.id,'deleted',`Se eliminó el pasaje de ${document.passengerLabel}.`)
-    showSuccess('Pasaje eliminado.')
+    if(!supabase){setAttachmentToDelete(null);setError('Los adjuntos requieren conexión con Supabase.');return}
+    if(attachment.storagePath){
+      const {error:storageError}=await supabase.storage.from(TRIP_ITEM_ATTACHMENTS_BUCKET).remove([attachment.storagePath])
+      if(storageError){setError(userFacingError(storageError,'No pudimos eliminar el PDF. Intentá nuevamente.'));return}
+    }
+    const {error:metadataError}=await supabase.from('trip_item_attachments').delete().eq('id',attachment.id).eq('trip_id',trip.id)
+    if(metadataError){setError(userFacingError(metadataError,'No pudimos actualizar los adjuntos. Recargá e intentá nuevamente.'));return}
+    setItemAttachments(current=>current.filter(candidate=>candidate.id!==attachment.id))
+    setAttachmentToDelete(null)
+    await logChange(trip.id,'trip_item_attachment',attachment.id,'deleted',`Se eliminó el adjunto “${attachment.fileName}”.`)
+    showSuccess('Adjunto eliminado.')
   }
 
   async function savePlace(place:Place){
@@ -1014,7 +1043,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
               <span className="time-start">{a.startTime||'—'}</span>
               {a.endTime&&<><span className="time-to">a</span><span className="time-end">{a.endTime}</span></>}
             </div>
-            <div><div className="activity-title">{a.title} {a.optional?<span className="chip optional">Opcional</span>:null}</div><div className="activity-details">{occurrenceEndDate(a)!==a.date&&<div className="activity-end-date">Finaliza {occurrenceDateLabel(occurrenceEndDate(a))}</div>}{a.place&&<div className="activity-place"><MapPin size={13} aria-hidden="true"/><span>{a.place}</span></div>}{a.notes&&<div className="activity-notes">{a.notes}</div>}</div><div className="chips"><span className={`chip ${activityChip(a.status)}`}>Agenda: {activityStateLabel(a.status)}</span>{a.itemId&&reservationByItemId.get(a.itemId)&&<span className={`chip ${reservationChip(reservationByItemId.get(a.itemId)!.status)}`}>Reserva: {reservationLabel(reservationByItemId.get(a.itemId)!.status)}</span>}{expenseByActivityId.get(a.id)&&<span className={`chip status-${expenseByActivityId.get(a.id)!.status}`}>Costo: {expenseStatusLabel(expenseByActivityId.get(a.id)!.status)}</span>}{a.status==='reserved'&&!(a.itemId&&reservationByItemId.get(a.itemId))&&<span className="chip">Reserva anterior: Reservado</span>}{a.status==='paid'&&!expenseByActivityId.get(a.id)&&<span className="chip">Costo anterior: Pagado</span>}<span className="chip category-chip">{activityCategoryLabel(a.category)}</span>{recurrenceCountFor(a)>1&&<span className="chip recurrence-chip" title={`Esta actividad tiene ${recurrenceCountFor(a)} apariciones en el itinerario`}><Repeat2 size={12}/>{recurrenceLabelFor(a)}</span>}{Boolean(a.steps?.length)&&<span className="chip category-chip">{a.steps!.length} {a.steps!.length===1?'parada':'paradas'}</span>}</div>
+            <div><div className="activity-title">{a.title} {a.optional?<span className="chip optional">Opcional</span>:null}</div><div className="activity-details">{occurrenceEndDate(a)!==a.date&&<div className="activity-end-date">Finaliza {occurrenceDateLabel(occurrenceEndDate(a))}</div>}{a.place&&<div className="activity-place"><MapPin size={13} aria-hidden="true"/><span>{a.place}</span></div>}{a.notes&&<div className="activity-notes">{a.notes}</div>}</div><div className="chips"><span className={`chip ${activityChip(a.status)}`}>Agenda: {activityStateLabel(a.status)}</span>{a.itemId&&reservationByItemId.get(a.itemId)&&<span className={`chip ${reservationChip(reservationByItemId.get(a.itemId)!.status)}`}>Reserva: {reservationLabel(reservationByItemId.get(a.itemId)!.status)}</span>}{expenseByActivityId.get(a.id)&&<span className={`chip status-${expenseByActivityId.get(a.id)!.status}`}>Costo: {expenseStatusLabel(expenseByActivityId.get(a.id)!.status)}</span>}{a.status==='reserved'&&!(a.itemId&&reservationByItemId.get(a.itemId))&&<span className="chip">Reserva anterior: Reservado</span>}{a.status==='paid'&&!expenseByActivityId.get(a.id)&&<span className="chip">Costo anterior: Pagado</span>}<span className="chip category-chip">{activityCategoryLabel(a.category)}</span>{recurrenceCountFor(a)>1&&<span className="chip recurrence-chip" title={`Esta actividad tiene ${recurrenceCountFor(a)} apariciones en el itinerario`}><Repeat2 size={12}/>{recurrenceLabelFor(a)}</span>}{Boolean(a.steps?.length)&&<span className="chip category-chip">{a.steps!.length} {a.steps!.length===1?'parada':'paradas'}</span>}{a.itemId&&attachmentsByItem.get(a.itemId)?.map(attachment=><button type="button" className="chip attachment-chip" key={attachment.id} onClick={()=>openItemAttachment(attachment)} title={`Abrir ${attachment.fileName}`}><Paperclip size={12}/>{attachment.kind==='link'?'Información':attachment.passengerLabel || 'Sin asignar'}</button>)}</div>
               {Boolean(a.steps?.length)&&<div className="activity-steps" aria-label={`Paradas de ${a.title}`}>
                 {a.steps!.map((step,stepIndex)=><div className="activity-step" key={step.id || `${a.id}-step-${stepIndex}`}>
                   <div className="activity-step-time">{step.startTime || 'Sin hora'}{step.endTime?` a ${step.endTime}`:''}</div>
@@ -1069,17 +1098,16 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
         <div className="panel-head"><div><h3>Reservas y compras</h3><div className="muted subcopy">Pendientes, confirmadas y pagadas.</div></div>{canEdit&&<button data-primary-action className="btn btn-primary" onClick={()=>openNewItem('reservation')}><Plus size={16}/> Reserva</button>}</div>
         <div className="list">{[...res].sort(sortReservationsForDisplay).map(r=>{
           const linkedExpense=r.expenseId?expenseById.get(r.expenseId):undefined
-          const documents=documentsByReservation.get(r.id)||[]
+          const attachments=r.itemId?attachmentsByItem.get(r.itemId)||[]:[]
           return <div key={r.id} className="list-row reservation-row focus-card" data-focus-card={`reservation:${r.itemId || r.id}`} data-focus-entity={`reservation:${r.id}`} tabIndex={-1}>
             <div className="reservation-main">
               <strong><span className={`status-dot ${r.status==='reserved'||r.status==='paid'?'done':''}`}/>{r.title}</strong>
               <div className="card-details">{r.dueDate&&<div>Vence {shortDate(r.dueDate)}</div>}{linkedExpense?<><div>{money(linkedExpense.amount*expenseMultiplier(linkedExpense),linkedExpense.currency || trip.currency)} en Presupuesto</div><div>Costo {expenseStatusLabel(linkedExpense.status).toLowerCase()}</div>{linkedExpense.amountBasis==='group'&&<div>Total grupo</div>}{linkedExpense.included===false&&<div>Fuera del total</div>}</>:r.amount!==undefined?<><div>{money(r.amount,trip.currency)}</div><div>No incluido en Presupuesto</div></>:null}{r.notes&&<div className="card-notes">{r.notes}</div>}</div>
-              <div className="reservation-documents" aria-label={`Documentos de ${r.title}`}>
-                {documents.map(document=><div className="reservation-document" key={document.id}>
-                  <button type="button" className="reservation-document-open" onClick={()=>openReservationDocument(document)} title={`Abrir ${document.fileName}`}><FileText size={16}/><span><b>{document.passengerLabel}</b><small>{document.fileName} · {fileSizeLabel(document.sizeBytes)}</small></span></button>
-                  {canEdit&&<button type="button" className="icon-btn" onClick={()=>setDocumentToDelete(document)} title={`Eliminar ${document.fileName}`} aria-label={`Eliminar ${document.fileName}`}><Trash2 size={15}/></button>}
+              <div className="reservation-documents" aria-label={`Adjuntos de ${r.title}`}>
+                {attachments.map(attachment=><div className="reservation-document" key={attachment.id}>
+                  <button type="button" className="reservation-document-open" onClick={()=>openItemAttachment(attachment)} title={`Abrir ${attachment.fileName}`}>{attachment.kind==='pdf'?<FileText size={16}/>:<ExternalLink size={16}/>}<span><b>{attachment.kind==='link'?'Información de la actividad':attachment.passengerLabel || 'Sin asignar'}</b><small>{attachment.fileName}{attachment.sizeBytes?` · ${fileSizeLabel(attachment.sizeBytes)}`:''}</small></span></button>
+                  {canEdit&&<button type="button" className="icon-btn" onClick={()=>setAttachmentToDelete(attachment)} title={`Eliminar ${attachment.fileName}`} aria-label={`Eliminar ${attachment.fileName}`}><Trash2 size={15}/></button>}
                 </div>)}
-                {canEdit&&connected&&<label className="reservation-upload"><Upload size={15}/><span>Adjuntar PDF</span><input type="file" accept="application/pdf,.pdf" onChange={event=>{const file=event.target.files?.[0];event.target.value='';if(file)prepareReservationDocument(r,file)}}/></label>}
               </div>
             </div>
             <div className="reservation-actions"><select className={`chip status-select ${reservationChip(r.status)}`} aria-label={`Estado de ${r.title}`} disabled={!canEdit} value={r.status} onChange={event=>setReservationStatus(r.id,event.target.value as Reservation['status'])}><option value="watching">Esperando</option><option value="pending">Pendiente</option><option value="reserved">Reservado</option>{r.status==='paid'&&<option value="paid">Pagado (estado anterior)</option>}</select>{canEdit&&<>{linkedExpense&&<button className="icon-btn" title={`Editar costo de ${r.title}`} aria-label={`Editar el costo de ${r.title}`} onClick={()=>openItemForFacet('cost',r)}><ReceiptText size={16}/></button>}<button className="icon-btn" title={`Editar ${r.title}`} aria-label={`Editar ${r.title}`} onClick={()=>openItemForFacet('reservation',r)}><Edit3 size={16}/></button></>}</div>
@@ -1183,7 +1211,7 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
         activities={acts.filter(activity=>activity.itemId===editingItem.item.id)}
         expense={exp.find(expense=>expense.itemId===editingItem.item.id)}
         reservation={res.find(reservation=>reservation.itemId===editingItem.item.id)}
-        reservationDocumentCount={reservationDocuments.filter(document=>document.reservationId===res.find(reservation=>reservation.itemId===editingItem.item.id)?.id).length}
+        attachments={itemAttachments.filter(attachment=>attachment.itemId===editingItem.item.id)}
         currency={trip.currency}
         minDate={trip.startDate}
         maxDate={trip.endDate}
@@ -1195,24 +1223,29 @@ export default function TripWorkspace({tripId,initialTab}:{tripId:string;initial
         onClose={()=>setEditingItem(null)}
         onSave={saveTripItem}
         onDelete={setItemToDelete}
+        onSelectAttachmentFile={canEdit&&connected?prepareItemAttachment:undefined}
+        onAddAttachmentLink={canEdit&&connected?setLinkAttachmentItem:undefined}
+        onOpenAttachment={openItemAttachment}
+        onDeleteAttachment={canEdit?setAttachmentToDelete:undefined}
       />}
       {editingPacking&&<PackingItemModal item={editingPacking} categoryOptions={packingCategories} onClose={()=>setEditingPacking(null)} onSave={savePacking} onDelete={setPackingToDelete}/>}
       {editingPlace&&<PlaceModal place={editingPlace} categoryOptions={placeCategories} placeSuggestions={itemPlaceSuggestions} onClose={()=>setEditingPlace(null)} onSave={savePlace} onDelete={setPlaceToDelete}/>}
       {inviteOpen&&<InviteModal tripId={trip.id} onClose={()=>setInviteOpen(false)}/>}
       {addKind&&<QuickAddModal kind={addKind} tripId={trip.id} placeSuggestions={itemPlaceSuggestions} categoryOptions={addKind==='packing'?packingCategories:placeCategories} onClose={()=>setAddKind(null)} onSave={addQuick}/>}
-      {pendingDocumentUpload&&<ReservationDocumentUploadModal
-        file={pendingDocumentUpload.file}
+      {pendingAttachmentUpload&&<TripItemAttachmentUploadModal
+        file={pendingAttachmentUpload.file}
         travelerNames={members.length?members.map(member=>member.name):trip.memberNames}
-        onClose={()=>setPendingDocumentUpload(null)}
-        onUpload={passengerLabel=>uploadReservationDocument(pendingDocumentUpload.reservation,pendingDocumentUpload.file,passengerLabel)}
+        onClose={()=>setPendingAttachmentUpload(null)}
+        onUpload={passengerLabel=>uploadItemAttachment(pendingAttachmentUpload.item,pendingAttachmentUpload.file,passengerLabel)}
       />}
+      {linkAttachmentItem&&<TripItemAttachmentLinkModal onClose={()=>setLinkAttachmentItem(null)} onAdd={addItemAttachmentLink}/>}
       <ModalBusyOverlay active={generatingPdf} label="Generando PDF..."/>
-      <ModalBusyOverlay active={Boolean(documentBusyLabel)} label={documentBusyLabel || 'Procesando documento...'}/>
+      <ModalBusyOverlay active={Boolean(attachmentBusyLabel)} label={attachmentBusyLabel || 'Procesando adjunto...'}/>
       {memberToRemove&&<ConfirmDialog title="Expulsar integrante" confirmLabel="Expulsar" confirmIcon={<UserMinus size={16}/>} onClose={()=>setMemberToRemove(null)} onConfirm={confirmRemoveMember}>Vas a quitar a <b>{memberToRemove.name}</b> de este viaje. Ya no podrá ver ni editar la planificación compartida.</ConfirmDialog>}
       {itemToDelete&&<ConfirmDialog title="Eliminar del viaje" confirmLabel="Eliminar todo" confirmIcon={<Trash2 size={16}/>} onClose={()=>setItemToDelete(null)} onConfirm={confirmDeleteItem}>Vas a eliminar <b>{itemToDelete.title}</b> del viaje junto con su itinerario, costo, reserva y paradas. Esta acción no se puede deshacer desde la app.</ConfirmDialog>}
       {packingToDelete&&<ConfirmDialog title="Eliminar ítem" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setPackingToDelete(null)} onConfirm={confirmDeletePacking}>Vas a eliminar <b>{packingToDelete.label}</b> de tu valija. Esta acción no se puede deshacer desde la app.</ConfirmDialog>}
       {placeToDelete&&<ConfirmDialog title="Eliminar lugar" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setPlaceToDelete(null)} onConfirm={confirmDeletePlace}>Vas a eliminar <b>{placeToDelete.name}</b>{placeToDelete.isBase?' y dejar el viaje sin esa base':''}. Esta acción no se puede deshacer desde la app.</ConfirmDialog>}
-      {documentToDelete&&<ConfirmDialog title="Eliminar pasaje" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setDocumentToDelete(null)} onConfirm={confirmDeleteReservationDocument}>Vas a eliminar el pasaje de <b>{documentToDelete.passengerLabel}</b> ({documentToDelete.fileName}) definitivamente. Esta acción no se puede deshacer.</ConfirmDialog>}
+      {attachmentToDelete&&<ConfirmDialog title="Eliminar adjunto" confirmLabel="Eliminar" confirmIcon={<Trash2 size={16}/>} onClose={()=>setAttachmentToDelete(null)} onConfirm={confirmDeleteItemAttachment}>Vas a eliminar <b>{attachmentToDelete.fileName}</b>{attachmentToDelete.passengerLabel?`, correspondiente a ${attachmentToDelete.passengerLabel}`:''}, definitivamente. Esta acción no se puede deshacer.</ConfirmDialog>}
     </main>
   </div>
 }

@@ -6,7 +6,7 @@ Una sola fuente de verdad para un viaje compartido. La ficha de un elemento conc
 
 ## Estado
 
-Revisado el 22 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas. `v0.7` consolidó `trip_items` como fuente canónica y `v0.7.1` vinculó cada ficha con un lugar guardado opcional. `v0.8` agregó la fecha de finalización explícita y `v0.8.1` retiró el acceso cliente a las RPC antiguas. Los ajustes del 18 de septiembre corrigieron el cambio de fecha de actividades existentes y conservaron `save_trip_item_v3` como única RPC pública de guardado. Desde el 22 de septiembre, cada reserva admite pasajes PDF privados en Supabase Storage.
+Revisado el 22 de septiembre de 2026. `v0.5` incorporó la identidad estable `trip_items`; `v0.6` agregó el guardado transaccional de la ficha única; `v0.6.1` completó la integridad de reservas. `v0.7` consolidó `trip_items` como fuente canónica y `v0.7.1` vinculó cada ficha con un lugar guardado opcional. `v0.8` agregó la fecha de finalización explícita y `v0.8.1` retiró el acceso cliente a las RPC antiguas. Los ajustes del 18 de septiembre corrigieron el cambio de fecha de actividades existentes y conservaron `save_trip_item_v3` como única RPC pública de guardado. Desde el 22 de septiembre, cada elemento admite PDFs privados identificados por pasajero y enlaces de información general.
 
 Los botones “Agregar actividad”, “Agregar gasto” y “Agregar reserva” se conservan dentro de sus secciones porque representan la intención inicial, no fuentes de datos distintas. Los tres abren el mismo editor, guardan mediante la misma RPC y permiten añadir las demás facetas.
 
@@ -22,7 +22,7 @@ Los botones “Agregar actividad”, “Agregar gasto” y “Agregar reserva”
 - **Categorías coherentes:** alias históricos se normalizan al guardar y al agrupar.
 - **Costo de infraestructura contenido:** servicios externos opcionales, con alternativa manual y sin dependencia de planes pagos.
 - **Mobile-first y accesible:** flujos habituales utilizables con teclado, lector y pantallas pequeñas.
-- **Documentos privados:** los pasajes pertenecen a una reserva, no son públicos y sólo se abren mediante acceso temporal para integrantes.
+- **Adjuntos por elemento:** pasajes, entradas y comprobantes pertenecen a la ficha del viaje, aunque no tenga reserva; los PDF son privados y se abren mediante acceso temporal.
 
 ## Navegación vigente
 
@@ -87,7 +87,7 @@ No agregar pestañas para resolver problemas internos de una ficha. Las altas co
 
 - La sección independiente de Lugares se retiró temporalmente de la navegación por no aportar suficiente valor frente al campo de ubicación del itinerario.
 - Queda como mejora futura abrir Google Maps directamente desde una actividad o parada que tenga ubicación, usando coordenadas cuando estén disponibles y texto completo como alternativa.
-- Los pasajes y comprobantes se almacenan como PDF en un bucket privado de Supabase Storage, con metadatos por reserva, identificación del pasajero y acceso limitado por RLS.
+- Los adjuntos admiten PDF privado identificado por pasajero o enlace HTTPS general, con metadatos por elemento y acceso limitado por RLS.
 
 ### Ideas futuras no comprometidas
 

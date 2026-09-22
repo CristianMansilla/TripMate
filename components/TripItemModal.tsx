@@ -1,8 +1,8 @@
 'use client'
 
 import { FormEvent, useMemo, useState } from 'react'
-import { CalendarDays, ClipboardCheck, FilePenLine, Trash2, WalletCards } from 'lucide-react'
-import type { Activity, Expense, ExpenseOccurrence, Reservation, TripItem, TripItemSaveInput } from '@/lib/types'
+import { CalendarDays, ClipboardCheck, ExternalLink, FilePenLine, FileText, Link2, Paperclip, Trash2, Upload, WalletCards } from 'lucide-react'
+import type { Activity, Expense, ExpenseOccurrence, Reservation, TripItem, TripItemAttachment, TripItemSaveInput } from '@/lib/types'
 import CategoryPicker from './CategoryPicker'
 import ConfirmDialog from './ConfirmDialog'
 import DiscardChangesDialog from './DiscardChangesDialog'
@@ -17,30 +17,35 @@ import { normalizeOccurrenceDateRange, occurrenceDateError } from '@/lib/activit
 import ModalCloseButton from './ModalCloseButton'
 import ModalBusyOverlay from './ModalBusyOverlay'
 
-export type TripItemTab='general'|'itinerary'|'cost'|'reservation'
-type ItemFacet=Exclude<TripItemTab,'general'>
+export type TripItemTab='general'|'itinerary'|'cost'|'reservation'|'attachments'
+export type TripItemFacet='itinerary'|'cost'|'reservation'
+type ItemFacet=TripItemFacet
 
 export default function TripItemModal({
-  item,activities,expense,reservation,reservationDocumentCount=0,currency,minDate,maxDate,categoryOptions,placeSuggestions,
+  item,activities,expense,reservation,attachments=[],currency,minDate,maxDate,categoryOptions,placeSuggestions,
   initialTab='general',initialFacet,isNew=false,
-  onClose,onSave,onDelete,
+  onClose,onSave,onDelete,onSelectAttachmentFile,onAddAttachmentLink,onOpenAttachment,onDeleteAttachment,
 }:{
   item:TripItem
   activities:Activity[]
   expense?:Expense
   reservation?:Reservation
-  reservationDocumentCount?:number
+  attachments?:TripItemAttachment[]
   currency:string
   minDate:string
   maxDate:string
   categoryOptions:string[]
   placeSuggestions:PlaceAutocompleteOption[]
   initialTab?:TripItemTab
-  initialFacet?:Exclude<TripItemTab,'general'>
+  initialFacet?:TripItemFacet
   isNew?:boolean
   onClose:()=>void
   onSave:(input:TripItemSaveInput)=>Promise<void>|void
   onDelete?:(item:TripItem)=>void
+  onSelectAttachmentFile?:(item:TripItem,file:File)=>void
+  onAddAttachmentLink?:(item:TripItem)=>void
+  onOpenAttachment?:(attachment:TripItemAttachment)=>void
+  onDeleteAttachment?:(attachment:TripItemAttachment)=>void
 }){
   const initialOccurrences=useMemo<ExpenseOccurrence[]>(()=>{
     if(activities.length)return activities.map(activity=>({
@@ -68,6 +73,7 @@ export default function TripItemModal({
   const [loading,setLoading]=useState(false)
   const [message,setMessage]=useState('')
   const [messageTone,setMessageTone]=useState<'error'|'info'>('error')
+  const canManageAttachments=Boolean(onSelectAttachmentFile&&onAddAttachmentLink)
   const firstScheduledDate=occurrences.map(occurrence=>occurrence.date).filter(Boolean).sort()[0]
   const reservationMaxDate=firstScheduledDate || maxDate
   const runOnce=useSubmissionGuard()
@@ -88,11 +94,6 @@ export default function TripItemModal({
   function toggleFacet(facet:ItemFacet,enabled:boolean){
     if(facet==='itinerary'){toggleItinerary(enabled);return}
     const persisted=facet==='cost'?Boolean(expense):Boolean(reservation)
-    if(facet==='reservation' && !enabled && reservationDocumentCount>0){
-      setActiveTab('reservation')
-      setMessage(`Eliminá ${reservationDocumentCount===1?'el documento adjunto':`los ${reservationDocumentCount} documentos adjuntos`} antes de quitar la reserva.`)
-      return
-    }
     if(!enabled && persisted){setFacetToRemove(facet);return}
     if(facet==='cost')setHasCost(enabled)
     else setHasReservation(enabled)
@@ -155,7 +156,7 @@ export default function TripItemModal({
   }
 
   const tabs:[TripItemTab,string,typeof FilePenLine][]=[
-    ['general','Datos',FilePenLine],['itinerary','Itinerario',CalendarDays],['cost','Costo',WalletCards],['reservation','Reserva',ClipboardCheck],
+    ['general','Datos',FilePenLine],['itinerary','Itinerario',CalendarDays],['cost','Costo',WalletCards],['reservation','Reserva',ClipboardCheck],['attachments',`Adjuntos${attachments.length?` (${attachments.length})`:''}`,Paperclip],
   ]
   return <><div className="modal-backdrop" onMouseDown={event=>{if(event.currentTarget===event.target)discard.requestClose()}}>
     <form ref={dialogRef} className="modal expense-modal trip-item-modal sticky-actions-modal" role="dialog" aria-modal="true" aria-labelledby="trip-item-modal-title" aria-busy={loading} tabIndex={-1} onSubmit={submit} noValidate>
@@ -199,6 +200,21 @@ export default function TripItemModal({
           <div className="field"><label htmlFor="trip-item-due-date">Reservar antes del</label><input id="trip-item-due-date" type="date" max={reservationMaxDate} value={draftReservation.dueDate || ''} onChange={event=>patchReservation('dueDate',event.target.value || undefined)}/></div>
           {draftReservation.amount!==undefined&&!hasCost&&<div className="reservation-cost-note">Importe anterior conservado: <b>{currency} {draftReservation.amount.toLocaleString('es-AR')}</b></div>}
         </div>}
+      </section>
+
+      <section className="expense-form-section" role="tabpanel" hidden={activeTab!=='attachments'}>
+        {isNew?<div className="empty compact"><Paperclip size={22}/><h3>Guardá primero el elemento</h3><p>Después vas a poder adjuntar pasajes, entradas, comprobantes o enlaces.</p></div>:<>
+          {canManageAttachments&&<div className="attachment-actions">
+            <label className="btn btn-secondary attachment-upload"><Upload size={16}/> PDF<input type="file" accept="application/pdf,.pdf" onChange={event=>{const file=event.target.files?.[0];event.target.value='';if(file)onSelectAttachmentFile?.(item,file)}}/></label>
+            <button type="button" className="btn btn-secondary" onClick={()=>onAddAttachmentLink?.(item)}><Link2 size={16}/> Enlace</button>
+          </div>}
+          {attachments.length?<div className="item-attachments" aria-label={`Adjuntos de ${item.title}`}>
+            {attachments.map(attachment=><div className="reservation-document" key={attachment.id}>
+              <button type="button" className="reservation-document-open" onClick={()=>onOpenAttachment?.(attachment)} title={`Abrir ${attachment.fileName}`}>{attachment.kind==='pdf'?<FileText size={17}/>:<ExternalLink size={17}/>}<span><b>{attachment.fileName}</b><small>{attachment.kind==='link'?'Información de la actividad':attachment.passengerLabel || 'Sin asignar'}{attachment.sizeBytes?` · ${attachment.sizeBytes>=1024*1024?`${(attachment.sizeBytes/(1024*1024)).toLocaleString('es-AR',{maximumFractionDigits:1})} MB`:`${Math.max(1,Math.round(attachment.sizeBytes/1024)).toLocaleString('es-AR')} KB`}`:''}</small></span></button>
+              {onDeleteAttachment&&<button type="button" className="icon-btn" onClick={()=>onDeleteAttachment(attachment)} title={`Eliminar ${attachment.fileName}`} aria-label={`Eliminar ${attachment.fileName}`}><Trash2 size={15}/></button>}
+            </div>)}
+          </div>:<div className="empty compact attachment-empty">{canManageAttachments?'Todavía no hay adjuntos.':'Este elemento no tiene adjuntos.'}</div>}
+        </>}
       </section>
 
       <div className={`modal-actions split ${!isNew&&onDelete?'has-delete':''}`}>

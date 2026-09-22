@@ -1,4 +1,4 @@
-import { Activity, ActivityStep, Expense, PackingItem, Place, Reservation, ReservationDocument, Trip, TripItem } from './types'
+import { Activity, ActivityStep, Expense, PackingItem, Place, Reservation, Trip, TripItem, TripItemAttachment } from './types'
 
 export function mapTrip(row: any, memberNames: string[] = [], role?: Trip['role']): Trip {
   return {
@@ -137,16 +137,18 @@ export function mapReservation(row: any): Reservation {
   }
 }
 
-export function mapReservationDocument(row: any): ReservationDocument {
+export function mapTripItemAttachment(row: any): TripItemAttachment {
   return {
     id: row.id,
     tripId: row.trip_id,
-    reservationId: row.reservation_id,
-    storagePath: row.storage_path,
+    itemId: row.item_id,
+    kind: row.attachment_type || 'pdf',
+    storagePath: row.storage_path || undefined,
+    externalUrl: row.external_url || undefined,
     fileName: row.file_name,
-    passengerLabel: row.passenger_label || 'Sin asignar',
-    mimeType: 'application/pdf',
-    sizeBytes: Number(row.size_bytes),
+    passengerLabel: row.passenger_label || undefined,
+    mimeType: row.mime_type || undefined,
+    sizeBytes: row.size_bytes == null ? undefined : Number(row.size_bytes),
     createdBy: row.created_by,
     createdAt: row.created_at,
   }
