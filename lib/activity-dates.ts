@@ -72,7 +72,7 @@ export function occurrenceWindow(occurrence:Pick<ExpenseOccurrence,'date'|'endDa
   const endOffset=timeMinutes(occurrence.endTime)
     ?? (endDate===occurrence.date?startOffset+90:24*60)
   const end=dateMinutes(endDate)+endOffset
-  return {start,end:Math.max(end,start+30)}
+  return {start,end:Math.max(end,start)}
 }
 
 export function occurrencesOverlap(

@@ -50,4 +50,20 @@ describe('activity dates',()=>{
     expect(occurrencesOverlap(overnight,{date:'2026-09-13',startTime:'05:30',endTime:'07:00'})).toBe(true)
     expect(occurrencesOverlap(overnight,{date:'2026-09-13',startTime:'08:00',endTime:'09:00'})).toBe(false)
   })
+
+  it('does not extend short activities or overlap consecutive schedules',()=>{
+    const short={date:'2026-11-10',startTime:'10:20',endTime:'10:40'}
+    expect(occurrencesOverlap(short,{date:'2026-11-10',startTime:'10:45',endTime:'11:30'})).toBe(false)
+    expect(occurrencesOverlap(
+      {date:'2026-11-10',startTime:'12:00',endTime:'12:15'},
+      {date:'2026-11-10',startTime:'12:15',endTime:'13:15'},
+    )).toBe(false)
+  })
+
+  it('detects a real same-day overlap',()=>{
+    expect(occurrencesOverlap(
+      {date:'2026-11-10',startTime:'16:00',endTime:'17:20'},
+      {date:'2026-11-10',startTime:'17:10',endTime:'17:45'},
+    )).toBe(true)
+  })
 })
